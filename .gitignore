@@ -1,8 +1,5 @@
 # ===== Java / Maven (Backend) =====
 backend/target/
-backend/data/*.db
-backend/data/*.mv.db
-backend/data/*.trace.db
 *.class
 *.jar
 *.war

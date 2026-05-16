@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { bookApi, chapterApi, ideaApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
@@ -43,6 +43,8 @@ export default function BookDetailPage() {
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedChapters, setExpandedChapters] = useState({});
+  const [scrollToChapter, setScrollToChapter] = useState(null);
+  const chapterRefs = useRef({});
   const [chapterIdeas, setChapterIdeas] = useState({});
 
   // Form states
@@ -71,13 +73,23 @@ export default function BookDetailPage() {
 
   useEffect(() => { loadBook(); }, [id]);
 
+  useEffect(() => {
+    if (scrollToChapter && chapterRefs.current[scrollToChapter]) {
+      chapterRefs.current[scrollToChapter].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setScrollToChapter(null);
+    }
+  }, [scrollToChapter, expandedChapters]);
+
   const toggleChapter = async (chapterId) => {
     const isExpanded = expandedChapters[chapterId];
-    setExpandedChapters(prev => ({ ...prev, [chapterId]: !isExpanded }));
+    setExpandedChapters(isExpanded ? {} : { [chapterId]: true });
 
-    if (!isExpanded && !chapterIdeas[chapterId]) {
-      const ideas = await ideaApi.getAll(chapterId);
-      setChapterIdeas(prev => ({ ...prev, [chapterId]: ideas }));
+    if (!isExpanded) {
+      setScrollToChapter(chapterId);
+      if (!chapterIdeas[chapterId]) {
+        const ideas = await ideaApi.getAll(chapterId);
+        setChapterIdeas(prev => ({ ...prev, [chapterId]: ideas }));
+      }
     }
   };
 
@@ -140,7 +152,7 @@ export default function BookDetailPage() {
     loadBook();
   };
 
-  const handleIdeaJsonImport = async (chapterId) => async (parsed) => {
+  const handleIdeaJsonImport = (chapterId) => async (parsed) => {
     const items = Array.isArray(parsed) ? parsed : [parsed];
     for (const item of items) {
       if (!item.content) throw new Error('Each idea must have a "content" field.');
@@ -193,7 +205,7 @@ export default function BookDetailPage() {
       ) : (
         <div className="chapter-list">
           {chapters.map((chapter, idx) => (
-            <div key={chapter.id} className="chapter-item">
+            <div key={chapter.id} className="chapter-item" ref={el => chapterRefs.current[chapter.id] = el}>
               <div className="chapter-header" onClick={() => toggleChapter(chapter.id)}>
                 <div className="chapter-header-left">
                   <span className="chapter-number">{chapter.orderIndex || idx + 1}</span>
@@ -212,7 +224,7 @@ export default function BookDetailPage() {
                     className="btn-icon"
                     title="Import ideas from JSON"
                     onClick={() => setShowIdeaJsonImport(chapter.id)}
-                  >{'{ }'}</button>
+                  >{'{}'}</button>
                   <button
                     className="btn-icon"
                     title="Edit chapter"
