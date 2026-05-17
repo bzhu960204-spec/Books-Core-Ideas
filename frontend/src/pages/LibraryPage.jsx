@@ -36,6 +36,8 @@ export default function LibraryPage() {
   const [editBook, setEditBook] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showJsonImport, setShowJsonImport] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('title-asc');
   const navigate = useNavigate();
 
   const loadBooks = async () => {
@@ -98,6 +100,21 @@ export default function LibraryPage() {
 
   if (loading) return <div className="loading">Loading library</div>;
 
+  const q = search.trim().toLowerCase();
+  const filteredBooks = books
+    .filter(b =>
+      !q ||
+      b.title?.toLowerCase().includes(q) ||
+      b.author?.toLowerCase().includes(q)
+    )
+    .sort((a, b) => {
+      if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
+      if (sortBy === 'title-desc') return (b.title || '').localeCompare(a.title || '');
+      if (sortBy === 'author-asc') return (a.author || '').localeCompare(b.author || '');
+      if (sortBy === 'author-desc') return (b.author || '').localeCompare(a.author || '');
+      return 0;
+    });
+
   return (
     <div>
       <div className="page-header">
@@ -115,15 +132,45 @@ export default function LibraryPage() {
         </div>
       </div>
 
+      {books.length > 0 && (
+        <div className="library-toolbar">
+          <input
+            className="library-search"
+            type="search"
+            placeholder="Search by title or author…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          <select
+            className="library-sort"
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+          >
+            <option value="title-asc">Title A → Z</option>
+            <option value="title-desc">Title Z → A</option>
+            <option value="author-asc">Author A → Z</option>
+            <option value="author-desc">Author Z → A</option>
+          </select>
+          <span className="library-count">
+            {q ? `${filteredBooks.length} / ${books.length}` : books.length} book{books.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
       {books.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📚</div>
           <p className="empty-state-text">Your library is empty. Add your first book to get started!</p>
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Your First Book</button>
         </div>
+      ) : filteredBooks.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">🔍</div>
+          <p className="empty-state-text">No books match "{search}".</p>
+        </div>
       ) : (
         <div className="book-grid">
-          {books.map(book => (
+          {filteredBooks.map(book => (
             <div key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
               <div className="book-card-title">{book.title}</div>
               <div className="book-card-author">{book.author || 'Unknown author'}</div>
