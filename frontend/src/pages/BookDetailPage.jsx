@@ -136,10 +136,18 @@ export default function BookDetailPage() {
     setDeleteTarget(null);
   };
 
-  const handleChapterJsonImport = async (parsed) => {
+  const handleChapterJsonImport = async (parsed, mode) => {
     const items = Array.isArray(parsed) ? parsed : [parsed];
     for (const item of items) {
       if (!item.title) throw new Error('Each chapter must have a "title" field.');
+    }
+    if (mode === 'replace') {
+      const existing = await chapterApi.getAll(id);
+      for (const ch of existing) {
+        await chapterApi.delete(id, ch.id);
+      }
+    }
+    for (const item of items) {
       const { keyIdeas: rawIdeas, ...chapterFields } = item;
       const chapter = await chapterApi.create(id, chapterFields);
       if (Array.isArray(rawIdeas)) {
@@ -152,10 +160,18 @@ export default function BookDetailPage() {
     loadBook();
   };
 
-  const handleIdeaJsonImport = (chapterId) => async (parsed) => {
+  const handleIdeaJsonImport = (chapterId) => async (parsed, mode) => {
     const items = Array.isArray(parsed) ? parsed : [parsed];
     for (const item of items) {
       if (!item.content) throw new Error('Each idea must have a "content" field.');
+    }
+    if (mode === 'replace') {
+      const existing = await ideaApi.getAll(chapterId);
+      for (const idea of existing) {
+        await ideaApi.delete(chapterId, idea.id);
+      }
+    }
+    for (const item of items) {
       await ideaApi.create(chapterId, item);
     }
     loadIdeas(chapterId);
