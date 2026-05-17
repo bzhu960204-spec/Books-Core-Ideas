@@ -131,6 +131,13 @@ export default function BookDetailPage() {
       ]);
       setBook(bookData);
       setChapters(chaptersData);
+      // Pre-load excerpt counts for all chapters so the 📖 badges appear immediately
+      if (chaptersData.length > 0) {
+        const results = await Promise.all(
+          chaptersData.map(ch => excerptApi.getAll(ch.id).then(exs => [ch.id, exs]))
+        );
+        setChapterExcerpts(Object.fromEntries(results));
+      }
     } catch {
       console.error('Failed to load book');
     } finally {
@@ -202,6 +209,11 @@ export default function BookDetailPage() {
   const handleToggleHighlight = async (idea, chapterId) => {
     await ideaApi.update(chapterId, idea.id, { ...idea, highlighted: !idea.highlighted });
     loadIdeas(chapterId);
+  };
+
+  const handleToggleExcerptHighlight = async (excerpt) => {
+    await excerptApi.update(excerpt.chapterId || excerptReader?.chapterId, excerpt.id, { ...excerpt, highlighted: !excerpt.highlighted });
+    loadExcerpts(excerpt.chapterId || excerptReader?.chapterId);
   };
 
   // Excerpt CRUD
@@ -555,6 +567,7 @@ export default function BookDetailPage() {
           startIndex={excerptReader.startIndex}
           chapterTitle={chapters.find(c => c.id === excerptReader.chapterId)?.title || ''}
           onClose={() => setExcerptReader(null)}
+          onToggleHighlight={handleToggleExcerptHighlight}
           onEdit={(ex) => {
             setExcerptReader(null);
             setEditExcerpt({ ...ex, chapterId: excerptReader.chapterId });

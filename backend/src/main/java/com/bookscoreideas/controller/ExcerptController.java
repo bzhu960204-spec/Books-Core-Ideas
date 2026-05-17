@@ -46,6 +46,7 @@ public class ExcerptController {
             existing.setNote(excerpt.getNote());
             existing.setSource(excerpt.getSource());
             existing.setOrderIndex(excerpt.getOrderIndex());
+            existing.setHighlighted(excerpt.isHighlighted());
             return ResponseEntity.ok(excerptRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }

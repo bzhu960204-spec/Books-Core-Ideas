@@ -25,6 +25,8 @@ public class Excerpt {
 
     private Integer orderIndex;
 
+    private boolean highlighted = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chapter_id")
     @JsonIgnore
@@ -40,6 +42,8 @@ public class Excerpt {
     public void setSource(String source) { this.source = source; }
     public Integer getOrderIndex() { return orderIndex; }
     public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
+    public boolean isHighlighted() { return highlighted; }
+    public void setHighlighted(boolean highlighted) { this.highlighted = highlighted; }
     public Chapter getChapter() { return chapter; }
     public void setChapter(Chapter chapter) { this.chapter = chapter; }
 }

@@ -12,8 +12,9 @@ import ReactMarkdown from 'react-markdown';
  *   onClose      – close handler
  *   onEdit(excerpt)  – edit callback
  *   onDelete(excerpt) – delete callback
+ *   onToggleHighlight(excerpt) – optional, toggle bank callback
  */
-export default function ExcerptReader({ excerpts, startIndex = 0, chapterTitle, onClose, onEdit, onDelete }) {
+export default function ExcerptReader({ excerpts, startIndex = 0, chapterTitle, onClose, onEdit, onDelete, onToggleHighlight }) {
   const [idx, setIdx] = useState(startIndex);
   const [showMenu, setShowMenu] = useState(false);
 
@@ -61,6 +62,21 @@ export default function ExcerptReader({ excerpts, startIndex = 0, chapterTitle, 
                 </div>
               )}
             </div>
+            {onToggleHighlight && (
+              <button
+                className="btn-icon"
+                title={ex.highlighted ? 'Remove from Excerpt Bank' : 'Add to Excerpt Bank'}
+                onClick={() => onToggleHighlight(ex)}
+                style={{
+                  color: ex.highlighted ? '#FFD54F' : 'var(--text-primary)',
+                  fontSize: '1.1rem',
+                  opacity: ex.highlighted ? 1 : 0.55,
+                  transition: 'color 0.2s, opacity 0.2s',
+                }}
+              >
+                {ex.highlighted ? '★' : '☆'}
+              </button>
+            )}
             <button className="btn-icon excerpt-reader-close" onClick={onClose} title="Close">✕</button>
           </div>
         </div>

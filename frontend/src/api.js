@@ -71,3 +71,13 @@ export const ideaBankApi = {
     return fetch(`${API_BASE}/ideas${qs ? '?' + qs : ''}`).then(r => r.json());
   },
 };
+
+export const excerptBankApi = {
+  search: ({ q = '', bookId = null } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (bookId) params.set('bookId', bookId);
+    const qs = params.toString();
+    return fetch(`${API_BASE}/excerpts${qs ? '?' + qs : ''}`).then(r => r.json());
+  },
+};
