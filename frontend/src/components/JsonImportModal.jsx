@@ -97,7 +97,7 @@ export default function JsonImportModal({ title, placeholder, onImport, onClose,
             value={raw}
             onChange={e => { setRaw(e.target.value); setError(''); }}
             placeholder={placeholder}
-            rows={14}
+            rows={10}
             spellCheck={false}
             disabled={busy}
           />

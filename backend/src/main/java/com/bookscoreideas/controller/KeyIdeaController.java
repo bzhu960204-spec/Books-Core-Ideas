@@ -44,6 +44,8 @@ public class KeyIdeaController {
         return keyIdeaRepository.findById(ideaId).map(existing -> {
             existing.setContent(idea.getContent());
             existing.setExample(idea.getExample());
+            existing.setTags(idea.getTags());
+            existing.setHighlighted(idea.isHighlighted());
             existing.setOrderIndex(idea.getOrderIndex());
             return ResponseEntity.ok(keyIdeaRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());

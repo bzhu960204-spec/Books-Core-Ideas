@@ -5,6 +5,7 @@ export default function IdeaForm({ idea, onSave, onClose }) {
   const [form, setForm] = useState({
     content: '',
     example: '',
+    tags: '',
     orderIndex: 1,
   });
 
@@ -13,6 +14,7 @@ export default function IdeaForm({ idea, onSave, onClose }) {
       setForm({
         content: idea.content || '',
         example: idea.example || '',
+        tags: idea.tags || '',
         orderIndex: idea.orderIndex || 1,
       });
     }
@@ -46,6 +48,16 @@ export default function IdeaForm({ idea, onSave, onClose }) {
             onChange={e => setForm({ ...form, example: e.target.value })}
             placeholder="Add an example or supporting notes (optional)"
             rows={3}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Tags</label>
+          <input
+            className="form-input"
+            type="text"
+            value={form.tags}
+            onChange={e => setForm({ ...form, tags: e.target.value })}
+            placeholder="Comma-separated, e.g. mindset, leadership"
           />
         </div>
         <div className="form-group">

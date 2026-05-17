@@ -3,6 +3,7 @@ import { ThemeProvider } from './ThemeContext';
 import Sidebar from './components/Sidebar';
 import LibraryPage from './pages/LibraryPage';
 import BookDetailPage from './pages/BookDetailPage';
+import IdeaBankPage from './pages/IdeaBankPage';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<LibraryPage />} />
               <Route path="/book/:id" element={<BookDetailPage />} />
+              <Route path="/ideas" element={<IdeaBankPage />} />
             </Routes>
           </main>
         </div>

@@ -123,6 +123,11 @@ export default function BookDetailPage() {
     loadIdeas(chapterId);
   };
 
+  const handleToggleHighlight = async (idea, chapterId) => {
+    await ideaApi.update(chapterId, idea.id, { ...idea, highlighted: !idea.highlighted });
+    loadIdeas(chapterId);
+  };
+
   // Delete
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -280,6 +285,19 @@ export default function BookDetailPage() {
                             <div className="idea-example">{idea.example}</div>
                           )}
                           <div className="idea-actions">
+                            <button
+                              className="btn-icon"
+                              title={idea.highlighted ? 'Remove from Idea Bank' : 'Add to Idea Bank'}
+                              onClick={() => handleToggleHighlight(idea, chapter.id)}
+                              style={{
+                                color: idea.highlighted ? '#FFD54F' : 'var(--text-secondary)',
+                                fontSize: '1.05rem',
+                                opacity: idea.highlighted ? 1 : 0.45,
+                                transition: 'color 0.2s, opacity 0.2s',
+                              }}
+                            >
+                              {idea.highlighted ? '★' : '☆'}
+                            </button>
                             <button
                               className="btn-icon"
                               title="Edit idea"

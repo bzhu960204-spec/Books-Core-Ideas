@@ -45,3 +45,14 @@ export const ideaApi = {
   }).then(r => r.json()),
   delete: (chapterId, ideaId) => fetch(`${API_BASE}/chapters/${chapterId}/ideas/${ideaId}`, { method: 'DELETE' }),
 };
+
+export const ideaBankApi = {
+  search: ({ q = '', bookId = null, tag = '' } = {}) => {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (bookId) params.set('bookId', bookId);
+    if (tag) params.set('tag', tag);
+    const qs = params.toString();
+    return fetch(`${API_BASE}/ideas${qs ? '?' + qs : ''}`).then(r => r.json());
+  },
+};

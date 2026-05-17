@@ -36,6 +36,7 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   transition: background 0.4s ease, color 0.4s ease;
+  scrollbar-gutter: stable;
 }
 
 #root {
@@ -452,8 +453,8 @@ h1, h2, h3, h4 {
   border-radius: var(--card-radius);
   padding: 2rem;
   width: 90%;
-  max-width: 500px;
-  max-height: 85vh;
+  max-width: 660px;
+  max-height: 92vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease;
 }
@@ -724,7 +725,7 @@ h1, h2, h3, h4 {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 0.82rem;
   line-height: 1.55;
-  min-height: 260px;
+  min-height: 200px;
   white-space: pre;
   overflow-x: auto;
 }

@@ -1,0 +1,3 @@
+-- Safe idempotent migrations: add new columns that Hibernate ddl-auto=update may miss
+ALTER TABLE KEY_IDEAS ADD COLUMN IF NOT EXISTS TAGS VARCHAR(500);
+ALTER TABLE KEY_IDEAS ADD COLUMN IF NOT EXISTS HIGHLIGHTED BOOLEAN DEFAULT FALSE;

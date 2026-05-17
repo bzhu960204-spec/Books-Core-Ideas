@@ -19,6 +19,11 @@ public class KeyIdea {
     @Column(length = 3000)
     private String example;
 
+    @Column(length = 500)
+    private String tags;
+
+    private boolean highlighted = false;
+
     private Integer orderIndex;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -32,6 +37,10 @@ public class KeyIdea {
     public void setContent(String content) { this.content = content; }
     public String getExample() { return example; }
     public void setExample(String example) { this.example = example; }
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
+    public boolean isHighlighted() { return highlighted; }
+    public void setHighlighted(boolean highlighted) { this.highlighted = highlighted; }
     public Integer getOrderIndex() { return orderIndex; }
     public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
     public Chapter getChapter() { return chapter; }
