@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { ideaBankApi, bookApi } from '../api';
@@ -216,14 +217,14 @@ function IdeaCard({ idea, navigate }) {
         gap: '0.6rem',
       }}
     >
-      <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.97rem', lineHeight: 1.65, color: 'var(--text-primary)', margin: 0 }}>
-        {idea.content}
-      </p>
+      <div className="idea-bank-content" style={{ fontFamily: 'var(--font-body)', fontSize: '0.97rem', lineHeight: 1.65, color: 'var(--text-primary)', margin: 0 }}>
+        <ReactMarkdown>{idea.content}</ReactMarkdown>
+      </div>
 
       {idea.example && (
-        <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', lineHeight: 1.6, color: 'var(--text-secondary)', margin: 0, borderLeft: '3px solid var(--border)', paddingLeft: '0.75rem', fontStyle: 'italic' }}>
-          {idea.example}
-        </p>
+        <div className="idea-bank-example" style={{ fontFamily: 'var(--font-body)', fontSize: '0.85rem', lineHeight: 1.6, color: 'var(--text-secondary)', margin: 0, borderLeft: '3px solid var(--border)', paddingLeft: '0.75rem', fontStyle: 'italic' }}>
+          <ReactMarkdown>{idea.example}</ReactMarkdown>
+        </div>
       )}
 
       {tags.length > 0 && (

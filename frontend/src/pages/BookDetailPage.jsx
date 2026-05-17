@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { bookApi, chapterApi, ideaApi } from '../api';
+import ReactMarkdown from 'react-markdown';
+import { bookApi, chapterApi, ideaApi, excerptApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
 import IdeaForm from '../components/IdeaForm';
+import ExcerptForm from '../components/ExcerptForm';
+import ExcerptReader from '../components/ExcerptReader';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
 
-const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas optional):
+const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas & excerpts optional):
 [
   {
     "title": "Chapter 1: The Beginning",
@@ -14,6 +17,9 @@ const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas optional):
     "summary": "Overview of the chapter...",
     "keyIdeas": [
       { "content": "Core insight here", "example": "For instance...", "orderIndex": 1 }
+    ],
+    "excerpts": [
+      { "content": "A memorable passage...", "note": "Why it matters", "orderIndex": 1 }
     ]
   },
   {
@@ -23,19 +29,76 @@ const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas optional):
   }
 ]`;
 
-const IDEAS_JSON_HINT = `// Array of key ideas:
+const IDEAS_JSON_HINT = `// Group ideas by chapter title:
 [
   {
-    "content": "The main concept or insight",
-    "example": "A concrete example or note",
-    "orderIndex": 1
+    "chapter": "Chapter 1: The Beginning",
+    "ideas": [
+      { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
+      { "content": "Another idea", "orderIndex": 2 }
+    ]
   },
   {
-    "content": "Another important idea",
-    "example": "Supporting detail...",
-    "orderIndex": 2
+    "chapter": "Chapter 2: Going Deeper",
+    "ideas": [
+      { "content": "Key concept", "orderIndex": 1 }
+    ]
   }
 ]`;
+
+const EXCERPTS_JSON_HINT = `// Group excerpts by chapter title:
+[
+  {
+    "chapter": "Chapter 1: The Beginning",
+    "excerpts": [
+      {
+        "content": "The full passage text. **Markdown** supported.",
+        "note": "Why this stands out (optional)",
+        "source": "p.42 (optional)",
+        "orderIndex": 1
+      }
+    ]
+  },
+  {
+    "chapter": "Chapter 2: Going Deeper",
+    "excerpts": [
+      { "content": "Another memorable passage...", "orderIndex": 1 }
+    ]
+  }
+]`;
+
+const CHAPTER_IDEAS_HINT = `// Array of ideas for this chapter:
+[
+  { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
+  { "content": "Another idea", "orderIndex": 2 }
+]`;
+
+const CHAPTER_EXCERPTS_HINT = `// Array of excerpts for this chapter:
+[
+  {
+    "content": "The full passage. **Markdown** supported.",
+    "note": "Why it stands out (optional)",
+    "source": "p.42 (optional)",
+    "orderIndex": 1
+  },
+  { "content": "Another memorable passage...", "orderIndex": 2 }
+]`;
+
+const CHAPTER_COMBINED_HINT = `// Import ideas AND excerpts together:
+{
+  "ideas": [
+    { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
+    { "content": "Another idea", "orderIndex": 2 }
+  ],
+  "excerpts": [
+    {
+      "content": "A memorable passage. **Markdown** supported.",
+      "note": "Why it stands out (optional)",
+      "source": "p.42 (optional)",
+      "orderIndex": 1
+    }
+  ]
+}`;
 
 export default function BookDetailPage() {
   const { id } = useParams();
@@ -46,15 +109,19 @@ export default function BookDetailPage() {
   const [scrollToChapter, setScrollToChapter] = useState(null);
   const chapterRefs = useRef({});
   const [chapterIdeas, setChapterIdeas] = useState({});
+  const [chapterExcerpts, setChapterExcerpts] = useState({});
 
   // Form states
   const [showChapterForm, setShowChapterForm] = useState(false);
   const [editChapter, setEditChapter] = useState(null);
   const [showIdeaForm, setShowIdeaForm] = useState(null); // chapterId
   const [editIdea, setEditIdea] = useState(null);
+  const [showExcerptForm, setShowExcerptForm] = useState(null); // chapterId
+  const [editExcerpt, setEditExcerpt] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null); // { type, id, chapterId?, name }
-  const [showChapterJsonImport, setShowChapterJsonImport] = useState(false);
-  const [showIdeaJsonImport, setShowIdeaJsonImport] = useState(null); // chapterId
+  const [showJsonImport, setShowJsonImport] = useState(false);
+  const [showChapterImport, setShowChapterImport] = useState(null); // chapterId
+  const [excerptReader, setExcerptReader] = useState(null); // { chapterId, startIndex }
 
   const loadBook = async () => {
     try {
@@ -90,12 +157,21 @@ export default function BookDetailPage() {
         const ideas = await ideaApi.getAll(chapterId);
         setChapterIdeas(prev => ({ ...prev, [chapterId]: ideas }));
       }
+      if (!chapterExcerpts[chapterId]) {
+        const excerpts = await excerptApi.getAll(chapterId);
+        setChapterExcerpts(prev => ({ ...prev, [chapterId]: excerpts }));
+      }
     }
   };
 
   const loadIdeas = async (chapterId) => {
     const ideas = await ideaApi.getAll(chapterId);
     setChapterIdeas(prev => ({ ...prev, [chapterId]: ideas }));
+  };
+
+  const loadExcerpts = async (chapterId) => {
+    const excerpts = await excerptApi.getAll(chapterId);
+    setChapterExcerpts(prev => ({ ...prev, [chapterId]: excerpts }));
   };
 
   // Chapter CRUD
@@ -128,6 +204,19 @@ export default function BookDetailPage() {
     loadIdeas(chapterId);
   };
 
+  // Excerpt CRUD
+  const handleSaveExcerpt = async (form) => {
+    const chapterId = editExcerpt ? editExcerpt.chapterId : showExcerptForm;
+    if (editExcerpt) {
+      await excerptApi.update(chapterId, editExcerpt.id, form);
+    } else {
+      await excerptApi.create(chapterId, form);
+    }
+    setShowExcerptForm(null);
+    setEditExcerpt(null);
+    loadExcerpts(chapterId);
+  };
+
   // Delete
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -137,6 +226,9 @@ export default function BookDetailPage() {
     } else if (deleteTarget.type === 'idea') {
       await ideaApi.delete(deleteTarget.chapterId, deleteTarget.id);
       loadIdeas(deleteTarget.chapterId);
+    } else if (deleteTarget.type === 'excerpt') {
+      await excerptApi.delete(deleteTarget.chapterId, deleteTarget.id);
+      loadExcerpts(deleteTarget.chapterId);
     }
     setDeleteTarget(null);
   };
@@ -153,7 +245,7 @@ export default function BookDetailPage() {
       }
     }
     for (const item of items) {
-      const { keyIdeas: rawIdeas, ...chapterFields } = item;
+      const { keyIdeas: rawIdeas, excerpts: rawExcerpts, ...chapterFields } = item;
       const chapter = await chapterApi.create(id, chapterFields);
       if (Array.isArray(rawIdeas)) {
         for (const idea of rawIdeas) {
@@ -161,25 +253,100 @@ export default function BookDetailPage() {
           await ideaApi.create(chapter.id, idea);
         }
       }
+      if (Array.isArray(rawExcerpts)) {
+        for (const ex of rawExcerpts) {
+          if (!ex.content) throw new Error('Each excerpt must have a "content" field.');
+          await excerptApi.create(chapter.id, ex);
+        }
+      }
     }
     loadBook();
   };
 
-  const handleIdeaJsonImport = (chapterId) => async (parsed, mode) => {
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    for (const item of items) {
-      if (!item.content) throw new Error('Each idea must have a "content" field.');
-    }
-    if (mode === 'replace') {
-      const existing = await ideaApi.getAll(chapterId);
-      for (const idea of existing) {
-        await ideaApi.delete(chapterId, idea.id);
+  const resolveChapterId = (chapterRef) => {
+    const ch = chapters.find(c =>
+      c.title.toLowerCase() === chapterRef.toLowerCase() ||
+      c.title.toLowerCase().includes(chapterRef.toLowerCase())
+    );
+    if (!ch) throw new Error(`Chapter not found: "${chapterRef}". Make sure the chapter title matches.`);
+    return ch.id;
+  };
+
+  const handleBulkIdeaImport = async (parsed, mode) => {
+    const groups = Array.isArray(parsed) ? parsed : [parsed];
+    for (const group of groups) {
+      if (!group.chapter) throw new Error('Each group must have a "chapter" field (chapter title).');
+      if (!Array.isArray(group.ideas) || group.ideas.length === 0) throw new Error(`"ideas" array is required for chapter "${group.chapter}".`);
+      for (const idea of group.ideas) {
+        if (!idea.content) throw new Error('Each idea must have a "content" field.');
       }
     }
-    for (const item of items) {
-      await ideaApi.create(chapterId, item);
+    for (const group of groups) {
+      const chapterId = resolveChapterId(group.chapter);
+      if (mode === 'replace') {
+        const existing = await ideaApi.getAll(chapterId);
+        for (const idea of existing) await ideaApi.delete(chapterId, idea.id);
+      }
+      for (const idea of group.ideas) {
+        await ideaApi.create(chapterId, idea);
+      }
+      loadIdeas(chapterId);
     }
-    loadIdeas(chapterId);
+  };
+
+  const handleBulkExcerptImport = async (parsed, mode) => {
+    const groups = Array.isArray(parsed) ? parsed : [parsed];
+    for (const group of groups) {
+      if (!group.chapter) throw new Error('Each group must have a "chapter" field (chapter title).');
+      if (!Array.isArray(group.excerpts) || group.excerpts.length === 0) throw new Error(`"excerpts" array is required for chapter "${group.chapter}".`);
+      for (const ex of group.excerpts) {
+        if (!ex.content) throw new Error('Each excerpt must have a "content" field.');
+      }
+    }
+    for (const group of groups) {
+      const chapterId = resolveChapterId(group.chapter);
+      if (mode === 'replace') {
+        const existing = await excerptApi.getAll(chapterId);
+        for (const ex of existing) await excerptApi.delete(chapterId, ex.id);
+      }
+      for (const ex of group.excerpts) {
+        await excerptApi.create(chapterId, ex);
+      }
+      loadExcerpts(chapterId);
+    }
+  };
+
+  const handleChapterCombinedImport = (chapterId) => async (parsed, mode) => {
+    const obj = Array.isArray(parsed) ? parsed[0] : parsed;
+    if (!obj || (!obj.ideas && !obj.excerpts)) throw new Error('Object must have an "ideas" and/or "excerpts" array.');
+    if (obj.ideas) {
+      for (const item of obj.ideas) {
+        if (!item.content) throw new Error('Each idea must have a "content" field.');
+      }
+    }
+    if (obj.excerpts) {
+      for (const item of obj.excerpts) {
+        if (!item.content) throw new Error('Each excerpt must have a "content" field.');
+      }
+    }
+    if (mode === 'replace') {
+      if (obj.ideas) {
+        const existing = await ideaApi.getAll(chapterId);
+        for (const idea of existing) await ideaApi.delete(chapterId, idea.id);
+      }
+      if (obj.excerpts) {
+        const existing = await excerptApi.getAll(chapterId);
+        for (const ex of existing) await excerptApi.delete(chapterId, ex.id);
+      }
+    }
+    if (obj.ideas) {
+      for (const item of obj.ideas) await ideaApi.create(chapterId, item);
+      loadIdeas(chapterId);
+    }
+    if (obj.excerpts) {
+      for (const item of obj.excerpts) await excerptApi.create(chapterId, item);
+      loadExcerpts(chapterId);
+    }
   };
 
   if (loading) return <div className="loading">Loading book</div>;
@@ -205,9 +372,9 @@ export default function BookDetailPage() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => setShowChapterJsonImport(true)}
+            onClick={() => setShowJsonImport(true)}
           >
-            {'{}'} Import JSON
+            Import JSON
           </button>
           <button
             className="btn btn-primary btn-sm"
@@ -238,14 +405,16 @@ export default function BookDetailPage() {
                 <div className="chapter-actions" onClick={e => e.stopPropagation()}>
                   <button
                     className="btn-icon"
-                    title="Add idea"
-                    onClick={() => setShowIdeaForm(chapter.id)}
-                  >💡</button>
-                  <button
-                    className="btn-icon"
-                    title="Import ideas from JSON"
-                    onClick={() => setShowIdeaJsonImport(chapter.id)}
-                  >{'{}'}</button>
+                    title="Import JSON for this chapter"
+                    onClick={() => setShowChapterImport(chapter.id)}
+                  >⬇️</button>
+                  {chapterExcerpts[chapter.id] && chapterExcerpts[chapter.id].length > 0 && (
+                    <button
+                      className="btn-icon excerpt-badge"
+                      title="Read excerpts"
+                      onClick={() => setExcerptReader({ chapterId: chapter.id, startIndex: 0 })}
+                    >📖 {chapterExcerpts[chapter.id].length}</button>
+                  )}
                   <button
                     className="btn-icon"
                     title="Edit chapter"
@@ -280,9 +449,9 @@ export default function BookDetailPage() {
                     <div className="idea-list">
                       {chapterIdeas[chapter.id].map(idea => (
                         <div key={idea.id} className="idea-card">
-                          <div className="idea-content">{idea.content}</div>
+                          <div className="idea-content"><ReactMarkdown>{idea.content}</ReactMarkdown></div>
                           {idea.example && (
-                            <div className="idea-example">{idea.example}</div>
+                            <div className="idea-example"><ReactMarkdown>{idea.example}</ReactMarkdown></div>
                           )}
                           <div className="idea-actions">
                             <button
@@ -332,22 +501,73 @@ export default function BookDetailPage() {
         </div>
       )}
 
-      {showChapterJsonImport && (
+      {showJsonImport && (
         <JsonImportModal
-          title="Import Chapters from JSON"
-          placeholder={CHAPTERS_JSON_HINT}
-          onImport={handleChapterJsonImport}
-          onClose={() => setShowChapterJsonImport(false)}
-          addOnly
+          title="Import JSON"
+          tabs={[
+            { key: 'chapters', label: 'Chapters', placeholder: CHAPTERS_JSON_HINT, onImport: handleChapterJsonImport, addOnly: true },
+            { key: 'ideas', label: 'Ideas (All)', placeholder: IDEAS_JSON_HINT, onImport: handleBulkIdeaImport },
+            { key: 'excerpts', label: 'Excerpts (All)', placeholder: EXCERPTS_JSON_HINT, onImport: handleBulkExcerptImport },
+          ]}
+          onClose={() => setShowJsonImport(false)}
         />
       )}
 
-      {showIdeaJsonImport && (
+      {showChapterImport && (
         <JsonImportModal
-          title="Import Ideas from JSON"
-          placeholder={IDEAS_JSON_HINT}
-          onImport={handleIdeaJsonImport(showIdeaJsonImport)}
-          onClose={() => setShowIdeaJsonImport(null)}
+          title={`Import — ${chapters.find(c => c.id === showChapterImport)?.title || 'Chapter'}`}
+          tabs={[
+            { key: 'ideas', label: 'Ideas', placeholder: CHAPTER_IDEAS_HINT, onImport: (parsed, mode) => {
+              const items = Array.isArray(parsed) ? parsed : [parsed];
+              for (const item of items) { if (!item.content) throw new Error('Each idea must have a "content" field.'); }
+              return (async () => {
+                if (mode === 'replace') { const ex = await ideaApi.getAll(showChapterImport); for (const i of ex) await ideaApi.delete(showChapterImport, i.id); }
+                for (const item of items) await ideaApi.create(showChapterImport, item);
+                loadIdeas(showChapterImport);
+              })();
+            }},
+            { key: 'excerpts', label: 'Excerpts', placeholder: CHAPTER_EXCERPTS_HINT, onImport: (parsed, mode) => {
+              const items = Array.isArray(parsed) ? parsed : [parsed];
+              for (const item of items) { if (!item.content) throw new Error('Each excerpt must have a "content" field.'); }
+              return (async () => {
+                if (mode === 'replace') { const ex = await excerptApi.getAll(showChapterImport); for (const e of ex) await excerptApi.delete(showChapterImport, e.id); }
+                for (const item of items) await excerptApi.create(showChapterImport, item);
+                loadExcerpts(showChapterImport);
+              })();
+            }},
+            { key: 'combined', label: 'Ideas + Excerpts', placeholder: CHAPTER_COMBINED_HINT, onImport: handleChapterCombinedImport(showChapterImport) },
+          ]}
+          onClose={() => setShowChapterImport(null)}
+        />
+      )}
+
+      {(showExcerptForm || editExcerpt) && (
+        <ExcerptForm
+          excerpt={editExcerpt}
+          onSave={handleSaveExcerpt}
+          onClose={() => { setShowExcerptForm(null); setEditExcerpt(null); }}
+        />
+      )}
+
+      {excerptReader && chapterExcerpts[excerptReader.chapterId] && (
+        <ExcerptReader
+          excerpts={chapterExcerpts[excerptReader.chapterId]}
+          startIndex={excerptReader.startIndex}
+          chapterTitle={chapters.find(c => c.id === excerptReader.chapterId)?.title || ''}
+          onClose={() => setExcerptReader(null)}
+          onEdit={(ex) => {
+            setExcerptReader(null);
+            setEditExcerpt({ ...ex, chapterId: excerptReader.chapterId });
+          }}
+          onDelete={(ex) => {
+            setExcerptReader(null);
+            setDeleteTarget({
+              type: 'excerpt',
+              id: ex.id,
+              chapterId: excerptReader.chapterId,
+              name: ex.content.substring(0, 50),
+            });
+          }}
         />
       )}
 

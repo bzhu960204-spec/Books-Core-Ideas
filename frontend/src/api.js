@@ -46,6 +46,21 @@ export const ideaApi = {
   delete: (chapterId, ideaId) => fetch(`${API_BASE}/chapters/${chapterId}/ideas/${ideaId}`, { method: 'DELETE' }),
 };
 
+export const excerptApi = {
+  getAll: (chapterId) => fetch(`${API_BASE}/chapters/${chapterId}/excerpts`).then(r => r.json()),
+  create: (chapterId, excerpt) => fetch(`${API_BASE}/chapters/${chapterId}/excerpts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(excerpt),
+  }).then(r => r.json()),
+  update: (chapterId, excerptId, excerpt) => fetch(`${API_BASE}/chapters/${chapterId}/excerpts/${excerptId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(excerpt),
+  }).then(r => r.json()),
+  delete: (chapterId, excerptId) => fetch(`${API_BASE}/chapters/${chapterId}/excerpts/${excerptId}`, { method: 'DELETE' }),
+};
+
 export const ideaBankApi = {
   search: ({ q = '', bookId = null, tag = '' } = {}) => {
     const params = new URLSearchParams();

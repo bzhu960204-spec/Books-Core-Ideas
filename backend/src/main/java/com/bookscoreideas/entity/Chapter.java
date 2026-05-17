@@ -31,6 +31,11 @@ public class Chapter {
     @OrderBy("orderIndex ASC")
     private List<KeyIdea> keyIdeas = new ArrayList<>();
 
+    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
+    @JsonIgnore
+    private List<Excerpt> excerpts = new ArrayList<>();
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -43,4 +48,6 @@ public class Chapter {
     public void setBook(Book book) { this.book = book; }
     public List<KeyIdea> getKeyIdeas() { return keyIdeas; }
     public void setKeyIdeas(List<KeyIdea> keyIdeas) { this.keyIdeas = keyIdeas; }
+    public List<Excerpt> getExcerpts() { return excerpts; }
+    public void setExcerpts(List<Excerpt> excerpts) { this.excerpts = excerpts; }
 }
