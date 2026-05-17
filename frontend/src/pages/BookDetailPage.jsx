@@ -320,6 +320,7 @@ export default function BookDetailPage() {
           placeholder={CHAPTERS_JSON_HINT}
           onImport={handleChapterJsonImport}
           onClose={() => setShowChapterJsonImport(false)}
+          addOnly
         />
       )}
 

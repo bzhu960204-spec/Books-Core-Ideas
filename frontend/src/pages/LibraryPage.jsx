@@ -162,6 +162,7 @@ export default function LibraryPage() {
           placeholder={BOOK_JSON_HINT}
           onImport={handleJsonImport}
           onClose={() => setShowJsonImport(false)}
+          addOnly
         />
       )}
 
