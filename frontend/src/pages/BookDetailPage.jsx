@@ -419,7 +419,8 @@ export default function BookDetailPage() {
                     className="btn-icon"
                     title="Import JSON for this chapter"
                     onClick={() => setShowChapterImport(chapter.id)}
-                  >⬇️</button>
+                    style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '-0.05em' }}
+                  >{'{}'}</button>
                   {chapterExcerpts[chapter.id] && chapterExcerpts[chapter.id].length > 0 && (
                     <button
                       className="btn-icon excerpt-badge"
