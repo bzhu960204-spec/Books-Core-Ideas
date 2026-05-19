@@ -38,6 +38,7 @@ export default function LibraryPage() {
   const [showJsonImport, setShowJsonImport] = useState(false);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('title-asc');
+  const [filterRating, setFilterRating] = useState(0); // 0 = all
   const navigate = useNavigate();
 
   const loadBooks = async () => {
@@ -72,6 +73,16 @@ export default function LibraryPage() {
     }
   };
 
+  const handleRateBook = async (book, star) => {
+    const newRating = book.rating === star ? null : star;
+    setBooks(prev => prev.map(b => b.id === book.id ? { ...b, rating: newRating } : b));
+    try {
+      await bookApi.update(book.id, { ...book, rating: newRating });
+    } catch {
+      setBooks(prev => prev.map(b => b.id === book.id ? { ...b, rating: book.rating } : b));
+    }
+  };
+
   const handleJsonImport = async (parsed) => {
     // Support single object or array of books
     const items = Array.isArray(parsed) ? parsed : [parsed];
@@ -103,15 +114,16 @@ export default function LibraryPage() {
   const q = search.trim().toLowerCase();
   const filteredBooks = books
     .filter(b =>
-      !q ||
-      b.title?.toLowerCase().includes(q) ||
-      b.author?.toLowerCase().includes(q)
+      (!q || b.title?.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q)) &&
+      (filterRating === 0 || (b.rating ?? 0) >= filterRating)
     )
     .sort((a, b) => {
       if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
       if (sortBy === 'title-desc') return (b.title || '').localeCompare(a.title || '');
       if (sortBy === 'author-asc') return (a.author || '').localeCompare(b.author || '');
       if (sortBy === 'author-desc') return (b.author || '').localeCompare(a.author || '');
+      if (sortBy === 'rating-desc') return (b.rating ?? 0) - (a.rating ?? 0);
+      if (sortBy === 'rating-asc') return (a.rating ?? 0) - (b.rating ?? 0);
       return 0;
     });
 
@@ -134,26 +146,47 @@ export default function LibraryPage() {
 
       {books.length > 0 && (
         <div className="library-toolbar">
-          <input
-            className="library-search"
-            type="search"
-            placeholder="Search by title or author…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          <select
-            className="library-sort"
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-          >
-            <option value="title-asc">Title A → Z</option>
-            <option value="title-desc">Title Z → A</option>
-            <option value="author-asc">Author A → Z</option>
-            <option value="author-desc">Author Z → A</option>
-          </select>
-          <span className="library-count">
-            {q ? `${filteredBooks.length} / ${books.length}` : books.length} book{books.length !== 1 ? 's' : ''}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <input
+              className="library-search"
+              type="search"
+              placeholder="Search by title or author…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <select
+              className="library-sort"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+            >
+              <option value="title-asc">Title A → Z</option>
+              <option value="title-desc">Title Z → A</option>
+              <option value="author-asc">Author A → Z</option>
+              <option value="author-desc">Author Z → A</option>
+              <option value="rating-desc">Rating ★ High → Low</option>
+              <option value="rating-asc">Rating ★ Low → High</option>
+            </select>
+            <span className="library-count">
+              {q || filterRating > 0 ? `${filteredBooks.length} / ${books.length}` : books.length} book{books.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Filter by rating:</span>
+            {[1, 2, 3, 4, 5].map(star => (
+              <span
+                key={star}
+                onClick={() => setFilterRating(filterRating === star ? 0 : star)}
+                style={{ cursor: 'pointer', fontSize: '1.4rem', color: filterRating >= star ? '#f5a623' : '#ccc' }}
+                title={`Show ≥ ${star} star${star > 1 ? 's' : ''}`}
+              >★</span>
+            ))}
+            {filterRating > 0 && (
+              <span
+                onClick={() => setFilterRating(0)}
+                style={{ cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}
+              >✕ Clear</span>
+            )}
+          </div>
         </div>
       )}
 
@@ -174,6 +207,16 @@ export default function LibraryPage() {
             <div key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
               <div className="book-card-title">{book.title}</div>
               <div className="book-card-author">{book.author || 'Unknown author'}</div>
+              <div style={{ display: 'flex', gap: '0.1rem', margin: '0.35rem 0' }} onClick={e => e.stopPropagation()}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <span
+                    key={star}
+                    onClick={() => handleRateBook(book, star)}
+                    style={{ cursor: 'pointer', fontSize: '1.1rem', color: (book.rating ?? 0) >= star ? '#f5a623' : '#ccc' }}
+                    title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                  >★</span>
+                ))}
+              </div>
               {book.description && <div className="book-card-desc">{book.description}</div>}
               <div className="book-card-meta">
                 <span>{book.chapters?.length || 0} chapters</span>

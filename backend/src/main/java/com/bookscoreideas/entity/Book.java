@@ -28,6 +28,8 @@ public class Book {
 
     private LocalDate dateAdded;
 
+    private Integer rating;
+
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<Chapter> chapters = new ArrayList<>();
@@ -51,6 +53,8 @@ public class Book {
     public void setCoverUrl(String coverUrl) { this.coverUrl = coverUrl; }
     public LocalDate getDateAdded() { return dateAdded; }
     public void setDateAdded(LocalDate dateAdded) { this.dateAdded = dateAdded; }
+    public Integer getRating() { return rating; }
+    public void setRating(Integer rating) { this.rating = rating; }
     public List<Chapter> getChapters() { return chapters; }
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
 }

@@ -411,7 +411,7 @@ export default function BookDetailPage() {
                   <span className="chapter-number">{chapter.orderIndex || idx + 1}</span>
                   <div>
                     <div className="chapter-title">{chapter.title}</div>
-                    {chapter.summary && <div className="chapter-summary">{chapter.summary}</div>}
+                    {chapter.summary && <div className="chapter-summary"><ReactMarkdown>{chapter.summary}</ReactMarkdown></div>}
                   </div>
                 </div>
                 <div className="chapter-actions" onClick={e => e.stopPropagation()}>

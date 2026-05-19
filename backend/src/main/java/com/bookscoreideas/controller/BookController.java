@@ -43,6 +43,7 @@ public class BookController {
             existing.setIsbn(book.getIsbn());
             existing.setDescription(book.getDescription());
             existing.setCoverUrl(book.getCoverUrl());
+            existing.setRating(book.getRating());
             return ResponseEntity.ok(bookRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }
