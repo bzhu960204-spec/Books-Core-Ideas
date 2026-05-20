@@ -783,6 +783,54 @@ h1, h2, h3, h4 {
   font-weight: 700;
 }
 
+.excerpt-reader-content em {
+  font-style: italic;
+}
+
+.excerpt-reader-content ul,
+.excerpt-reader-content ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+  padding: 0;
+}
+
+.excerpt-reader-content li {
+  margin-bottom: 0.4rem;
+  line-height: 1.8;
+}
+
+.excerpt-reader-content li > ul,
+.excerpt-reader-content li > ol {
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
+}
+
+.excerpt-reader-content h1,
+.excerpt-reader-content h2,
+.excerpt-reader-content h3,
+.excerpt-reader-content h4 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  margin: 1.2rem 0 0.5rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.excerpt-reader-content code {
+  font-family: monospace;
+  font-size: 0.92em;
+  background: var(--input-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+.excerpt-reader-content blockquote {
+  margin: 0.75rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
 .excerpt-reader-note {
   margin-top: 1.5rem;
   padding-top: 1rem;

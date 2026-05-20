@@ -240,7 +240,12 @@ export default function BookDetailPage() {
       loadIdeas(deleteTarget.chapterId);
     } else if (deleteTarget.type === 'excerpt') {
       await excerptApi.delete(deleteTarget.chapterId, deleteTarget.id);
-      loadExcerpts(deleteTarget.chapterId);
+      const updated = await excerptApi.getAll(deleteTarget.chapterId);
+      setChapterExcerpts(prev => ({ ...prev, [deleteTarget.chapterId]: updated }));
+      if (updated.length > 0) {
+        const newIndex = Math.min(deleteTarget.readerIndex ?? 0, updated.length - 1);
+        setExcerptReader({ chapterId: deleteTarget.chapterId, startIndex: newIndex });
+      }
     }
     setDeleteTarget(null);
   };
@@ -574,12 +579,14 @@ export default function BookDetailPage() {
             setEditExcerpt({ ...ex, chapterId: excerptReader.chapterId });
           }}
           onDelete={(ex) => {
+            const currentIdx = (chapterExcerpts[excerptReader.chapterId] ?? []).findIndex(e => e.id === ex.id);
             setExcerptReader(null);
             setDeleteTarget({
               type: 'excerpt',
               id: ex.id,
               chapterId: excerptReader.chapterId,
               name: ex.content.substring(0, 50),
+              readerIndex: Math.max(0, currentIdx),
             });
           }}
         />
