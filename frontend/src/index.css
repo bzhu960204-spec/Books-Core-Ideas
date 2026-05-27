@@ -1105,3 +1105,225 @@ h1, h2, h3, h4 {
   font-size: 0.85rem;
   margin-bottom: 0.75rem;
 }
+
+/* ===== CHAPTER IMAGE VIEWER ===== */
+.chapter-image-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+
+.chapter-image-viewer {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  width: 800px;
+  max-width: 94vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chapter-image-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chapter-image-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
+.chapter-image-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chapter-image-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chapter-image-tab {
+  background: none;
+  border: none;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+}
+
+.chapter-image-tab.active {
+  background: var(--btn-primary);
+  color: var(--btn-text);
+}
+
+.chapter-image-tab:hover:not(.active) {
+  background: var(--bg-secondary);
+}
+
+.chapter-image-close {
+  font-size: 1.1rem !important;
+  color: var(--text-secondary) !important;
+}
+
+.chapter-image-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.chapter-image-dropzone {
+  width: 100%;
+  min-height: 250px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 2rem;
+}
+
+.chapter-image-dropzone:hover,
+.chapter-image-dropzone.drag-over {
+  border-color: var(--accent);
+  background: rgba(255, 213, 79, 0.05);
+}
+
+.chapter-image-upload-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.chapter-image-upload-text {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+}
+
+.chapter-image-upload-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.chapter-image-upload-status {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.chapter-image-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.chapter-image-display {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chapter-image-main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.chapter-image-img {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  object-fit: contain;
+}
+
+.chapter-image-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chapter-image-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-image-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chapter-image-nav-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.15s;
+  min-width: 80px;
+}
+
+.chapter-image-nav-btn:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+
+.chapter-image-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.chapter-image-pos {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.image-badge {
+  font-size: 0.85rem !important;
+}

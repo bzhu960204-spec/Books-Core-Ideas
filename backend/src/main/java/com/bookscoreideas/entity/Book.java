@@ -30,6 +30,8 @@ public class Book {
 
     private Integer rating;
 
+    private Boolean chapterImagesEnabled = false;
+
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<Chapter> chapters = new ArrayList<>();
@@ -55,6 +57,8 @@ public class Book {
     public void setDateAdded(LocalDate dateAdded) { this.dateAdded = dateAdded; }
     public Integer getRating() { return rating; }
     public void setRating(Integer rating) { this.rating = rating; }
+    public Boolean getChapterImagesEnabled() { return chapterImagesEnabled; }
+    public void setChapterImagesEnabled(Boolean chapterImagesEnabled) { this.chapterImagesEnabled = chapterImagesEnabled; }
     public List<Chapter> getChapters() { return chapters; }
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
 }

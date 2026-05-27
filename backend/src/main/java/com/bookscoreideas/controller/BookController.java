@@ -44,6 +44,7 @@ public class BookController {
             existing.setDescription(book.getDescription());
             existing.setCoverUrl(book.getCoverUrl());
             existing.setRating(book.getRating());
+            existing.setChapterImagesEnabled(book.getChapterImagesEnabled());
             return ResponseEntity.ok(bookRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }

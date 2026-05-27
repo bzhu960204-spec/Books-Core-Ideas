@@ -81,3 +81,19 @@ export const excerptBankApi = {
     return fetch(`${API_BASE}/excerpts${qs ? '?' + qs : ''}`).then(r => r.json());
   },
 };
+
+export const chapterImageApi = {
+  getAll: (chapterId) => fetch(`${API_BASE}/chapters/${chapterId}/images`).then(r => r.json()),
+  upload: (chapterId, files) => {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append('files', file);
+    }
+    return fetch(`${API_BASE}/chapters/${chapterId}/images`, {
+      method: 'POST',
+      body: formData,
+    }).then(r => r.json());
+  },
+  delete: (chapterId, imageId) => fetch(`${API_BASE}/chapters/${chapterId}/images/${imageId}`, { method: 'DELETE' }),
+  getUrl: (chapterId, imageId) => `${API_BASE}/chapters/${chapterId}/images/${imageId}/data`,
+};

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { bookApi, chapterApi, ideaApi, excerptApi } from '../api';
+import { bookApi, chapterApi, ideaApi, excerptApi, chapterImageApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
 import IdeaForm from '../components/IdeaForm';
 import ExcerptForm from '../components/ExcerptForm';
 import ExcerptReader from '../components/ExcerptReader';
+import ChapterImageViewer from '../components/ChapterImageViewer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
 
@@ -122,6 +123,8 @@ export default function BookDetailPage() {
   const [showJsonImport, setShowJsonImport] = useState(false);
   const [showChapterImport, setShowChapterImport] = useState(null); // chapterId
   const [excerptReader, setExcerptReader] = useState(null); // { chapterId, startIndex }
+  const [imageViewer, setImageViewer] = useState(null); // chapterId
+  const [chapterImageCounts, setChapterImageCounts] = useState({});
 
   const loadBook = async () => {
     try {
@@ -137,6 +140,13 @@ export default function BookDetailPage() {
           chaptersData.map(ch => excerptApi.getAll(ch.id).then(exs => [ch.id, exs]))
         );
         setChapterExcerpts(Object.fromEntries(results));
+        // Pre-load image counts only when chapter images are enabled
+        if (bookData.chapterImagesEnabled) {
+          const imgResults = await Promise.all(
+            chaptersData.map(ch => chapterImageApi.getAll(ch.id).then(imgs => [ch.id, imgs.length]))
+          );
+          setChapterImageCounts(Object.fromEntries(imgResults));
+        }
       }
     } catch {
       console.error('Failed to load book');
@@ -426,6 +436,13 @@ export default function BookDetailPage() {
                     onClick={() => setShowChapterImport(chapter.id)}
                     style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '-0.05em' }}
                   >{'{}'}</button>
+                  {book.chapterImagesEnabled && (
+                    <button
+                      className="btn-icon image-badge"
+                      title="Chapter images"
+                      onClick={() => setImageViewer(chapter.id)}
+                    >🖼️{chapterImageCounts[chapter.id] > 0 ? ` ${chapterImageCounts[chapter.id]}` : ''}</button>
+                  )}
                   {chapterExcerpts[chapter.id] && chapterExcerpts[chapter.id].length > 0 && (
                     <button
                       className="btn-icon excerpt-badge"
@@ -588,6 +605,18 @@ export default function BookDetailPage() {
               name: ex.content.substring(0, 50),
               readerIndex: Math.max(0, currentIdx),
             });
+          }}
+        />
+      )}
+
+      {imageViewer && (
+        <ChapterImageViewer
+          chapterId={imageViewer}
+          chapterTitle={chapters.find(c => c.id === imageViewer)?.title || ''}
+          onClose={() => setImageViewer(null)}
+          onImagesChange={async () => {
+            const imgs = await chapterImageApi.getAll(imageViewer);
+            setChapterImageCounts(prev => ({ ...prev, [imageViewer]: imgs.length }));
           }}
         />
       )}

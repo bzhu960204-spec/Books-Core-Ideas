@@ -7,6 +7,7 @@ export default function BookForm({ book, onSave, onClose }) {
     author: '',
     isbn: '',
     description: '',
+    chapterImagesEnabled: false,
   });
 
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function BookForm({ book, onSave, onClose }) {
         author: book.author || '',
         isbn: book.isbn || '',
         description: book.description || '',
+        chapterImagesEnabled: book.chapterImagesEnabled || false,
       });
     }
   }, [book]);
@@ -66,6 +68,18 @@ export default function BookForm({ book, onSave, onClose }) {
             placeholder="Brief description of the book"
             rows={3}
           />
+        </div>
+        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <input
+            type="checkbox"
+            id="chapterImagesEnabled"
+            checked={form.chapterImagesEnabled}
+            onChange={e => setForm({ ...form, chapterImagesEnabled: e.target.checked })}
+            style={{ width: '1rem', height: '1rem', cursor: 'pointer', flexShrink: 0 }}
+          />
+          <label htmlFor="chapterImagesEnabled" className="form-label" style={{ margin: 0, cursor: 'pointer' }}>
+            Enable chapter images
+          </label>
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
