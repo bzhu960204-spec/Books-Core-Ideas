@@ -30,6 +30,14 @@ public class Book {
 
     private Integer rating;
 
+    private String category;
+
+    private String readingStatus; // WANT_TO_READ, READING, FINISHED
+
+    private LocalDate startDate;
+
+    private LocalDate finishDate;
+
     private Boolean chapterImagesEnabled = false;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -57,6 +65,14 @@ public class Book {
     public void setDateAdded(LocalDate dateAdded) { this.dateAdded = dateAdded; }
     public Integer getRating() { return rating; }
     public void setRating(Integer rating) { this.rating = rating; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+    public String getReadingStatus() { return readingStatus; }
+    public void setReadingStatus(String readingStatus) { this.readingStatus = readingStatus; }
+    public LocalDate getStartDate() { return startDate; }
+    public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
+    public LocalDate getFinishDate() { return finishDate; }
+    public void setFinishDate(LocalDate finishDate) { this.finishDate = finishDate; }
     public Boolean getChapterImagesEnabled() { return chapterImagesEnabled; }
     public void setChapterImagesEnabled(Boolean chapterImagesEnabled) { this.chapterImagesEnabled = chapterImagesEnabled; }
     public List<Chapter> getChapters() { return chapters; }

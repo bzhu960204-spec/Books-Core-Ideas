@@ -1712,3 +1712,6 @@ Caused by: org.h2.mvstore.MVStoreException: The file is locked: C:/Users/BOBZHU0
 	at org.h2.mvstore.SingleFileStore.open(SingleFileStore.java:81)
 	at org.h2.mvstore.MVStore.<init>(MVStore.java:286)
 	... 51 more
+2026-06-09 20:47:50.234506+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "LATERAL" not found; SQL statement:
+SELECT DISTINCT TRIM(category_value) as category FROM books, LATERAL UNNEST(STRING_TO_ARRAY(books.category, ';')) AS category_value WHERE books.category IS NOT NULL AND TRIM(category_value) <> '' ORDER BY category [42102-224]

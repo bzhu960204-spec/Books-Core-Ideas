@@ -39,6 +39,9 @@ export default function LibraryPage() {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('title-asc');
   const [filterRating, setFilterRating] = useState(0); // 0 = all
+  const [filterCategory, setFilterCategory] = useState(''); // '' = all
+  const [filterStatus, setFilterStatus] = useState(''); // '' = all
+  const [categories, setCategories] = useState([]);
   const navigate = useNavigate();
 
   const loadBooks = async () => {
@@ -52,7 +55,16 @@ export default function LibraryPage() {
     }
   };
 
-  useEffect(() => { loadBooks(); }, []);
+  const loadCategories = async () => {
+    try {
+      const data = await bookApi.getCategories();
+      setCategories(data);
+    } catch {
+      console.error('Failed to load categories');
+    }
+  };
+
+  useEffect(() => { loadBooks(); loadCategories(); }, []);
 
   const handleSave = async (form) => {
     if (editBook) {
@@ -63,6 +75,7 @@ export default function LibraryPage() {
     setShowForm(false);
     setEditBook(null);
     loadBooks();
+    loadCategories();
   };
 
   const handleDelete = async () => {
@@ -113,10 +126,13 @@ export default function LibraryPage() {
 
   const q = search.trim().toLowerCase();
   const filteredBooks = books
-    .filter(b =>
-      (!q || b.title?.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q)) &&
-      (filterRating === 0 || (b.rating ?? 0) >= filterRating)
-    )
+    .filter(b => {
+      const matchesSearch = !q || b.title?.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q);
+      const matchesRating = filterRating === 0 || (b.rating ?? 0) >= filterRating;
+      const matchesCategory = !filterCategory || (b.category || '').split(';').map(c => c.trim()).includes(filterCategory);
+      const matchesStatus = !filterStatus || b.readingStatus === filterStatus;
+      return matchesSearch && matchesRating && matchesCategory && matchesStatus;
+    })
     .sort((a, b) => {
       if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
       if (sortBy === 'title-desc') return (b.title || '').localeCompare(a.title || '');
@@ -166,8 +182,28 @@ export default function LibraryPage() {
               <option value="rating-desc">Rating ★ High → Low</option>
               <option value="rating-asc">Rating ★ Low → High</option>
             </select>
+            {categories.length > 0 && (
+              <select
+                className="library-sort"
+                value={filterCategory}
+                onChange={e => setFilterCategory(e.target.value)}
+              >
+                <option value="">All Categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+            <select
+              className="library-sort"
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="WANT_TO_READ">Want to Read</option>
+              <option value="READING">Reading</option>
+              <option value="FINISHED">Finished</option>
+            </select>
             <span className="library-count">
-              {q || filterRating > 0 ? `${filteredBooks.length} / ${books.length}` : books.length} book{books.length !== 1 ? 's' : ''}
+              {q || filterRating > 0 || filterCategory || filterStatus ? `${filteredBooks.length} / ${books.length}` : books.length} book{books.length !== 1 ? 's' : ''}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -199,39 +235,63 @@ export default function LibraryPage() {
       ) : filteredBooks.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">🔍</div>
-          <p className="empty-state-text">No books match "{search}".</p>
+          <p className="empty-state-text">No books match your current filters.</p>
         </div>
       ) : (
         <div className="book-grid">
           {filteredBooks.map(book => (
-            <div key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
-              <div className="book-card-title">{book.title}</div>
-              <div className="book-card-author">{book.author || 'Unknown author'}</div>
-              <div style={{ display: 'flex', gap: '0.1rem', margin: '0.35rem 0' }} onClick={e => e.stopPropagation()}>
-                {[1, 2, 3, 4, 5].map(star => (
-                  <span
-                    key={star}
-                    onClick={() => handleRateBook(book, star)}
-                    style={{ cursor: 'pointer', fontSize: '1.1rem', color: (book.rating ?? 0) >= star ? '#f5a623' : '#ccc' }}
-                    title={`Rate ${star} star${star > 1 ? 's' : ''}`}
-                  >★</span>
-                ))}
-              </div>
-              {book.description && <div className="book-card-desc">{book.description}</div>}
-              <div className="book-card-meta">
-                <span>{book.chapters?.length || 0} chapters</span>
-                <span style={{ display: 'flex', gap: '0.25rem' }}>
-                  <button
-                    className="btn-icon"
-                    title="Edit"
-                    onClick={e => { e.stopPropagation(); setEditBook(book); setShowForm(true); }}
-                  >✏️</button>
-                  <button
-                    className="btn-icon"
-                    title="Delete"
-                    onClick={e => { e.stopPropagation(); setDeleteTarget(book); }}
-                  >🗑️</button>
-                </span>
+            <div
+              key={book.id}
+              className={`book-card ${book.coverUrl ? 'has-cover' : ''}`}
+              onClick={() => navigate(`/book/${book.id}`)}
+            >
+              {book.coverUrl && (
+                <div className="book-card-cover">
+                  <img src={book.coverUrl} alt="" onError={e => { e.target.parentElement.style.display = 'none'; }} />
+                </div>
+              )}
+              <div className="book-card-content">
+                <div className="book-card-title">{book.title}</div>
+                <div className="book-card-author">{book.author || 'Unknown author'}</div>
+                {book.readingStatus && (
+                  <span className={`reading-status-badge ${book.readingStatus === 'WANT_TO_READ' ? 'want-to-read' : book.readingStatus === 'READING' ? 'reading' : 'finished'}`}>
+                    {book.readingStatus === 'WANT_TO_READ' ? '📋 Want to Read' : book.readingStatus === 'READING' ? '📖 Reading' : '✅ Finished'}
+                  </span>
+                )}
+                {book.category && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
+                    {book.category.split(';').map((cat, idx) => {
+                      const trimmed = cat.trim();
+                      return trimmed ? <span key={idx} className="book-card-category">{trimmed}</span> : null;
+                    })}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '0.1rem', margin: '0.35rem 0' }} onClick={e => e.stopPropagation()}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span
+                      key={star}
+                      onClick={() => handleRateBook(book, star)}
+                      style={{ cursor: 'pointer', fontSize: '1.1rem', color: (book.rating ?? 0) >= star ? '#f5a623' : '#ccc' }}
+                      title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                    >★</span>
+                  ))}
+                </div>
+                {book.description && <div className="book-card-desc">{book.description}</div>}
+                <div className="book-card-meta">
+                  <span>{book.chapters?.length || 0} chapters</span>
+                  <span style={{ display: 'flex', gap: '0.25rem' }}>
+                    <button
+                      className="btn-icon"
+                      title="Edit"
+                      onClick={e => { e.stopPropagation(); setEditBook(book); setShowForm(true); }}
+                    >✏️</button>
+                    <button
+                      className="btn-icon"
+                      title="Delete"
+                      onClick={e => { e.stopPropagation(); setDeleteTarget(book); }}
+                    >🗑️</button>
+                  </span>
+                </div>
               </div>
             </div>
           ))}
@@ -243,6 +303,7 @@ export default function LibraryPage() {
           book={editBook}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditBook(null); }}
+          onCategoryChange={() => { loadBooks(); loadCategories(); }}
         />
       )}
 

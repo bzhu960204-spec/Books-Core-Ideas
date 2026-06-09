@@ -155,6 +155,19 @@ export default function BookDetailPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const data = await bookApi.export(id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${book?.title || 'book'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => { loadBook(); }, [id]);
 
   useEffect(() => {
@@ -384,14 +397,36 @@ export default function BookDetailPage() {
       <Link to="/" className="back-link">← Back to Library</Link>
 
       <div className="book-detail-header">
-        <h1 className="book-detail-title">{book.title}</h1>
-        {book.author && <div className="book-detail-author">by {book.author}</div>}
-        {book.description && <p className="book-detail-desc">{book.description}</p>}
-        {book.isbn && (
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-            ISBN: {book.isbn}
+        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+          {book.coverUrl && (
+            <img
+              src={book.coverUrl}
+              alt={book.title}
+              style={{ width: '120px', minHeight: '170px', objectFit: 'cover', borderRadius: '6px', border: '1px solid var(--border)', flexShrink: 0 }}
+              onError={e => { e.target.style.display = 'none'; }}
+            />
+          )}
+          <div style={{ flex: 1 }}>
+            <h1 className="book-detail-title">{book.title}</h1>
+            {book.author && <div className="book-detail-author">by {book.author}</div>}
+            {book.readingStatus && (
+              <span className={`reading-status-badge ${book.readingStatus === 'WANT_TO_READ' ? 'want-to-read' : book.readingStatus === 'READING' ? 'reading' : 'finished'}`}>
+                {book.readingStatus === 'WANT_TO_READ' ? '📋 Want to Read' : book.readingStatus === 'READING' ? '📖 Reading' : '✅ Finished'}
+              </span>
+            )}
+            {book.description && <p className="book-detail-desc">{book.description}</p>}
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+              {book.isbn && (
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  ISBN: {book.isbn}
+                </span>
+              )}
+              <button className="btn btn-secondary btn-sm" onClick={handleExport}>
+                📥 Export JSON
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       <div className="section-header">

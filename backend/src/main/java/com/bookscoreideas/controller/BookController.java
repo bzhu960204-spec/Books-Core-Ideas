@@ -23,6 +23,11 @@ public class BookController {
         return bookRepository.findAll();
     }
 
+    @GetMapping("/categories")
+    public List<String> getCategories() {
+        return bookRepository.findDistinctCategories();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Book> getBook(@PathVariable Long id) {
         return bookRepository.findById(id)
@@ -44,6 +49,10 @@ public class BookController {
             existing.setDescription(book.getDescription());
             existing.setCoverUrl(book.getCoverUrl());
             existing.setRating(book.getRating());
+            existing.setCategory(book.getCategory());
+            existing.setReadingStatus(book.getReadingStatus());
+            existing.setStartDate(book.getStartDate());
+            existing.setFinishDate(book.getFinishDate());
             existing.setChapterImagesEnabled(book.getChapterImagesEnabled());
             return ResponseEntity.ok(bookRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());

@@ -21,6 +21,9 @@ export default function Sidebar() {
         <NavLink to="/excerpts" className={({ isActive }) => isActive ? 'active' : ''}>
           <span>📖</span> Excerpt Bank
         </NavLink>
+        <NavLink to="/reviews" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span>📝</span> Review Bank
+        </NavLink>
       </nav>
     </aside>
   );
