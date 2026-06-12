@@ -1,6 +1,5 @@
 package com.bookscoreideas.controller;
 
-import com.bookscoreideas.entity.BookReview;
 import com.bookscoreideas.repository.BookReviewRepository;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +20,7 @@ public class ReviewBankController {
 
     @GetMapping
     public List<Map<String, Object>> getAllReviews() {
-        return reviewRepository.findAllByOrderByUpdatedAtDesc().stream()
+        return reviewRepository.findAllByOrderByUpdatedAtDescIdDesc().stream()
                 .filter(r -> r.getContent() != null && !r.getContent().isBlank())
                 .map(r -> {
                     Map<String, Object> map = new HashMap<>();

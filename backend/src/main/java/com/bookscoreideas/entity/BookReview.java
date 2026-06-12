@@ -11,8 +11,8 @@ public class BookReview {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "book_id", unique = true, nullable = false)
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "book_id", nullable = false)
     private Book book;
 
     @Column(columnDefinition = "CLOB")

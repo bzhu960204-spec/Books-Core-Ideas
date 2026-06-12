@@ -112,10 +112,18 @@ export const chapterImageApi = {
 
 export const reviewApi = {
   getAll: () => apiFetch(`${API_BASE}/reviews`),
-  get: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/review`),
-  save: (bookId, review) => apiFetch(`${API_BASE}/books/${bookId}/review`, {
+  list: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/reviews`),
+  create: (bookId, review) => apiFetch(`${API_BASE}/books/${bookId}/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(review),
+  }),
+  update: (bookId, reviewId, review) => apiFetch(`${API_BASE}/books/${bookId}/reviews/${reviewId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(review),
+  }),
+  delete: (bookId, reviewId) => apiFetch(`${API_BASE}/books/${bookId}/reviews/${reviewId}`, {
+    method: 'DELETE',
   }),
 };

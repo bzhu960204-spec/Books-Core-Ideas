@@ -1822,7 +1822,8 @@ h1, h2, h3, h4 {
 .review-bank-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+  gap: 1.5rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border);
@@ -1832,12 +1833,17 @@ h1, h2, h3, h4 {
   font-size: 1rem;
   font-weight: 600;
   font-family: var(--font-heading);
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  word-break: break-word;
 }
 
 .review-bank-date {
   font-size: 0.78rem;
   color: var(--text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .review-bank-content {

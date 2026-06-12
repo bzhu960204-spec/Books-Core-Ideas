@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import { reviewApi, bookApi } from '../api';
 import BookPicker from '../components/BookPicker';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function ReviewBankPage() {
   const navigate = useNavigate();
@@ -12,8 +13,8 @@ export default function ReviewBankPage() {
   const [error, setError] = useState(null);
   const [filterBookId, setFilterBookId] = useState('');
 
-  // Editing state
-  const [editingId, setEditingId] = useState(null); // bookId being edited
+  // Editing state — keyed by review id (a book can now have multiple reviews)
+  const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -21,6 +22,9 @@ export default function ReviewBankPage() {
   const [showNew, setShowNew] = useState(false);
   const [newBookId, setNewBookId] = useState('');
   const [newDraft, setNewDraft] = useState('');
+
+  // Delete confirmation state
+  const [confirmDelete, setConfirmDelete] = useState(null); // { id, bookId, bookTitle }
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -40,10 +44,10 @@ export default function ReviewBankPage() {
     bookApi.getAll().then(setBooks).catch(() => {});
   }, [loadReviews]);
 
-  const handleSave = async (bookId, content) => {
+  const handleUpdate = async (review, content) => {
     setSaving(true);
     try {
-      await reviewApi.save(bookId, { content });
+      await reviewApi.update(review.bookId, review.id, { content });
       setEditingId(null);
       loadReviews();
     } catch { /* ignore */ } finally {
@@ -55,7 +59,7 @@ export default function ReviewBankPage() {
     if (!newBookId || !newDraft.trim()) return;
     setSaving(true);
     try {
-      await reviewApi.save(newBookId, { content: newDraft });
+      await reviewApi.create(newBookId, { content: newDraft });
       setShowNew(false);
       setNewBookId('');
       setNewDraft('');
@@ -65,12 +69,19 @@ export default function ReviewBankPage() {
     }
   };
 
-  const filteredReviews = filterBookId
-    ? reviews.filter(r => String(r.bookId) === filterBookId)
-    : reviews;
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await reviewApi.delete(confirmDelete.bookId, confirmDelete.id);
+      setConfirmDelete(null);
+      if (editingId === confirmDelete.id) setEditingId(null);
+      loadReviews();
+    } catch { /* ignore */ }
+  };
 
-  // Books that already have reviews
-  const booksWithReviews = new Set(reviews.map(r => String(r.bookId)));
+  const filteredReviews = filterBookId
+    ? reviews.filter(r => String(r.bookId) === String(filterBookId))
+    : reviews;
 
   return (
     <div className="bank-page">
@@ -101,7 +112,7 @@ export default function ReviewBankPage() {
             </button>
           </div>
           <BookPicker
-            books={books.filter(b => !booksWithReviews.has(String(b.id)))}
+            books={books}
             selectedId={newBookId}
             onSelect={setNewBookId}
           />
@@ -145,7 +156,7 @@ export default function ReviewBankPage() {
               )}
             </div>
 
-            {editingId === r.bookId ? (
+            {editingId === r.id ? (
               <>
                 <textarea
                   className="review-textarea"
@@ -154,7 +165,7 @@ export default function ReviewBankPage() {
                   rows={8}
                 />
                 <div className="review-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => handleSave(r.bookId, draft)} disabled={saving}>
+                  <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(r, draft)} disabled={saving}>
                     {saving ? 'Saving…' : 'Save'}
                   </button>
                   <button className="btn btn-secondary btn-sm" onClick={() => setEditingId(null)}>
@@ -168,8 +179,14 @@ export default function ReviewBankPage() {
                   <ReactMarkdown>{r.content}</ReactMarkdown>
                 </div>
                 <div className="review-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditingId(r.bookId); setDraft(r.content); }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditingId(r.id); setDraft(r.content); }}>
                     ✏️ Edit
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => setConfirmDelete({ id: r.id, bookId: r.bookId, bookTitle: r.bookTitle })}
+                  >
+                    🗑️ Delete
                   </button>
                 </div>
               </>
@@ -177,6 +194,14 @@ export default function ReviewBankPage() {
           </div>
         ))}
       </div>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          message={`Delete this review of "${confirmDelete.bookTitle}"? This cannot be undone.`}
+          onConfirm={handleDelete}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
