@@ -29,6 +29,7 @@ public class ReviewBankController {
                     map.put("bookTitle", r.getBook().getTitle());
                     map.put("bookAuthor", r.getBook().getAuthor());
                     map.put("bookCoverUrl", r.getBook().getCoverUrl());
+                    map.put("title", r.getTitle() != null ? r.getTitle() : "");
                     map.put("content", r.getContent());
                     map.put("updatedAt", r.getUpdatedAt() != null ? r.getUpdatedAt().toString() : "");
                     return map;

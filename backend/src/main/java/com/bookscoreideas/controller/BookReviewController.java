@@ -36,6 +36,7 @@ public class BookReviewController {
         return bookRepository.findById(bookId).map(book -> {
             BookReview review = new BookReview();
             review.setBook(book);
+            review.setTitle(body.getOrDefault("title", ""));
             review.setContent(body.getOrDefault("content", ""));
             reviewRepository.save(review);
             return ResponseEntity.ok(toMap(review));
@@ -49,7 +50,8 @@ public class BookReviewController {
         return reviewRepository.findById(reviewId)
                 .filter(r -> r.getBook() != null && bookId.equals(r.getBook().getId()))
                 .map(review -> {
-                    review.setContent(body.getOrDefault("content", ""));
+                    if (body.containsKey("title")) review.setTitle(body.get("title"));
+                    if (body.containsKey("content")) review.setContent(body.get("content"));
                     reviewRepository.save(review);
                     return ResponseEntity.ok(toMap(review));
                 })
@@ -71,6 +73,7 @@ public class BookReviewController {
         Map<String, Object> map = new HashMap<>();
         map.put("id", review.getId());
         map.put("bookId", review.getBook() != null ? review.getBook().getId() : null);
+        map.put("title", review.getTitle() != null ? review.getTitle() : "");
         map.put("content", review.getContent() != null ? review.getContent() : "");
         map.put("updatedAt", review.getUpdatedAt() != null ? review.getUpdatedAt().toString() : "");
         return map;

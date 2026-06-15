@@ -1,6 +1,6 @@
 #FileLock
-#Fri Jun 12 21:57:56 CST 2026
-server=192.168.2.251\:55130
+#Mon Jun 15 13:43:56 CST 2026
+server=172.20.10.7\:58999
 hostName=GWM-PF3N4VJ8
 method=file
-id=19ebc2008a48c174e98535b75cbd3141945271747c6
+id=19ec9cecf49bb29e8ad3ef286b4f1d1e8acec474630

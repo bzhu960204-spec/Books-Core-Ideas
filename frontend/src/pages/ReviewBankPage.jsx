@@ -1,9 +1,38 @@
 import { useState, useEffect, useCallback } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import { reviewApi, bookApi } from '../api';
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
+import RichTextEditor, { normalizeReviewContent } from '../components/RichTextEditor';
+import ReviewReaderModal from '../components/ReviewReaderModal';
+
+// Derive a fallback title from review content for legacy reviews that
+// have no explicit title yet. Tries first heading, then first non-empty line.
+function deriveTitle(content) {
+  if (!content) return 'Untitled review';
+  const html = normalizeReviewContent(content);
+  const headingMatch = html.match(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i);
+  if (headingMatch) {
+    const text = headingMatch[1].replace(/<[^>]+>/g, '').trim();
+    if (text) return text.slice(0, 120);
+  }
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return 'Untitled review';
+  return text.slice(0, 80) + (text.length > 80 ? '…' : '');
+}
+
+function getReadingMeta(content) {
+  const text = normalizeReviewContent(content).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return { words: 0, minutes: 0 };
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return { words, minutes: Math.max(1, Math.round(words / 220)) };
+}
+
+function getExcerpt(content, max = 320) {
+  const text = normalizeReviewContent(content).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  return text.length > max ? text.slice(0, max) + '…' : text;
+}
 
 export default function ReviewBankPage() {
   const navigate = useNavigate();
@@ -13,18 +42,19 @@ export default function ReviewBankPage() {
   const [error, setError] = useState(null);
   const [filterBookId, setFilterBookId] = useState('');
 
-  // Editing state — keyed by review id (a book can now have multiple reviews)
-  const [editingId, setEditingId] = useState(null);
-  const [draft, setDraft] = useState('');
+  // Reader modal state
+  const [openId, setOpenId] = useState(null);
+  const [openInEdit, setOpenInEdit] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // New review state
   const [showNew, setShowNew] = useState(false);
   const [newBookId, setNewBookId] = useState('');
+  const [newTitle, setNewTitle] = useState('');
   const [newDraft, setNewDraft] = useState('');
 
   // Delete confirmation state
-  const [confirmDelete, setConfirmDelete] = useState(null); // { id, bookId, bookTitle }
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   const loadReviews = useCallback(async () => {
     setLoading(true);
@@ -44,12 +74,13 @@ export default function ReviewBankPage() {
     bookApi.getAll().then(setBooks).catch(() => {});
   }, [loadReviews]);
 
-  const handleUpdate = async (review, content) => {
+  const handleSave = async ({ title, content }) => {
+    const review = reviews.find(r => r.id === openId);
+    if (!review) return;
     setSaving(true);
     try {
-      await reviewApi.update(review.bookId, review.id, { content });
-      setEditingId(null);
-      loadReviews();
+      await reviewApi.update(review.bookId, review.id, { title, content });
+      await loadReviews();
     } catch { /* ignore */ } finally {
       setSaving(false);
     }
@@ -59,9 +90,13 @@ export default function ReviewBankPage() {
     if (!newBookId || !newDraft.trim()) return;
     setSaving(true);
     try {
-      await reviewApi.create(newBookId, { content: newDraft });
+      await reviewApi.create(newBookId, {
+        title: newTitle.trim(),
+        content: newDraft,
+      });
       setShowNew(false);
       setNewBookId('');
+      setNewTitle('');
       setNewDraft('');
       loadReviews();
     } catch { /* ignore */ } finally {
@@ -73,8 +108,8 @@ export default function ReviewBankPage() {
     if (!confirmDelete) return;
     try {
       await reviewApi.delete(confirmDelete.bookId, confirmDelete.id);
+      if (openId === confirmDelete.id) setOpenId(null);
       setConfirmDelete(null);
-      if (editingId === confirmDelete.id) setEditingId(null);
       loadReviews();
     } catch { /* ignore */ }
   };
@@ -82,6 +117,8 @@ export default function ReviewBankPage() {
   const filteredReviews = filterBookId
     ? reviews.filter(r => String(r.bookId) === String(filterBookId))
     : reviews;
+
+  const openReview = reviews.find(r => r.id === openId) || null;
 
   return (
     <div className="bank-page">
@@ -102,12 +139,11 @@ export default function ReviewBankPage() {
         </button>
       </div>
 
-      {/* New review form */}
       {showNew && (
         <div className="review-bank-new">
           <div className="review-bank-new-header">
             <h3>Write a New Review</h3>
-            <button className="btn btn-secondary btn-sm" onClick={() => { setShowNew(false); setNewDraft(''); setNewBookId(''); }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setShowNew(false); setNewDraft(''); setNewBookId(''); setNewTitle(''); }}>
               Cancel
             </button>
           </div>
@@ -116,12 +152,18 @@ export default function ReviewBankPage() {
             selectedId={newBookId}
             onSelect={setNewBookId}
           />
-          <textarea
-            className="review-textarea"
+          <input
+            type="text"
+            className="review-title-input"
+            placeholder="Review title…"
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+          />
+          <RichTextEditor
             value={newDraft}
-            onChange={e => setNewDraft(e.target.value)}
-            placeholder="Write your reading review… (Markdown supported)"
-            rows={8}
+            onChange={setNewDraft}
+            placeholder="Write your reading review…"
+            autoFocus
           />
           <div className="review-actions">
             <button className="btn btn-primary btn-sm" onClick={handleCreateNew} disabled={saving || !newBookId || !newDraft.trim()}>
@@ -141,59 +183,84 @@ export default function ReviewBankPage() {
       )}
 
       <div className="review-bank-list">
-        {filteredReviews.map(r => (
-          <div key={r.id} className="review-bank-card">
-            <div className="review-bank-card-header">
-              <button
-                type="button"
-                onClick={() => navigate(`/book/${r.bookId}`)}
-                className="bank-card-source"
-              >
-                {r.bookTitle}{r.bookAuthor ? ` · ${r.bookAuthor}` : ''}
-              </button>
-              {r.updatedAt && (
-                <span className="review-bank-date">{r.updatedAt}</span>
+        {filteredReviews.map(r => {
+          const displayTitle = r.title?.trim() || deriveTitle(r.content);
+          const meta = getReadingMeta(r.content);
+          const excerpt = getExcerpt(r.content);
+          return (
+            <article
+              key={r.id}
+              className="review-bank-card"
+              role="button"
+              tabIndex={0}
+              onClick={() => { setOpenInEdit(false); setOpenId(r.id); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setOpenInEdit(false);
+                  setOpenId(r.id);
+                }
+              }}
+            >
+              {r.bookCoverUrl && (
+                <div className="review-bank-cover">
+                  <img
+                    src={r.bookCoverUrl}
+                    alt=""
+                    onError={e => { e.target.parentElement.style.display = 'none'; }}
+                  />
+                </div>
               )}
-            </div>
-
-            {editingId === r.id ? (
-              <>
-                <textarea
-                  className="review-textarea"
-                  value={draft}
-                  onChange={e => setDraft(e.target.value)}
-                  rows={8}
-                />
-                <div className="review-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => handleUpdate(r, draft)} disabled={saving}>
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </button>
+              <div className="review-bank-summary-main">
+                <div className="review-bank-eyebrow">
+                  <span className="review-bank-source">
+                    {r.bookTitle}{r.bookAuthor ? ` · ${r.bookAuthor}` : ''}
+                  </span>
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="review-bank-content">
-                  <ReactMarkdown>{r.content}</ReactMarkdown>
+                <h3 className="review-bank-title">{displayTitle}</h3>
+                {excerpt && <p className="review-bank-excerpt">{excerpt}</p>}
+                <div className="review-bank-meta">
+                  {r.updatedAt && <span className="review-bank-date">{r.updatedAt}</span>}
+                  {meta.words > 0 && (
+                    <span className="review-bank-readtime">
+                      {meta.words} words · ~{meta.minutes} min read
+                    </span>
+                  )}
+                  <span className="review-bank-readmore">Read →</span>
                 </div>
-                <div className="review-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={() => { setEditingId(r.id); setDraft(r.content); }}>
-                    ✏️ Edit
-                  </button>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => setConfirmDelete({ id: r.id, bookId: r.bookId, bookTitle: r.bookTitle })}
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+              </div>
+              <div className="review-bank-card-actions" onClick={e => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => { setOpenInEdit(true); setOpenId(r.id); }}
+                  title="Edit"
+                  aria-label="Edit"
+                >✏️</button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--danger"
+                  onClick={() => setConfirmDelete({ id: r.id, bookId: r.bookId, bookTitle: r.bookTitle })}
+                  title="Delete"
+                  aria-label="Delete"
+                >🗑️</button>
+              </div>
+            </article>
+          );
+        })}
       </div>
+
+      {openReview && (
+        <ReviewReaderModal
+          review={openReview}
+          startInEdit={openInEdit}
+          saving={saving}
+          onClose={() => setOpenId(null)}
+          onSave={handleSave}
+          onDelete={() => setConfirmDelete({ id: openReview.id, bookId: openReview.bookId, bookTitle: openReview.bookTitle })}
+          onOpenBook={() => navigate(`/book/${openReview.bookId}`)}
+        />
+      )}
 
       {confirmDelete && (
         <ConfirmDialog
