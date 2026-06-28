@@ -27,6 +27,18 @@ public class Chapter {
     @JsonIgnore
     private Book book;
 
+    // Optional grouping layer: when a book uses the "PARTS" structure, each
+    // chapter belongs to a Part. For plain "CHAPTERS" books this stays null.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "part_id")
+    @JsonIgnore
+    private Part part;
+
+    // Transient carrier so the API can read/write the owning part by id without
+    // exposing the full Part relationship.
+    @Transient
+    private Long partId;
+
     @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<KeyIdea> keyIdeas = new ArrayList<>();
@@ -46,6 +58,12 @@ public class Chapter {
     public void setSummary(String summary) { this.summary = summary; }
     public Book getBook() { return book; }
     public void setBook(Book book) { this.book = book; }
+    @JsonIgnore
+    public Part getPart() { return part; }
+    @JsonIgnore
+    public void setPart(Part part) { this.part = part; }
+    public Long getPartId() { return part != null ? part.getId() : partId; }
+    public void setPartId(Long partId) { this.partId = partId; }
     public List<KeyIdea> getKeyIdeas() { return keyIdeas; }
     public void setKeyIdeas(List<KeyIdea> keyIdeas) { this.keyIdeas = keyIdeas; }
     public List<Excerpt> getExcerpts() { return excerpts; }

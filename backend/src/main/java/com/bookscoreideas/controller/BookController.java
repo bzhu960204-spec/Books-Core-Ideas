@@ -54,6 +54,9 @@ public class BookController {
             existing.setStartDate(book.getStartDate());
             existing.setFinishDate(book.getFinishDate());
             existing.setChapterImagesEnabled(book.getChapterImagesEnabled());
+            if (book.getStructureType() != null) {
+                existing.setStructureType(book.getStructureType());
+            }
             return ResponseEntity.ok(bookRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }

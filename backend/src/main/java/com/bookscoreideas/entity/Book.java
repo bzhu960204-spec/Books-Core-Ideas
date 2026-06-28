@@ -40,6 +40,10 @@ public class Book {
 
     private Boolean chapterImagesEnabled = false;
 
+    // Structure of the book: "CHAPTERS" (flat chapters) or "PARTS" (parts that
+    // each contain chapters). Defaults to CHAPTERS for backward compatibility.
+    private String structureType = "CHAPTERS";
+
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<Chapter> chapters = new ArrayList<>();
@@ -75,6 +79,8 @@ public class Book {
     public void setFinishDate(LocalDate finishDate) { this.finishDate = finishDate; }
     public Boolean getChapterImagesEnabled() { return chapterImagesEnabled; }
     public void setChapterImagesEnabled(Boolean chapterImagesEnabled) { this.chapterImagesEnabled = chapterImagesEnabled; }
+    public String getStructureType() { return structureType; }
+    public void setStructureType(String structureType) { this.structureType = structureType; }
     public List<Chapter> getChapters() { return chapters; }
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
 }

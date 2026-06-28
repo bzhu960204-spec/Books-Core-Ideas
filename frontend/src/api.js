@@ -43,6 +43,21 @@ export const chapterApi = {
   delete: (bookId, chapterId) => apiFetch(`${API_BASE}/books/${bookId}/chapters/${chapterId}`, { method: 'DELETE' }),
 };
 
+export const partApi = {
+  getAll: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/parts`),
+  create: (bookId, part) => apiFetch(`${API_BASE}/books/${bookId}/parts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(part),
+  }),
+  update: (bookId, partId, part) => apiFetch(`${API_BASE}/books/${bookId}/parts/${partId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(part),
+  }),
+  delete: (bookId, partId) => apiFetch(`${API_BASE}/books/${bookId}/parts/${partId}`, { method: 'DELETE' }),
+};
+
 export const ideaApi = {
   getAll: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas`),
   create: (chapterId, idea) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas`, {

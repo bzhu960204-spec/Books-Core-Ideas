@@ -3,6 +3,7 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.entity.Chapter;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
+import com.bookscoreideas.repository.PartRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +16,13 @@ public class ChapterController {
 
     private final ChapterRepository chapterRepository;
     private final BookRepository bookRepository;
+    private final PartRepository partRepository;
 
-    public ChapterController(ChapterRepository chapterRepository, BookRepository bookRepository) {
+    public ChapterController(ChapterRepository chapterRepository, BookRepository bookRepository,
+                            PartRepository partRepository) {
         this.chapterRepository = chapterRepository;
         this.bookRepository = bookRepository;
+        this.partRepository = partRepository;
     }
 
     @GetMapping
@@ -30,8 +34,19 @@ public class ChapterController {
     public ResponseEntity<Chapter> createChapter(@PathVariable Long bookId, @Valid @RequestBody Chapter chapter) {
         return bookRepository.findById(bookId).map(book -> {
             chapter.setBook(book);
+            applyPart(chapter, chapter.getPartId());
             return ResponseEntity.ok(chapterRepository.save(chapter));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // Resolve the optional partId from the request into the Part relationship.
+    // A null partId clears the grouping (plain chapter).
+    private void applyPart(Chapter chapter, Long partId) {
+        if (partId != null) {
+            partRepository.findById(partId).ifPresent(chapter::setPart);
+        } else {
+            chapter.setPart(null);
+        }
     }
 
     @PutMapping("/{chapterId}")
@@ -45,6 +60,7 @@ public class ChapterController {
             existing.setTitle(chapter.getTitle());
             existing.setOrderIndex(chapter.getOrderIndex());
             existing.setSummary(chapter.getSummary());
+            applyPart(existing, chapter.getPartId());
             return ResponseEntity.ok(chapterRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }

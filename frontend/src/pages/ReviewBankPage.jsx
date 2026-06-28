@@ -202,14 +202,24 @@ export default function ReviewBankPage() {
                 }
               }}
             >
-              {r.bookCoverUrl && (
+              {r.bookCoverUrl ? (
                 <div className="review-bank-cover">
                   <img
                     src={r.bookCoverUrl}
                     alt=""
-                    onError={e => { e.target.parentElement.style.display = 'none'; }}
+                    onError={e => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.classList.add('review-bank-cover--placeholder');
+                      e.target.parentElement.dataset.initial = (r.bookTitle || '?').trim().charAt(0).toUpperCase();
+                    }}
                   />
                 </div>
+              ) : (
+                <div
+                  className="review-bank-cover review-bank-cover--placeholder"
+                  data-initial={(r.bookTitle || '?').trim().charAt(0).toUpperCase()}
+                  aria-hidden="true"
+                />
               )}
               <div className="review-bank-summary-main">
                 <div className="review-bank-eyebrow">

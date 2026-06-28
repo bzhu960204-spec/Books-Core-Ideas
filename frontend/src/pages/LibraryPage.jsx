@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bookApi, chapterApi, ideaApi } from '../api';
+import { bookApi, chapterApi, partApi, ideaApi } from '../api';
 import BookForm from '../components/BookForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
@@ -101,10 +101,30 @@ export default function LibraryPage() {
     const items = Array.isArray(parsed) ? parsed : [parsed];
     for (const item of items) {
       if (!item.title) throw new Error('Each book must have a "title" field.');
-      const { chapters: rawChapters, keyIdeas, ...bookFields } = item;
-      const book = await bookApi.create(bookFields);
+      const { chapters: rawChapters, parts: rawParts, keyIdeas, ...bookFields } = item;
+      const isPartsBook = Array.isArray(rawParts) || bookFields.structureType === 'PARTS';
+      const book = await bookApi.create({ ...bookFields, structureType: isPartsBook ? 'PARTS' : 'CHAPTERS' });
 
-      if (Array.isArray(rawChapters)) {
+      if (isPartsBook && Array.isArray(rawParts)) {
+        for (const rawPart of rawParts) {
+          if (!rawPart.title) throw new Error('Each part must have a "title" field.');
+          const { chapters: partChapters, ...partFields } = rawPart;
+          const part = await partApi.create(book.id, partFields);
+          if (Array.isArray(partChapters)) {
+            for (const rawChapter of partChapters) {
+              if (!rawChapter.title) throw new Error('Each chapter must have a "title" field.');
+              const { keyIdeas: rawIdeas, ...chapterFields } = rawChapter;
+              const chapter = await chapterApi.create(book.id, { ...chapterFields, partId: part.id });
+              if (Array.isArray(rawIdeas)) {
+                for (const idea of rawIdeas) {
+                  if (!idea.content) throw new Error('Each idea must have a "content" field.');
+                  await ideaApi.create(chapter.id, idea);
+                }
+              }
+            }
+          }
+        }
+      } else if (Array.isArray(rawChapters)) {
         for (const rawChapter of rawChapters) {
           if (!rawChapter.title) throw new Error('Each chapter must have a "title" field.');
           const { keyIdeas: rawIdeas, ...chapterFields } = rawChapter;

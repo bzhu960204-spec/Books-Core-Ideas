@@ -12,6 +12,7 @@ export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
     categories: [],
     readingStatus: '',
     chapterImagesEnabled: false,
+    structureType: 'CHAPTERS',
   });
   const [categoryInput, setCategoryInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -38,6 +39,7 @@ export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
         categories: categories,
         readingStatus: book.readingStatus || '',
         chapterImagesEnabled: book.chapterImagesEnabled || false,
+        structureType: book.structureType || 'CHAPTERS',
       });
     }
   }, [book]);
@@ -287,6 +289,22 @@ export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
             <option value="READING">Reading</option>
             <option value="FINISHED">Finished</option>
           </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Structure</label>
+          <select
+            className="form-input"
+            value={form.structureType}
+            onChange={e => setForm({ ...form, structureType: e.target.value })}
+          >
+            <option value="CHAPTERS">Chapters only</option>
+            <option value="PARTS">Parts → Chapters</option>
+          </select>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
+            {form.structureType === 'PARTS'
+              ? 'This book is divided into Parts, each containing chapters.'
+              : 'This book is a flat list of chapters.'}
+          </div>
         </div>
         <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <input

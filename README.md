@@ -17,7 +17,9 @@ Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`.
 
 ## JSON Import Formats
 
-The app supports importing data via JSON. Library page has its own import, and each book's detail page has a unified **Import JSON** button with three tabs: **Chapters**, **Ideas**, **Excerpts**.
+The app supports importing data via JSON. Library page has its own import, and each book's detail page has a unified **Import JSON** button with three tabs: **Chapters** (or **Parts**), **Ideas**, **Excerpts**.
+
+> **Book structure:** Each book has a `structureType` of either `"CHAPTERS"` (flat list of chapters, the default) or `"PARTS"` (chapters grouped under parts). The detail page renders and imports according to the book's structure. See [Books with Parts](#books-with-parts) below.
 
 ---
 
@@ -84,7 +86,80 @@ Click **`Import JSON`** on the Library page.
 | `isbn` | string | No | |
 | `description` | string | No | Max 2000 chars |
 | `coverUrl` | string | No | URL to cover image |
-| `chapters` | array | No | See Chapter format below |
+| `structureType` | string | No | `"CHAPTERS"` (default) or `"PARTS"` |
+| `chapters` | array | No | Flat chapter list (CHAPTERS books) |
+| `parts` | array | No | Parts, each with nested `chapters` (PARTS books) |
+
+> If `parts` is present (or `structureType` is `"PARTS"`), the book is created as a PARTS book. See [Books with Parts](#books-with-parts).
+
+---
+
+<a id="books-with-parts"></a>
+### Books with Parts (Part → Chapter)
+
+For books organized into parts (e.g. "Part One", "Part Two"), set `structureType` to `"PARTS"` and nest chapters inside a `parts` array. Each part has its own `title`, `orderIndex`, and `summary`; chapters keep the same format as flat chapters (with nested `keyIdeas` / `excerpts`).
+
+This is also the exact shape produced by the book **Export** button.
+
+```json
+{
+  "title": "My Book",
+  "author": "Author Name",
+  "structureType": "PARTS",
+  "parts": [
+    {
+      "title": "Part One: Foundations",
+      "orderIndex": 1,
+      "summary": "What this part covers...",
+      "chapters": [
+        {
+          "title": "Chapter 1: The Beginning",
+          "orderIndex": 1,
+          "summary": "Overview of the chapter...",
+          "keyIdeas": [
+            { "content": "Core insight", "example": "For instance...", "orderIndex": 1 }
+          ],
+          "excerpts": [
+            { "content": "A memorable passage...", "note": "Why it matters", "source": "p.42", "orderIndex": 1 }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Part Two: Going Deeper",
+      "orderIndex": 2,
+      "summary": "...",
+      "chapters": []
+    }
+  ]
+}
+```
+
+On a PARTS book's detail page, the unified **Import JSON** button's first tab becomes **Parts** and expects an array of parts (the `parts` value above):
+
+```json
+[
+  {
+    "title": "Part One: Foundations",
+    "orderIndex": 1,
+    "summary": "...",
+    "chapters": [
+      { "title": "Chapter 1", "orderIndex": 1, "summary": "..." }
+    ]
+  }
+]
+```
+
+**Part field reference:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `title` | string | **Yes** | |
+| `orderIndex` | integer | No | Sort order |
+| `summary` | string | No | Max 1000 chars |
+| `chapters` | array | No | Chapter format (see below) |
+
+> The importer validates structure: importing a flat `chapters` payload into a PARTS book (or a `parts` payload into a CHAPTERS book) is rejected with an error.
 
 ---
 

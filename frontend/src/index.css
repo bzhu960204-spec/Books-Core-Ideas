@@ -670,6 +670,92 @@ h1, h2, h3, h4 {
   gap: 1rem;
 }
 
+/* ===== PARTS (optional grouping layer above chapters) ===== */
+.part-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.part-item {
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.part-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.part-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.part-toggle {
+  flex: 1;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  padding: 0;
+}
+
+.part-chevron {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.part-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+.part-item--collapsed .part-header {
+  border-bottom: none;
+}
+
+.part-chapter-count {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+.part-number {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.part-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.part-item .chapter-list {
+  padding: 1rem 1.25rem;
+}
+
 .chapter-item {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -1888,6 +1974,21 @@ h1, h2, h3, h4 {
   object-fit: cover;
   display: block;
 }
+.review-bank-cover--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg-secondary, var(--bg-card)), var(--bg-card));
+  border: 1px solid var(--border);
+}
+.review-bank-cover--placeholder::after {
+  content: attr(data-initial);
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  opacity: 0.55;
+}
 
 .review-bank-summary-main {
   display: flex;
@@ -2032,6 +2133,9 @@ h1, h2, h3, h4 {
 
 .review-bank-content p { margin-bottom: 0.75rem; }
 .review-bank-content p:last-child { margin-bottom: 0; }
+/* Preserve intentionally-empty paragraphs (blank lines) so multiple line
+   breaks added in the editor don't collapse into one when displayed. */
+.review-bank-content p:empty::before { content: "\00a0"; }
 
 .review-title-input {
   width: 100%;
