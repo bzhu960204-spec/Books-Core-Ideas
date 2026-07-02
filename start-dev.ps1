@@ -113,7 +113,7 @@ $frontendJob = Start-Job -Name 'bci-frontend' -ScriptBlock {
   param([string]$Dir, [int]$ApiPort, [int]$Port)
   Set-Location $Dir
   $env:VITE_API_BASE = "http://localhost:$ApiPort/api"
-  & npm run dev -- --host 0.0.0.0 --port $Port 2>&1 | ForEach-Object { $_.ToString() }
+  & npx vite --host 0.0.0.0 --port $Port 2>&1 | ForEach-Object { $_.ToString() }
 } -ArgumentList $frontendDir, $BackendPort, $FrontendPort
 
 Write-Host ""
