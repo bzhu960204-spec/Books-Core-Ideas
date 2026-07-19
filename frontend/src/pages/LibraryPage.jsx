@@ -42,7 +42,18 @@ export default function LibraryPage() {
   const [filterCategory, setFilterCategory] = useState(''); // '' = all
   const [filterStatus, setFilterStatus] = useState(''); // '' = all
   const [categories, setCategories] = useState([]);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('library-view') || 'grid');
+  const [brokenCovers, setBrokenCovers] = useState(() => new Set());
   const navigate = useNavigate();
+
+  useEffect(() => { localStorage.setItem('library-view', viewMode); }, [viewMode]);
+
+  const markCoverBroken = (id) => setBrokenCovers(prev => {
+    if (prev.has(id)) return prev;
+    const next = new Set(prev);
+    next.add(id);
+    return next;
+  });
 
   const loadBooks = async () => {
     try {
@@ -242,6 +253,21 @@ export default function LibraryPage() {
                 style={{ cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}
               >✕ Clear</span>
             )}
+            <div className="view-switcher" style={{ marginLeft: 'auto' }}>
+              {[
+                { key: 'grid', icon: '▦', label: 'Card view' },
+                { key: 'list', icon: '☰', label: 'List view' },
+                { key: 'compact', icon: '▪', label: 'Compact view' },
+              ].map(v => (
+                <button
+                  key={v.key}
+                  type="button"
+                  className={`view-switch-btn ${viewMode === v.key ? 'active' : ''}`}
+                  onClick={() => setViewMode(v.key)}
+                  title={v.label}
+                >{v.icon}</button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -258,16 +284,69 @@ export default function LibraryPage() {
           <p className="empty-state-text">No books match your current filters.</p>
         </div>
       ) : (
-        <div className="book-grid">
+        <div className={viewMode === 'list' ? 'book-list' : viewMode === 'compact' ? 'book-compact' : 'book-grid'}>
           {filteredBooks.map(book => (
+            viewMode === 'list' ? (
+              <div
+                key={book.id}
+                className="book-list-item"
+                onClick={() => navigate(`/book/${book.id}`)}
+              >
+                {book.coverUrl && !brokenCovers.has(book.id)
+                  ? <img className="book-list-cover" src={book.coverUrl} alt="" onError={() => markCoverBroken(book.id)} />
+                  : <div className="book-list-cover placeholder">📖</div>}
+                <div className="book-list-main">
+                  <div className="book-list-title" title={book.title}>{book.title}</div>
+                  <div className="book-list-author">{book.author || 'Unknown author'}</div>
+                </div>
+                {book.readingStatus && (
+                  <span className={`reading-status-badge ${book.readingStatus === 'WANT_TO_READ' ? 'want-to-read' : book.readingStatus === 'READING' ? 'reading' : 'finished'}`}>
+                    {book.readingStatus === 'WANT_TO_READ' ? '📋 Want to Read' : book.readingStatus === 'READING' ? '📖 Reading' : '✅ Finished'}
+                  </span>
+                )}
+                <div className="book-list-rating" onClick={e => e.stopPropagation()}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span
+                      key={star}
+                      onClick={() => handleRateBook(book, star)}
+                      style={{ cursor: 'pointer', fontSize: '1rem', color: (book.rating ?? 0) >= star ? '#f5a623' : '#ccc' }}
+                      title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                    >★</span>
+                  ))}
+                </div>
+                <span className="book-list-meta">{book.chapters?.length || 0} ch.</span>
+                <div className="book-list-actions" onClick={e => e.stopPropagation()}>
+                  <button className="btn-icon" title="Edit" onClick={() => { setEditBook(book); setShowForm(true); }}>✏️</button>
+                  <button className="btn-icon" title="Delete" onClick={() => setDeleteTarget(book)}>🗑️</button>
+                </div>
+              </div>
+            ) : viewMode === 'compact' ? (
+              <div
+                key={book.id}
+                className="book-compact-item"
+                onClick={() => navigate(`/book/${book.id}`)}
+                title={`${book.title}${book.author ? ' — ' + book.author : ''}`}
+              >
+                {book.coverUrl && !brokenCovers.has(book.id)
+                  ? <img className="book-compact-cover" src={book.coverUrl} alt="" onError={() => markCoverBroken(book.id)} />
+                  : <div className="book-compact-cover placeholder">📖</div>}
+                <div className="book-compact-title">{book.title}</div>
+                <div className="book-compact-author">{book.author || 'Unknown author'}</div>
+                {(book.rating ?? 0) > 0 && (
+                  <div className="book-compact-rating">
+                    {'★'.repeat(book.rating)}<span className="book-compact-rating-dim">{'★'.repeat(5 - book.rating)}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
             <div
               key={book.id}
-              className={`book-card ${book.coverUrl ? 'has-cover' : ''}`}
+              className={`book-card ${book.coverUrl && !brokenCovers.has(book.id) ? 'has-cover' : ''}`}
               onClick={() => navigate(`/book/${book.id}`)}
             >
-              {book.coverUrl && (
+              {book.coverUrl && !brokenCovers.has(book.id) && (
                 <div className="book-card-cover">
-                  <img src={book.coverUrl} alt="" onError={e => { e.target.parentElement.style.display = 'none'; }} />
+                  <img src={book.coverUrl} alt="" onError={() => markCoverBroken(book.id)} />
                 </div>
               )}
               <div className="book-card-content">
@@ -314,6 +393,7 @@ export default function LibraryPage() {
                 </div>
               </div>
             </div>
+            )
           ))}
         </div>
       )}
