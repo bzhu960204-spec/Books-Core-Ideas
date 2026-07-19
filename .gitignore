@@ -46,3 +46,8 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+
+# ===== 应用数据 (Application data) =====
+# 真实数据在 OneDrive\ProjectData\books-core-ideas\data，通过 junction 链接进来。
+# 仓库只保留代码，clone 后用 setup-data-link.ps1 重建 junction。
+backend/data/
