@@ -42,6 +42,11 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# ===== Prod (single-port) runtime =====
+# Resolved-port state file written by start-prod.ps1, and optional local Java override.
+.bci-prod-state.json
+.java-home
+
 # ===== Secrets / Env =====
 .env
 .env.*
