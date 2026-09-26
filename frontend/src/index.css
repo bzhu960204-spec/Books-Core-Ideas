@@ -2409,29 +2409,29 @@ h1, h2, h3, h4 {
   padding: 1rem 3rem 0.6rem;
 }
 .review-reader-modal.is-fullscreen .rte-wrapper--fill .rte-content {
-  max-width: none;
-  margin: 0;
-  padding: 1.75rem clamp(2rem, 8vw, 7rem) 4rem;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.75rem clamp(2rem, 5vw, 6rem) 4rem;
   font-size: 1.05rem;
   line-height: 1.85;
 }
 .review-reader-modal.is-fullscreen .rte-wrapper--fill .rte-toolbar {
-  padding: 0.5rem clamp(2rem, 8vw, 7rem);
+  padding: 0.5rem clamp(2rem, 5vw, 6rem);
 }
 .review-reader-modal.is-fullscreen .review-reader-actions {
-  padding: 0.85rem clamp(2rem, 8vw, 7rem);
+  padding: 0.85rem clamp(2rem, 5vw, 6rem);
 }
 
 .review-reader-header {
-  padding: 1.5rem 1.75rem 0.75rem;
+  padding: 1rem 1.75rem 0.6rem;
   border-bottom: 1px solid var(--border);
 }
 
 .review-reader-title {
   font-family: var(--font-heading);
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  margin: 0 2rem 0.5rem 0;
+  margin: 0 2rem 0.3rem 0;
   line-height: 1.3;
   color: var(--text-primary);
   word-break: break-word;
@@ -2501,9 +2501,32 @@ h1, h2, h3, h4 {
 }
 
 .review-reader-content {
-  font-size: 1.02rem;
+  font-size: calc(1.08rem * var(--reader-font-scale, 1));
+  line-height: 1.95;
   max-width: none;
   margin: 0;
+}
+
+/* Distraction-free fullscreen reading fills most of the screen; a generous
+   max-width only caps line length on ultra-wide displays. */
+.review-reader-modal.is-fullscreen .review-reader-body {
+  padding: 1.75rem clamp(1.5rem, 5vw, 6rem);
+}
+.review-reader-modal.is-fullscreen .review-reader-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+
+/* Grouped A− / A+ font-size controls in the reading toolbar. */
+.reader-font-controls {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-left: 0.35rem;
+}
+.reader-font-controls .btn {
+  min-width: 2.1rem;
+  font-weight: 600;
 }
 
 .review-reader-actions {
@@ -2527,25 +2550,50 @@ h1, h2, h3, h4 {
 
 .rte-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.25rem 0.5rem;
-  padding: 0.5rem;
+  gap: 0.15rem 0.4rem;
+  padding: 0.3rem 0.45rem;
   background: var(--bg-secondary, var(--bg-card));
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 2;
+  overflow-x: auto;
+}
+
+/* Collapsible secondary row: allowed to wrap since it holds many controls. */
+.rte-toolbar--more {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  z-index: 1;
 }
 
 .rte-group {
   display: flex;
   align-items: center;
   gap: 0.15rem;
-  padding-right: 0.5rem;
+  padding-right: 0.4rem;
   border-right: 1px solid var(--border);
 }
 .rte-group:last-child { border-right: none; padding-right: 0; }
+.rte-group--end {
+  margin-left: auto;
+  border-right: none;
+  padding-right: 0;
+}
+
+/* Selection bubble menu — compact inline formatting on text selection. */
+.rte-bubble {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
 
 .rte-btn {
   min-width: 28px;
@@ -2675,6 +2723,65 @@ h1, h2, h3, h4 {
 .rte-content a { color: var(--accent); text-decoration: underline; }
 .rte-content hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 .rte-content mark { background: #fef08a; padding: 0 0.15rem; border-radius: 2px; }
+
+/* Tables (editor + rendered read-only content) */
+.rte-content table,
+.review-bank-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.9em 0;
+  table-layout: fixed;
+  overflow: hidden;
+}
+.rte-content th, .rte-content td,
+.review-bank-content th, .review-bank-content td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+  word-break: break-word;
+}
+.rte-content th,
+.review-bank-content th {
+  background: var(--bg-hover, rgba(0,0,0,0.05));
+  font-weight: 700;
+  text-align: left;
+}
+.rte-content .selectedCell { background: rgba(59,130,246,0.12); }
+
+/* Images (resizable in editor) */
+.rte-img-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  margin: 0.25rem 0;
+}
+.rte-img-wrap img,
+.review-bank-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  display: block;
+}
+.rte-img-resize-handle {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid #fff;
+  cursor: nwse-resize;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Paste-mode toggle in the toolbar */
+.rte-paste-mode .rte-btn {
+  min-width: 34px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
 
 /* Placeholder when editor is empty */
 .rte-content p.is-editor-empty:first-child::before {

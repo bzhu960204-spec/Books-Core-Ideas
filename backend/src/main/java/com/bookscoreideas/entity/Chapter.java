@@ -48,6 +48,12 @@ public class Chapter {
     @JsonIgnore
     private List<Excerpt> excerpts = new ArrayList<>();
 
+    // Optional AI "explanation" (详解) document for the chapter; 0:1, cascade
+    // delete so removing a chapter removes its explanation.
+    @OneToOne(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private ChapterExplanation explanation;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -68,4 +74,8 @@ public class Chapter {
     public void setKeyIdeas(List<KeyIdea> keyIdeas) { this.keyIdeas = keyIdeas; }
     public List<Excerpt> getExcerpts() { return excerpts; }
     public void setExcerpts(List<Excerpt> excerpts) { this.excerpts = excerpts; }
+    @JsonIgnore
+    public ChapterExplanation getExplanation() { return explanation; }
+    @JsonIgnore
+    public void setExplanation(ChapterExplanation explanation) { this.explanation = explanation; }
 }

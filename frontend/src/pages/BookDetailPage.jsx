@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi } from '../api';
+import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
 import PartForm from '../components/PartForm';
 import IdeaForm from '../components/IdeaForm';
@@ -10,6 +10,8 @@ import ExcerptReader from '../components/ExcerptReader';
 import ChapterImageViewer from '../components/ChapterImageViewer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
+import ChapterExplanationModal from '../components/ChapterExplanationModal';
+import ExplanationExportModal from '../components/ExplanationExportModal';
 
 const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas & excerpts optional):
 [
@@ -153,6 +155,10 @@ export default function BookDetailPage() {
   const [excerptReader, setExcerptReader] = useState(null); // { chapterId, startIndex }
   const [imageViewer, setImageViewer] = useState(null); // chapterId
   const [chapterImageCounts, setChapterImageCounts] = useState({});
+  const [chapterHasExplanation, setChapterHasExplanation] = useState({}); // { chapterId: true }
+  const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit }
+  const [savingExplanation, setSavingExplanation] = useState(false);
+  const [showExplanationExport, setShowExplanationExport] = useState(false);
 
   const loadBook = async () => {
     try {
@@ -174,6 +180,11 @@ export default function BookDetailPage() {
           chaptersData.map(ch => excerptApi.getAll(ch.id).then(exs => [ch.id, exs]))
         );
         setChapterExcerpts(Object.fromEntries(results));
+        // Which chapters already have an explanation (ids only — cheap).
+        try {
+          const ids = await explanationApi.chapterIds(id);
+          setChapterHasExplanation(Object.fromEntries((ids || []).map(cid => [cid, true])));
+        } catch { /* ignore */ }
         // Pre-load image counts only when chapter images are enabled
         if (bookData.chapterImagesEnabled) {
           const imgResults = await Promise.all(
@@ -236,6 +247,41 @@ export default function BookDetailPage() {
   const loadExcerpts = async (chapterId) => {
     const excerpts = await excerptApi.getAll(chapterId);
     setChapterExcerpts(prev => ({ ...prev, [chapterId]: excerpts }));
+  };
+
+  // Chapter explanation (详解) — open loads the document, then view/edit inline.
+  const openExplanation = async (chapterId, startInEdit = false) => {
+    let data = null;
+    try {
+      data = await explanationApi.get(chapterId);
+    } catch { /* none yet */ }
+    setExplanationModal({ chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data });
+  };
+
+  const handleSaveExplanation = async ({ content }) => {
+    if (!explanationModal) return;
+    const chapterId = explanationModal.chapterId;
+    setSavingExplanation(true);
+    try {
+      const saved = await explanationApi.save(chapterId, { content });
+      setChapterHasExplanation(prev => ({ ...prev, [chapterId]: true }));
+      // Clear startInEdit so the reader switches to view mode after the first save.
+      setExplanationModal(m => (m ? { ...m, data: saved, startInEdit: false } : m));
+    } finally {
+      setSavingExplanation(false);
+    }
+  };
+
+  const handleDeleteExplanation = async () => {
+    if (!explanationModal) return;
+    const chapterId = explanationModal.chapterId;
+    await explanationApi.delete(chapterId);
+    setChapterHasExplanation(prev => {
+      const next = { ...prev };
+      delete next[chapterId];
+      return next;
+    });
+    setExplanationModal(null);
   };
 
   // Chapter CRUD
@@ -496,6 +542,35 @@ export default function BookDetailPage() {
     setCollapsedParts(prev => ({ ...prev, [partId]: !prev[partId] }));
   };
 
+  // Build the export list for explanations: assign a book-wide continuous sequence
+  // number (in reading order) plus the owning part's number, so exported file names
+  // sort into reading order.
+  const buildExplanationExportChapters = () => {
+    let ordered;
+    if (isParts) {
+      const sortedParts = [...parts].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      ordered = [];
+      sortedParts.forEach((part, pIdx) => {
+        chapters
+          .filter(c => c.partId === part.id)
+          .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+          .forEach(c => ordered.push({ chapter: c, partOrder: part.orderIndex || pIdx + 1 }));
+      });
+      const partIds = new Set(sortedParts.map(p => p.id));
+      chapters
+        .filter(c => !partIds.has(c.partId))
+        .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+        .forEach(c => ordered.push({ chapter: c, partOrder: null }));
+    } else {
+      ordered = [...chapters]
+        .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+        .map(c => ({ chapter: c, partOrder: null }));
+    }
+    return ordered
+      .map((o, idx) => ({ id: o.chapter.id, title: o.chapter.title, seq: idx + 1, partOrder: o.partOrder }))
+      .filter(o => chapterHasExplanation[o.id]);
+  };
+
   const renderChapter = (chapter, idx) => (
     <div key={chapter.id} className="chapter-item" ref={el => chapterRefs.current[chapter.id] = el}>
       <div className="chapter-header" onClick={() => toggleChapter(chapter.id)}>
@@ -527,6 +602,12 @@ export default function BookDetailPage() {
               onClick={() => setExcerptReader({ chapterId: chapter.id, startIndex: 0 })}
             >📖 {chapterExcerpts[chapter.id].length}</button>
           )}
+          <button
+            className="btn-icon"
+            title={chapterHasExplanation[chapter.id] ? 'View / edit explanation' : 'Add explanation'}
+            onClick={() => openExplanation(chapter.id)}
+            style={{ opacity: chapterHasExplanation[chapter.id] ? 1 : 0.5 }}
+          >📄{chapterHasExplanation[chapter.id] ? '✓' : ''}</button>
           <button
             className="btn-icon"
             title="Edit chapter"
@@ -642,6 +723,9 @@ export default function BookDetailPage() {
               )}
               <button className="btn btn-secondary btn-sm" onClick={handleExport}>
                 📥 Export JSON
+              </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowExplanationExport(true)}>
+                📄 Export Explanations
               </button>
             </div>
           </div>
@@ -865,6 +949,29 @@ export default function BookDetailPage() {
           idea={editIdea}
           onSave={handleSaveIdea}
           onClose={() => { setShowIdeaForm(null); setEditIdea(null); }}
+        />
+      )}
+
+      {explanationModal && (
+        <ChapterExplanationModal
+          chapterTitle={chapters.find(c => c.id === explanationModal.chapterId)?.title || 'Chapter'}
+          bookTitle={book.title}
+          explanation={explanationModal.data}
+          startInEdit={explanationModal.startInEdit}
+          saving={savingExplanation}
+          onClose={() => setExplanationModal(null)}
+          onSave={handleSaveExplanation}
+          onDelete={handleDeleteExplanation}
+        />
+      )}
+
+      {showExplanationExport && (
+        <ExplanationExportModal
+          chapters={buildExplanationExportChapters()}
+          totalChapters={chapters.length}
+          bookTitle={book.title}
+          fetchContent={(chapterId) => explanationApi.get(chapterId)}
+          onClose={() => setShowExplanationExport(false)}
         />
       )}
 

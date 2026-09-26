@@ -88,6 +88,17 @@ export const excerptApi = {
   delete: (chapterId, excerptId) => apiFetch(`${API_BASE}/chapters/${chapterId}/excerpts/${excerptId}`, { method: 'DELETE' }),
 };
 
+export const explanationApi = {
+  get: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`),
+  save: (chapterId, explanation) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(explanation),
+  }),
+  delete: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`, { method: 'DELETE' }),
+  chapterIds: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/explanation-chapter-ids`),
+};
+
 export const ideaBankApi = {
   search: ({ q = '', bookId = null, tag = '' } = {}) => {
     const params = new URLSearchParams();
