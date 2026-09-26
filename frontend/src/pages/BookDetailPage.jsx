@@ -554,20 +554,20 @@ export default function BookDetailPage() {
         chapters
           .filter(c => c.partId === part.id)
           .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-          .forEach(c => ordered.push({ chapter: c, partOrder: part.orderIndex || pIdx + 1 }));
+          .forEach(c => ordered.push({ chapter: c, partOrder: part.orderIndex || pIdx + 1, partTitle: part.title }));
       });
       const partIds = new Set(sortedParts.map(p => p.id));
       chapters
         .filter(c => !partIds.has(c.partId))
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-        .forEach(c => ordered.push({ chapter: c, partOrder: null }));
+        .forEach(c => ordered.push({ chapter: c, partOrder: null, partTitle: null }));
     } else {
       ordered = [...chapters]
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-        .map(c => ({ chapter: c, partOrder: null }));
+        .map(c => ({ chapter: c, partOrder: null, partTitle: null }));
     }
     return ordered
-      .map((o, idx) => ({ id: o.chapter.id, title: o.chapter.title, seq: idx + 1, partOrder: o.partOrder }))
+      .map((o, idx) => ({ id: o.chapter.id, title: o.chapter.title, seq: idx + 1, partOrder: o.partOrder, partTitle: o.partTitle }))
       .filter(o => chapterHasExplanation[o.id]);
   };
 

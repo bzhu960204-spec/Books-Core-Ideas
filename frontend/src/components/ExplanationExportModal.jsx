@@ -98,21 +98,32 @@ export default function ExplanationExportModal({ chapters, bookTitle, totalChapt
             <span>Select All ({chapters.length})</span>
           </label>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '45vh', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: '6px' }}>
-            {chapters.map(c => (
-              <li
-                key={c.id}
-                onClick={() => toggle(c.id)}
-                style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.5rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.includes(c.id)}
-                  onChange={() => toggle(c.id)}
-                  onClick={e => e.stopPropagation()}
-                />
-                <span>{c.title}</span>
-              </li>
-            ))}
+            {chapters.map((c, i) => {
+              const prev = chapters[i - 1];
+              const showPartHeader = c.partOrder != null && (!prev || prev.partOrder !== c.partOrder);
+              return (
+                <li key={c.id} style={{ margin: 0, padding: 0 }}>
+                  {showPartHeader && (
+                    <div style={{ padding: '0.4rem 0.75rem', background: 'var(--bg-secondary, rgba(0,0,0,0.04))', fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)', letterSpacing: '0.02em' }}>
+                      Part {c.partOrder}{c.partTitle ? ` · ${c.partTitle}` : ''}
+                    </div>
+                  )}
+                  <div
+                    onClick={() => toggle(c.id)}
+                    style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', padding: '0.5rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(c.id)}
+                      onChange={() => toggle(c.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span style={{ flex: '0 0 auto', minWidth: '1.75rem', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: 'var(--text-secondary)' }}>{c.seq}.</span>
+                    <span>{c.title}</span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
 
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap' }}>

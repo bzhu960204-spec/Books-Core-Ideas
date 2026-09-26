@@ -36,17 +36,23 @@ export default function LibraryPage() {
   const [editBook, setEditBook] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showJsonImport, setShowJsonImport] = useState(false);
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('title-asc');
-  const [filterRating, setFilterRating] = useState(0); // 0 = all
-  const [filterCategory, setFilterCategory] = useState(''); // '' = all
-  const [filterStatus, setFilterStatus] = useState(''); // '' = all
+  const [search, setSearch] = useState(() => sessionStorage.getItem('library-search') || '');
+  const [sortBy, setSortBy] = useState(() => sessionStorage.getItem('library-sort') || 'title-asc');
+  const [filterRating, setFilterRating] = useState(() => Number(sessionStorage.getItem('library-rating')) || 0); // 0 = all
+  const [filterCategory, setFilterCategory] = useState(() => sessionStorage.getItem('library-category') || ''); // '' = all
+  const [filterStatus, setFilterStatus] = useState(() => sessionStorage.getItem('library-status') || ''); // '' = all
   const [categories, setCategories] = useState([]);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('library-view') || 'grid');
   const [brokenCovers, setBrokenCovers] = useState(() => new Set());
   const navigate = useNavigate();
 
   useEffect(() => { localStorage.setItem('library-view', viewMode); }, [viewMode]);
+
+  useEffect(() => { sessionStorage.setItem('library-search', search); }, [search]);
+  useEffect(() => { sessionStorage.setItem('library-sort', sortBy); }, [sortBy]);
+  useEffect(() => { sessionStorage.setItem('library-rating', String(filterRating)); }, [filterRating]);
+  useEffect(() => { sessionStorage.setItem('library-category', filterCategory); }, [filterCategory]);
+  useEffect(() => { sessionStorage.setItem('library-status', filterStatus); }, [filterStatus]);
 
   const markCoverBroken = (id) => setBrokenCovers(prev => {
     if (prev.has(id)) return prev;
