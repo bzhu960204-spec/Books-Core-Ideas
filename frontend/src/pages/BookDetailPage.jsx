@@ -244,6 +244,37 @@ export default function BookDetailPage() {
     }
   }, [scrollToChapter, expandedChapters]);
 
+  // While dragging a chapter, auto-scroll the window when the pointer nears the
+  // top/bottom edge so parts above/below the fold stay reachable as drop targets.
+  useEffect(() => {
+    if (draggedChapterId == null) return;
+    const EDGE = 90;       // distance from edge (px) that triggers scrolling
+    const MAX_SPEED = 20;  // max scroll step (px) per frame at the very edge
+    let pointerY = null;
+    let rafId = null;
+
+    const onDragOver = e => { pointerY = e.clientY; };
+
+    const step = () => {
+      if (pointerY != null) {
+        const vh = window.innerHeight;
+        if (pointerY < EDGE) {
+          window.scrollBy(0, -MAX_SPEED * ((EDGE - pointerY) / EDGE));
+        } else if (pointerY > vh - EDGE) {
+          window.scrollBy(0, MAX_SPEED * ((pointerY - (vh - EDGE)) / EDGE));
+        }
+      }
+      rafId = requestAnimationFrame(step);
+    };
+
+    window.addEventListener('dragover', onDragOver);
+    rafId = requestAnimationFrame(step);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [draggedChapterId]);
+
   const toggleChapter = async (chapterId) => {
     const isExpanded = expandedChapters[chapterId];
     setExpandedChapters(isExpanded ? {} : { [chapterId]: true });
