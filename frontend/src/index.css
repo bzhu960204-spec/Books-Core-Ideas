@@ -882,6 +882,40 @@ h1, h2, h3, h4 {
   overflow: hidden;
 }
 
+.part-item--drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.part-item--ungrouped {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--text-secondary) 6%, var(--bg-secondary));
+}
+
+.part-number--ungrouped {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
+}
+
+.chapter-drag-handle {
+  cursor: grab;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  flex-shrink: 0;
+  user-select: none;
+  opacity: 0.6;
+}
+
+.chapter-drag-handle:hover {
+  opacity: 1;
+}
+
+.chapter-drag-handle:active {
+  cursor: grabbing;
+}
+
 .part-header {
   display: flex;
   align-items: center;
@@ -2098,6 +2132,79 @@ h1, h2, h3, h4 {
 .reading-status-badge.finished {
   background: #E8F5E9;
   color: #2E7D32;
+}
+
+/* === Reading Status inline control === */
+.reading-status-control {
+  position: relative;
+  display: inline-block;
+}
+
+.reading-status-badge.editable {
+  border: none;
+  cursor: pointer;
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reading-status-badge.editable:hover {
+  filter: brightness(0.96);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.reading-status-badge.unset {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
+}
+
+.reading-status-caret {
+  font-size: 0.6rem;
+  opacity: 0.7;
+  margin-left: 0.1rem;
+}
+
+.reading-status-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  min-width: 160px;
+  padding: 0.3rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.reading-status-menu-item {
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.reading-status-menu-item:hover {
+  background: var(--bg-secondary);
+}
+
+.reading-status-menu-item.active {
+  font-weight: 600;
+  background: var(--bg-secondary);
+}
+
+.reading-status-menu-item.clear {
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 0.15rem;
+  padding-top: 0.45rem;
 }
 
 /* === Review Section === */

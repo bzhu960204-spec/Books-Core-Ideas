@@ -12,6 +12,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
 import ChapterExplanationModal from '../components/ChapterExplanationModal';
 import ExplanationExportModal from '../components/ExplanationExportModal';
+import ReadingStatusControl from '../components/ReadingStatusControl';
 
 const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas & excerpts optional):
 [
@@ -159,6 +160,20 @@ export default function BookDetailPage() {
   const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit }
   const [savingExplanation, setSavingExplanation] = useState(false);
   const [showExplanationExport, setShowExplanationExport] = useState(false);
+  // Drag-and-drop: reassign a chapter to another part (or to "Ungrouped").
+  const [draggedChapterId, setDraggedChapterId] = useState(null);
+  const [dragOverPartId, setDragOverPartId] = useState(null); // part id, 'ungrouped', or null
+
+  const handleStatusChange = async (status) => {
+    const newStatus = status || null;
+    const prev = book;
+    setBook(b => ({ ...b, readingStatus: newStatus }));
+    try {
+      await bookApi.update(book.id, { ...book, readingStatus: newStatus });
+    } catch {
+      setBook(prev);
+    }
+  };
 
   const loadBook = async () => {
     try {
@@ -542,6 +557,28 @@ export default function BookDetailPage() {
     setCollapsedParts(prev => ({ ...prev, [partId]: !prev[partId] }));
   };
 
+  // Move a chapter to another part (targetPartId = null → "Ungrouped"). Only the
+  // chapter's part_id changes, so its ideas/excerpts/explanation stay attached.
+  const handleChapterReassign = async (chapterId, targetPartId) => {
+    if (chapterId == null) return;
+    const chapter = chapters.find(c => c.id === chapterId);
+    if (!chapter) return;
+    const currentPartId = chapter.partId ?? null;
+    const newPartId = targetPartId ?? null;
+    if (currentPartId === newPartId) return;
+    setChapters(prev => prev.map(c => (c.id === chapterId ? { ...c, partId: newPartId } : c)));
+    try {
+      await chapterApi.update(id, chapterId, {
+        title: chapter.title,
+        orderIndex: chapter.orderIndex,
+        summary: chapter.summary,
+        partId: newPartId,
+      });
+    } catch {
+      setChapters(prev => prev.map(c => (c.id === chapterId ? { ...c, partId: currentPartId } : c)));
+    }
+  };
+
   // Build the export list for explanations: assign a book-wide continuous sequence
   // number (in reading order) plus the owning part's number, so exported file names
   // sort into reading order.
@@ -575,6 +612,16 @@ export default function BookDetailPage() {
     <div key={chapter.id} className="chapter-item" ref={el => chapterRefs.current[chapter.id] = el}>
       <div className="chapter-header" onClick={() => toggleChapter(chapter.id)}>
         <div className="chapter-header-left">
+          {isParts && (
+            <span
+              className="chapter-drag-handle"
+              draggable
+              onClick={e => e.stopPropagation()}
+              onDragStart={e => { e.stopPropagation(); setDraggedChapterId(chapter.id); e.dataTransfer.effectAllowed = 'move'; }}
+              onDragEnd={() => { setDraggedChapterId(null); setDragOverPartId(null); }}
+              title="Drag to move this chapter to another part"
+            >⠿</span>
+          )}
           <span className="chapter-number">{chapter.orderIndex || idx + 1}</span>
           <div>
             <div className="chapter-title">{chapter.title}</div>
@@ -709,11 +756,9 @@ export default function BookDetailPage() {
           <div style={{ flex: 1 }}>
             <h1 className="book-detail-title">{book.title}</h1>
             {book.author && <div className="book-detail-author">by {book.author}</div>}
-            {book.readingStatus && (
-              <span className={`reading-status-badge ${book.readingStatus === 'WANT_TO_READ' ? 'want-to-read' : book.readingStatus === 'READING' ? 'reading' : 'finished'}`}>
-                {book.readingStatus === 'WANT_TO_READ' ? '📋 Want to Read' : book.readingStatus === 'READING' ? '📖 Reading' : '✅ Finished'}
-              </span>
-            )}
+            <div style={{ margin: '0.5rem 0' }}>
+              <ReadingStatusControl status={book.readingStatus} onChange={handleStatusChange} />
+            </div>
             {book.description && <p className="book-detail-desc">{book.description}</p>}
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.5rem' }}>
               {book.isbn && (
@@ -760,18 +805,33 @@ export default function BookDetailPage() {
       </div>
 
       {isParts ? (
-        parts.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">📚</div>
-            <p className="empty-state-text">No parts yet. Add parts, then add chapters inside each part.</p>
-          </div>
-        ) : (
+        (() => {
+          const partIdSet = new Set(parts.map(p => p.id));
+          // Chapters whose partId matches no existing part (null or stale) fall
+          // into the "Ungrouped" bucket so they stay visible and draggable.
+          const ungroupedChapters = chapters.filter(c => !partIdSet.has(c.partId));
+          if (parts.length === 0 && ungroupedChapters.length === 0) {
+            return (
+              <div className="empty-state">
+                <div className="empty-state-icon">📚</div>
+                <p className="empty-state-text">No parts yet. Add parts, then add chapters inside each part.</p>
+              </div>
+            );
+          }
+          return (
           <div className="part-list">
             {parts.map((part, pIdx) => {
               const partChapters = chapters.filter(c => c.partId === part.id);
               const isCollapsed = !!collapsedParts[part.id];
+              const isDragOver = dragOverPartId === part.id;
               return (
-                <div key={part.id} className={`part-item${isCollapsed ? ' part-item--collapsed' : ''}`}>
+                <div
+                  key={part.id}
+                  className={`part-item${isCollapsed ? ' part-item--collapsed' : ''}${isDragOver ? ' part-item--drag-over' : ''}`}
+                  onDragOver={e => { if (draggedChapterId != null) { e.preventDefault(); setDragOverPartId(part.id); } }}
+                  onDragLeave={() => setDragOverPartId(prev => (prev === part.id ? null : prev))}
+                  onDrop={e => { e.preventDefault(); handleChapterReassign(draggedChapterId, part.id); setDragOverPartId(null); setDraggedChapterId(null); }}
+                >
                   <div className="part-header">
                     <button
                       type="button"
@@ -826,8 +886,37 @@ export default function BookDetailPage() {
                 </div>
               );
             })}
+            {ungroupedChapters.length > 0 && (
+              <div
+                className={`part-item part-item--ungrouped${dragOverPartId === 'ungrouped' ? ' part-item--drag-over' : ''}`}
+                onDragOver={e => { if (draggedChapterId != null) { e.preventDefault(); setDragOverPartId('ungrouped'); } }}
+                onDragLeave={() => setDragOverPartId(prev => (prev === 'ungrouped' ? null : prev))}
+                onDrop={e => { e.preventDefault(); handleChapterReassign(draggedChapterId, null); setDragOverPartId(null); setDraggedChapterId(null); }}
+              >
+                <div className="part-header">
+                  <div className="part-header-left">
+                    <span className="part-number part-number--ungrouped">Ungrouped</span>
+                    <div>
+                      <div className="part-title">Unassigned chapters</div>
+                      <div className="part-chapter-count">{ungroupedChapters.length} {ungroupedChapters.length === 1 ? 'chapter' : 'chapters'} · drag each into a part above</div>
+                    </div>
+                  </div>
+                  <div className="chapter-actions">
+                    <button
+                      className="btn-icon"
+                      title="Add an ungrouped chapter"
+                      onClick={() => { setEditChapter(null); setAddChapterPartId(null); setShowChapterForm(true); }}
+                    >➕</button>
+                  </div>
+                </div>
+                <div className="chapter-list">
+                  {ungroupedChapters.map((chapter, idx) => renderChapter(chapter, idx))}
+                </div>
+              </div>
+            )}
           </div>
-        )
+          );
+        })()
       ) : (
         chapters.length === 0 ? (
           <div className="empty-state">

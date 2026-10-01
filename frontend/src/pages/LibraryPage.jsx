@@ -4,6 +4,7 @@ import { bookApi, chapterApi, partApi, ideaApi } from '../api';
 import BookForm from '../components/BookForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
+import ReadingStatusControl from '../components/ReadingStatusControl';
 
 const BOOK_JSON_HINT = `// Single book (simple):
 {
@@ -110,6 +111,16 @@ export default function LibraryPage() {
       await bookApi.update(book.id, { ...book, rating: newRating });
     } catch {
       setBooks(prev => prev.map(b => b.id === book.id ? { ...b, rating: book.rating } : b));
+    }
+  };
+
+  const handleStatusChange = async (book, status) => {
+    const newStatus = status || null;
+    setBooks(prev => prev.map(b => b.id === book.id ? { ...b, readingStatus: newStatus } : b));
+    try {
+      await bookApi.update(book.id, { ...book, readingStatus: newStatus });
+    } catch {
+      setBooks(prev => prev.map(b => b.id === book.id ? { ...b, readingStatus: book.readingStatus } : b));
     }
   };
 
@@ -305,11 +316,7 @@ export default function LibraryPage() {
                   <div className="book-list-title" title={book.title}>{book.title}</div>
                   <div className="book-list-author">{book.author || 'Unknown author'}</div>
                 </div>
-                {book.readingStatus && (
-                  <span className={`reading-status-badge ${book.readingStatus === 'WANT_TO_READ' ? 'want-to-read' : book.readingStatus === 'READING' ? 'reading' : 'finished'}`}>
-                    {book.readingStatus === 'WANT_TO_READ' ? '📋 Want to Read' : book.readingStatus === 'READING' ? '📖 Reading' : '✅ Finished'}
-                  </span>
-                )}
+                <ReadingStatusControl status={book.readingStatus} onChange={s => handleStatusChange(book, s)} />
                 <div className="book-list-rating" onClick={e => e.stopPropagation()}>
                   {[1, 2, 3, 4, 5].map(star => (
                     <span
@@ -358,11 +365,9 @@ export default function LibraryPage() {
               <div className="book-card-content">
                 <div className="book-card-title">{book.title}</div>
                 <div className="book-card-author">{book.author || 'Unknown author'}</div>
-                {book.readingStatus && (
-                  <span className={`reading-status-badge ${book.readingStatus === 'WANT_TO_READ' ? 'want-to-read' : book.readingStatus === 'READING' ? 'reading' : 'finished'}`}>
-                    {book.readingStatus === 'WANT_TO_READ' ? '📋 Want to Read' : book.readingStatus === 'READING' ? '📖 Reading' : '✅ Finished'}
-                  </span>
-                )}
+                <div style={{ margin: '0.3rem 0' }}>
+                  <ReadingStatusControl status={book.readingStatus} onChange={s => handleStatusChange(book, s)} />
+                </div>
                 {book.category && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
                     {book.category.split(';').map((cat, idx) => {
