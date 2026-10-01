@@ -34,12 +34,19 @@ const CHAPTERS_JSON_HINT = `// Array of chapters (keyIdeas & excerpts optional):
   }
 ]`;
 
-const PARTS_JSON_HINT = `// Array of parts, each containing chapters:
+const PARTS_JSON_HINT = `// Array of parts. "chapters" is OPTIONAL — import bare
+// part shells (title/orderIndex/summary) with "Add New", then drag your
+// existing chapters into them. Or nest chapters to create them too:
 [
   {
     "title": "Part I: Foundations",
     "orderIndex": 1,
-    "summary": "Overview of part one (optional)",
+    "summary": "Overview of part one (optional)"
+  },
+  {
+    "title": "Part II: Application",
+    "orderIndex": 2,
+    "summary": "...",
     "chapters": [
       {
         "title": "Chapter 1: The Beginning",
@@ -421,14 +428,14 @@ export default function BookDetailPage() {
 
   const handlePartJsonImport = async (parsed, mode) => {
     const items = Array.isArray(parsed) ? parsed : [parsed];
-    // Guard: a flat Chapters payload (no nested `chapters`) into a Parts book.
-    if (!items.some(it => Array.isArray(it.chapters))) {
-      throw new Error('This looks like a flat Chapters structure (no "chapters" array inside). This book uses the Parts structure — wrap chapters inside parts, or switch the book to "Chapters only".');
-    }
+    // Parts may be imported as bare shells (no `chapters`): existing chapters stay
+    // ungrouped and are dragged into the new parts afterwards.
     for (const part of items) {
       if (!part.title) throw new Error('Each part must have a "title" field.');
-      if (!Array.isArray(part.chapters)) throw new Error(`Part "${part.title}" must have a "chapters" array.`);
-      for (const ch of part.chapters) {
+      if (part.chapters !== undefined && !Array.isArray(part.chapters)) {
+        throw new Error(`Part "${part.title}" has a "chapters" field that is not an array.`);
+      }
+      for (const ch of (part.chapters || [])) {
         if (!ch.title) throw new Error(`Each chapter in part "${part.title}" must have a "title" field.`);
       }
     }
@@ -442,7 +449,7 @@ export default function BookDetailPage() {
     for (const part of items) {
       const { chapters: rawChapters, ...partFields } = part;
       const createdPart = await partApi.create(id, partFields);
-      for (const ch of rawChapters) {
+      for (const ch of (rawChapters || [])) {
         const { keyIdeas: rawIdeas, excerpts: rawExcerpts, ...chapterFields } = ch;
         const chapter = await chapterApi.create(id, { ...chapterFields, partId: createdPart.id });
         if (Array.isArray(rawIdeas)) {
