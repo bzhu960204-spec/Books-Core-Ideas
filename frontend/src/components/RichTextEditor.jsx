@@ -11,6 +11,8 @@ import { TextAlign } from '@tiptap/extension-text-align';
 import { Highlight } from '@tiptap/extension-highlight';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { marked } from 'marked';
+import LinkFixPrompt from './LinkFixPrompt';
+import { analyzeMarkdownLinks, analyzeHtmlLinks } from '../utils/linkFix';
 
 // Custom extension: adds a `fontSize` attribute to the textStyle mark so the
 // font-size dropdown can read/write inline `style="font-size: …"`.
@@ -190,6 +192,9 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
   // to keep the editing surface tall; core actions live in the compact row.
   const [showMore, setShowMore] = useState(false);
 
+  // Pending malformed-link prompt: { kind, fixes, fixedText?, rawText?, fixedHtml? }.
+  const [linkPrompt, setLinkPrompt] = useState(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -241,6 +246,12 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
         const insertAsMarkdown = () => {
           if (!editor || !text) return false;
           event.preventDefault();
+          // Intercept Copilot-style malformed links and let the user decide.
+          const { fixed, fixes } = analyzeMarkdownLinks(text);
+          if (fixes.length > 0) {
+            setLinkPrompt({ kind: 'paste', fixes, fixedText: fixed, rawText: text });
+            return true;
+          }
           editor.chain().focus().insertContent(markdownToHtml(text)).run();
           return true;
         };
@@ -443,6 +454,15 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
             onClick={() => fileInputRef.current?.click()}
             title="Insert image"
           >🖼</button>
+          <button
+            type="button"
+            className="rte-btn"
+            onClick={() => {
+              const { fixed, fixes } = analyzeHtmlLinks(editor.getHTML());
+              setLinkPrompt({ kind: 'scan', fixes, fixedHtml: fixed });
+            }}
+            title="Scan & fix malformed links"
+          >🩹</button>
           <input
             ref={fileInputRef}
             type="file"
@@ -620,6 +640,25 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
       )}
 
       <EditorContent editor={editor} className="rte-editor" />
+
+      {linkPrompt && (
+        <LinkFixPrompt
+          fixes={linkPrompt.fixes}
+          onFix={() => {
+            if (linkPrompt.kind === 'paste') {
+              editor.chain().focus().insertContent(markdownToHtml(linkPrompt.fixedText)).run();
+            } else {
+              editor.commands.setContent(linkPrompt.fixedHtml);
+            }
+            setLinkPrompt(null);
+          }}
+          onKeepRaw={linkPrompt.kind === 'paste' ? () => {
+            editor.chain().focus().insertContent(markdownToHtml(linkPrompt.rawText)).run();
+            setLinkPrompt(null);
+          } : undefined}
+          onClose={() => setLinkPrompt(null)}
+        />
+      )}
     </div>
   );
 }

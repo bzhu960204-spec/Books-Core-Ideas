@@ -1496,6 +1496,35 @@ h1, h2, h3, h4 {
   color: var(--text-secondary);
 }
 
+/* ===== LINK FIX PROMPT ===== */
+.link-fix-list {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.link-fix-item {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle, rgba(0, 0, 0, 0.03));
+}
+.link-fix-before {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.link-fix-after {
+  font-size: 0.85rem;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+  margin-top: 0.2rem;
+}
+
 /* ===== JSON IMPORT ===== */
 .import-tabs {
   display: flex;
@@ -2469,6 +2498,7 @@ h1, h2, h3, h4 {
   line-height: 1.9;
   color: var(--text-primary);
   font-size: 0.98rem;
+  overflow-wrap: anywhere;
 }
 
 .review-bank-content p { margin-bottom: 0.75rem; }
@@ -2945,7 +2975,7 @@ h1, h2, h3, h4 {
   margin: 0 0 0.75rem;
   font-style: italic;
 }
-.review-bank-content a { color: var(--accent); text-decoration: underline; }
+.review-bank-content a { color: var(--accent); text-decoration: underline; overflow-wrap: anywhere; word-break: break-word; }
 .review-bank-content mark { background: #fef08a; padding: 0 0.15rem; border-radius: 2px; }
 .review-bank-content code {
   background: var(--bg-hover, rgba(0,0,0,0.06));

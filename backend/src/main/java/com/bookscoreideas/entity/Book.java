@@ -48,6 +48,13 @@ public class Book {
     @OrderBy("orderIndex ASC")
     private List<Chapter> chapters = new ArrayList<>();
 
+    // Parts grouping for "PARTS" books; cascade delete so removing a book
+    // also removes its parts and avoids orphaned FK references.
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("orderIndex ASC")
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private List<Part> parts = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         if (dateAdded == null) dateAdded = LocalDate.now();
@@ -83,4 +90,6 @@ public class Book {
     public void setStructureType(String structureType) { this.structureType = structureType; }
     public List<Chapter> getChapters() { return chapters; }
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
+    public List<Part> getParts() { return parts; }
+    public void setParts(List<Part> parts) { this.parts = parts; }
 }
