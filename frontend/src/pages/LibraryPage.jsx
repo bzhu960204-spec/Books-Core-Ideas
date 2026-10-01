@@ -4,6 +4,7 @@ import { bookApi, chapterApi, partApi, ideaApi } from '../api';
 import BookForm from '../components/BookForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
+import BookMigrationModal from '../components/BookMigrationModal';
 import ReadingStatusControl from '../components/ReadingStatusControl';
 
 const BOOK_JSON_HINT = `// Single book (simple):
@@ -37,6 +38,7 @@ export default function LibraryPage() {
   const [editBook, setEditBook] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showJsonImport, setShowJsonImport] = useState(false);
+  const [showMigration, setShowMigration] = useState(false);
   const [search, setSearch] = useState(() => sessionStorage.getItem('library-search') || '');
   const [sortBy, setSortBy] = useState(() => sessionStorage.getItem('library-sort') || 'title-asc');
   const [filterRating, setFilterRating] = useState(() => Number(sessionStorage.getItem('library-rating')) || 0); // 0 = all
@@ -199,6 +201,9 @@ export default function LibraryPage() {
           <div className="page-ornament" />
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={() => setShowMigration(true)}>
+            ⇄ Migrate
+          </button>
           <button className="btn btn-secondary" onClick={() => setShowJsonImport(true)}>
             { '{}'} Import JSON
           </button>
@@ -425,6 +430,14 @@ export default function LibraryPage() {
           onImport={handleJsonImport}
           onClose={() => setShowJsonImport(false)}
           addOnly
+        />
+      )}
+
+      {showMigration && (
+        <BookMigrationModal
+          books={books}
+          onClose={() => setShowMigration(false)}
+          onImported={() => { loadBooks(); loadCategories(); }}
         />
       )}
 

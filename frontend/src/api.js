@@ -136,6 +136,31 @@ export const chapterImageApi = {
   getUrl: (chapterId, imageId) => `${API_BASE}/chapters/${chapterId}/images/${imageId}/data`,
 };
 
+export const migrationApi = {
+  // Export selected books (or all when bookIds is empty) as a ZIP archive blob.
+  exportBooks: async (bookIds) => {
+    const res = await fetch(`${API_BASE}/migration/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookIds: bookIds || [] }),
+    });
+    if (!res.ok) throw new Error((await res.text().catch(() => '')) || 'Export failed');
+    const disposition = res.headers.get('content-disposition') || '';
+    const match = /filename="?([^"]+)"?/.exec(disposition);
+    return { blob: await res.blob(), filename: match ? match[1] : 'books-export.zip' };
+  },
+  preview: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch(`${API_BASE}/migration/import/preview`, { method: 'POST', body: formData });
+  },
+  import: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiFetch(`${API_BASE}/migration/import`, { method: 'POST', body: formData });
+  },
+};
+
 export const reviewApi = {
   getAll: () => apiFetch(`${API_BASE}/reviews`),
   list: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/reviews`),
