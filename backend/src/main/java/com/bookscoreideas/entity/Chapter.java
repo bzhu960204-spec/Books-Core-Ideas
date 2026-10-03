@@ -19,7 +19,8 @@ public class Chapter {
 
     private Integer orderIndex;
 
-    @Column(length = 1000)
+    @Lob
+    @Column(columnDefinition = "CLOB")
     private String summary;
 
     @ManyToOne(fetch = FetchType.LAZY)
