@@ -6,6 +6,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
 import BookMigrationModal from '../components/BookMigrationModal';
 import ReadingStatusControl from '../components/ReadingStatusControl';
+import AddToCollectionModal from '../components/collections/AddToCollectionModal';
 
 const BOOK_JSON_HINT = `// Single book (simple):
 {
@@ -39,6 +40,7 @@ export default function LibraryPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showJsonImport, setShowJsonImport] = useState(false);
   const [showMigration, setShowMigration] = useState(false);
+  const [collectTarget, setCollectTarget] = useState(null);
   const [search, setSearch] = useState(() => sessionStorage.getItem('library-search') || '');
   const [sortBy, setSortBy] = useState(() => sessionStorage.getItem('library-sort') || 'title-asc');
   const [filterRating, setFilterRating] = useState(() => Number(sessionStorage.getItem('library-rating')) || 0); // 0 = all
@@ -334,6 +336,7 @@ export default function LibraryPage() {
                 </div>
                 <span className="book-list-meta">{book.chapters?.length || 0} ch.</span>
                 <div className="book-list-actions" onClick={e => e.stopPropagation()}>
+                  <button className="btn-icon" title="Collect" onClick={() => setCollectTarget(book)}>🗂️</button>
                   <button className="btn-icon" title="Edit" onClick={() => { setEditBook(book); setShowForm(true); }}>✏️</button>
                   <button className="btn-icon" title="Delete" onClick={() => setDeleteTarget(book)}>🗑️</button>
                 </div>
@@ -397,6 +400,11 @@ export default function LibraryPage() {
                   <span style={{ display: 'flex', gap: '0.25rem' }}>
                     <button
                       className="btn-icon"
+                      title="Collect"
+                      onClick={e => { e.stopPropagation(); setCollectTarget(book); }}
+                    >🗂️</button>
+                    <button
+                      className="btn-icon"
                       title="Edit"
                       onClick={e => { e.stopPropagation(); setEditBook(book); setShowForm(true); }}
                     >✏️</button>
@@ -446,6 +454,14 @@ export default function LibraryPage() {
           message={`Are you sure you want to delete "${deleteTarget.title}"? All chapters and ideas will be lost.`}
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {collectTarget && (
+        <AddToCollectionModal
+          bookId={collectTarget.id}
+          bookTitle={collectTarget.title}
+          onClose={() => setCollectTarget(null)}
         />
       )}
     </div>

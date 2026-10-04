@@ -178,3 +178,28 @@ export const reviewApi = {
     method: 'DELETE',
   }),
 };
+
+export const bookCollectionApi = {
+  list: () => apiFetch(`${API_BASE}/book-collections`),
+  create: (name, parentId = null, sortOrder) => apiFetch(`${API_BASE}/book-collections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, parentId, sortOrder }),
+  }),
+  rename: (id, name) => apiFetch(`${API_BASE}/book-collections/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  }),
+  move: (id, parentId) => apiFetch(`${API_BASE}/book-collections/${id}/move`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parentId }),
+  }),
+  remove: (id) => apiFetch(`${API_BASE}/book-collections/${id}`, { method: 'DELETE' }),
+  booksIn: (id, includeDescendants = false) =>
+    apiFetch(`${API_BASE}/book-collections/${id}/books?includeDescendants=${includeDescendants}`),
+  collectionsForBook: (bookId) => apiFetch(`${API_BASE}/book-collections/for-book/${bookId}`),
+  addBook: (id, bookId) => apiFetch(`${API_BASE}/book-collections/${id}/books/${bookId}`, { method: 'POST' }),
+  removeBook: (id, bookId) => apiFetch(`${API_BASE}/book-collections/${id}/books/${bookId}`, { method: 'DELETE' }),
+};

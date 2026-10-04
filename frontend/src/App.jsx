@@ -6,6 +6,7 @@ import BookDetailPage from './pages/BookDetailPage';
 import IdeaBankPage from './pages/IdeaBankPage';
 import ExcerptBankPage from './pages/ExcerptBankPage';
 import ReviewBankPage from './pages/ReviewBankPage';
+import CollectionsPage from './pages/CollectionsPage';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
               <Route path="/ideas" element={<IdeaBankPage />} />
               <Route path="/excerpts" element={<ExcerptBankPage />} />
               <Route path="/reviews" element={<ReviewBankPage />} />
+              <Route path="/collections" element={<CollectionsPage />} />
             </Routes>
           </main>
         </div>
