@@ -233,50 +233,57 @@ export default function CollectionsExplorer() {
                   <p className="empty-state-hint">Click “Collect” on a book in your Library, or drag a book card onto this folder.</p>
                 </div>
               ) : (
-                <div className="coll-book-grid">
-                  {books.map(b => (
-                    <div
-                      key={b.id}
-                      className={`book-card coll-book-card ${b.coverUrl && !brokenCovers.has(b.id) ? 'has-cover' : ''}`}
-                      draggable
-                      onDragStart={e => {
-                        e.dataTransfer.setData(BOOK_DND_TYPE, String(b.id));
-                        // Carry the source folder so a drop onto another folder MOVES it.
-                        // Only when viewing a single folder (not aggregated descendants).
-                        if (!includeDescendants && selectedId != null) {
-                          e.dataTransfer.setData(BOOK_SOURCE_DND_TYPE, String(selectedId));
-                        }
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      onClick={() => navigate(`/book/${b.id}`)}
-                    >
-                      {b.coverUrl && !brokenCovers.has(b.id) && (
-                        <div className="book-card-cover">
-                          <img src={b.coverUrl} alt="" onError={() => markCoverBroken(b.id)} />
+                <ul className="coll-book-list">
+                  {books.map(b => {
+                    const hasCover = b.coverUrl && !brokenCovers.has(b.id);
+                    return (
+                      <li
+                        key={b.id}
+                        className="coll-book-row"
+                        draggable
+                        onDragStart={e => {
+                          e.dataTransfer.setData(BOOK_DND_TYPE, String(b.id));
+                          // Carry the source folder so a drop onto another folder MOVES it.
+                          // Only when viewing a single folder (not aggregated descendants).
+                          if (!includeDescendants && selectedId != null) {
+                            e.dataTransfer.setData(BOOK_SOURCE_DND_TYPE, String(selectedId));
+                          }
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onClick={() => navigate(`/book/${b.id}`)}
+                      >
+                        <div className="coll-book-thumb">
+                          {hasCover ? (
+                            <img src={b.coverUrl} alt="" onError={() => markCoverBroken(b.id)} />
+                          ) : (
+                            <span className="coll-book-thumb-fallback" aria-hidden="true">
+                              {(b.title?.trim()?.[0] || '?').toUpperCase()}
+                            </span>
+                          )}
                         </div>
-                      )}
-                      <div className="book-card-content">
-                        <div className="book-card-title">{b.title}</div>
-                        <div className="book-card-author">{b.author || 'Unknown author'}</div>
-                        {(b.rating ?? 0) > 0 && (
-                          <div className="book-compact-rating">
-                            {'★'.repeat(b.rating)}<span className="book-compact-rating-dim">{'★'.repeat(5 - b.rating)}</span>
+                        <div className="coll-book-row-body">
+                          <div className="coll-book-row-title">{b.title}</div>
+                          <div className="coll-book-row-author">{b.author || 'Unknown author'}</div>
+                          <div className="coll-book-row-meta">
+                            {(b.rating ?? 0) > 0 && (
+                              <span className="book-compact-rating">
+                                {'★'.repeat(b.rating)}<span className="book-compact-rating-dim">{'★'.repeat(5 - b.rating)}</span>
+                              </span>
+                            )}
+                            <span className="coll-book-row-chapters">{b.chapters?.length || 0} chapters</span>
                           </div>
-                        )}
-                        <div className="book-card-meta">
-                          <span>{b.chapters?.length || 0} chapters</span>
-                          <button
-                            className="btn-link danger"
-                            title="Remove from this collection (does not delete the book)"
-                            onClick={e => { e.stopPropagation(); removeBookFromFolder(b.id); }}
-                          >
-                            Remove
-                          </button>
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                        <button
+                          className="btn-link danger coll-book-row-remove"
+                          title="Remove from this collection (does not delete the book)"
+                          onClick={e => { e.stopPropagation(); removeBookFromFolder(b.id); }}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </>
           )}

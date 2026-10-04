@@ -3219,13 +3219,93 @@ h1, h2, h3, h4 {
 }
 .coll-name-input:focus { outline: none; border-color: var(--btn-primary); }
 
-.coll-book-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.25rem;
+/* Collection books — compact horizontal list (consistent height with/without cover) */
+.coll-book-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.coll-book-card { cursor: pointer; }
+.coll-book-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+}
+.coll-book-row:hover {
+  border-color: var(--btn-primary);
+  box-shadow: 0 3px 12px var(--shadow);
+  transform: translateY(-1px);
+}
+
+.coll-book-thumb {
+  flex-shrink: 0;
+  width: 44px;
+  height: 62px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.coll-book-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.coll-book-thumb-fallback {
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.coll-book-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.coll-book-row-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.coll-book-row-author {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.coll-book-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.coll-book-row-meta .book-compact-rating { margin: 0; }
+
+.coll-book-row-remove {
+  flex-shrink: 0;
+}
 
 .coll-modal-subtitle {
   font-size: 13px;
