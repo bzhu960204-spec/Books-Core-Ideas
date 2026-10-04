@@ -16,6 +16,7 @@ export default function CollectionsExplorer() {
   const [dialog, setDialog] = useState(null); // { mode, parentId, targetId, value }
   const [showPicker, setShowPicker] = useState(false);
   const [brokenCovers, setBrokenCovers] = useState(() => new Set());
+  const [crumbMenuOpen, setCrumbMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const reloadTree = useCallback(
@@ -69,6 +70,27 @@ export default function CollectionsExplorer() {
     }
     return path;
   }, [selected, byId]);
+
+  // Collapse deep breadcrumbs: keep root + last two levels, hide the middle behind a "…" menu.
+  const COLLAPSE_AFTER = 4;
+  const { visibleCrumbs, hiddenCrumbs } = useMemo(() => {
+    if (breadcrumb.length <= COLLAPSE_AFTER) {
+      return { visibleCrumbs: breadcrumb.map(c => ({ type: 'crumb', crumb: c })), hiddenCrumbs: [] };
+    }
+    const head = breadcrumb[0];
+    const tail = breadcrumb.slice(-2);
+    const middle = breadcrumb.slice(1, -2);
+    return {
+      visibleCrumbs: [
+        { type: 'crumb', crumb: head },
+        { type: 'ellipsis' },
+        ...tail.map(c => ({ type: 'crumb', crumb: c })),
+      ],
+      hiddenCrumbs: middle,
+    };
+  }, [breadcrumb]);
+
+  useEffect(() => { setCrumbMenuOpen(false); }, [selectedId]);
 
   const toggleExpand = (id) =>
     setExpanded(prev => {
@@ -203,12 +225,46 @@ export default function CollectionsExplorer() {
             <>
               <div className="coll-content-header">
                 <nav className="coll-breadcrumb">
-                  {breadcrumb.map((c, i) => (
-                    <span key={c.id} className="coll-breadcrumb-crumb">
+                  {visibleCrumbs.map((item, i) => (
+                    <span key={item.type === 'ellipsis' ? '__ellipsis__' : item.crumb.id} className="coll-breadcrumb-crumb">
                       {i > 0 && <span className="coll-breadcrumb-sep">/</span>}
-                      <button className="coll-breadcrumb-item" onClick={() => setSelectedId(c.id)} title={c.name}>
-                        {c.name}
-                      </button>
+                      {item.type === 'ellipsis' ? (
+                        <span className="coll-breadcrumb-collapse">
+                          <button
+                            type="button"
+                            className="coll-breadcrumb-item coll-breadcrumb-ellipsis"
+                            onClick={() => setCrumbMenuOpen(o => !o)}
+                            aria-haspopup="true"
+                            aria-expanded={crumbMenuOpen}
+                            title="Show hidden folders"
+                          >
+                            …
+                          </button>
+                          {crumbMenuOpen && (
+                            <>
+                              <div className="coll-crumb-menu-backdrop" onClick={() => setCrumbMenuOpen(false)} />
+                              <div className="coll-crumb-menu" role="menu">
+                                {hiddenCrumbs.map(c => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    role="menuitem"
+                                    className="coll-crumb-menu-item"
+                                    onClick={() => { setSelectedId(c.id); setCrumbMenuOpen(false); }}
+                                    title={c.name}
+                                  >
+                                    {c.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </span>
+                      ) : (
+                        <button className="coll-breadcrumb-item" onClick={() => setSelectedId(item.crumb.id)} title={item.crumb.name}>
+                          {item.crumb.name}
+                        </button>
+                      )}
                     </span>
                   ))}
                 </nav>
