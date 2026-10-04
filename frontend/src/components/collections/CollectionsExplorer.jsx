@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { bookCollectionApi } from '../../api';
 import CollectionTree, { buildFolderTree, BOOK_DND_TYPE, BOOK_SOURCE_DND_TYPE } from './CollectionTree';
 import PickBooksModal from './PickBooksModal';
 
 export default function CollectionsExplorer() {
+  const location = useLocation();
   const [collections, setCollections] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(() => location.state?.collectionId ?? null);
   const [expanded, setExpanded] = useState(() => new Set());
   const [books, setBooks] = useState([]);
-  const [includeDescendants, setIncludeDescendants] = useState(false);
+  const [includeDescendants, setIncludeDescendants] = useState(() => location.state?.includeDescendants ?? false);
   const [loadingTree, setLoadingTree] = useState(true);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [dialog, setDialog] = useState(null); // { mode, parentId, targetId, value }
@@ -203,25 +204,27 @@ export default function CollectionsExplorer() {
               <div className="coll-content-header">
                 <nav className="coll-breadcrumb">
                   {breadcrumb.map((c, i) => (
-                    <span key={c.id}>
+                    <span key={c.id} className="coll-breadcrumb-crumb">
                       {i > 0 && <span className="coll-breadcrumb-sep">/</span>}
-                      <button className="coll-breadcrumb-item" onClick={() => setSelectedId(c.id)}>
+                      <button className="coll-breadcrumb-item" onClick={() => setSelectedId(c.id)} title={c.name}>
                         {c.name}
                       </button>
                     </span>
                   ))}
                 </nav>
-                <label className="coll-include-toggle">
-                  <input
-                    type="checkbox"
-                    checked={includeDescendants}
-                    onChange={e => setIncludeDescendants(e.target.checked)}
-                  />
-                  Include books from sub-folders
-                </label>
-                <button className="btn btn-primary btn-sm" onClick={() => setShowPicker(true)}>
-                  ＋ Add books
-                </button>
+                <div className="coll-content-header-actions">
+                  <label className="coll-include-toggle">
+                    <input
+                      type="checkbox"
+                      checked={includeDescendants}
+                      onChange={e => setIncludeDescendants(e.target.checked)}
+                    />
+                    Include books from sub-folders
+                  </label>
+                  <button className="btn btn-primary btn-sm" onClick={() => setShowPicker(true)}>
+                    ＋ Add books
+                  </button>
+                </div>
               </div>
 
               {loadingBooks ? (
@@ -250,7 +253,7 @@ export default function CollectionsExplorer() {
                           }
                           e.dataTransfer.effectAllowed = 'move';
                         }}
-                        onClick={() => navigate(`/book/${b.id}`)}
+                        onClick={() => navigate(`/book/${b.id}`, { state: { from: 'collections', collectionId: selectedId, includeDescendants } })}
                       >
                         <div className="coll-book-thumb">
                           {hasCover ? (

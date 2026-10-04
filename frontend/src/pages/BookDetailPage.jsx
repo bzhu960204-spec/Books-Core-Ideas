@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
@@ -136,6 +136,13 @@ const CHAPTER_COMBINED_HINT = `// Import ideas AND excerpts together:
 
 export default function BookDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const fromCollections = location.state?.from === 'collections';
+  const backTo = fromCollections ? '/collections' : '/';
+  const backState = fromCollections
+    ? { collectionId: location.state?.collectionId ?? null, includeDescendants: location.state?.includeDescendants ?? false }
+    : undefined;
+  const backLabel = fromCollections ? '← Back to Collection' : '← Back to Library';
   const [book, setBook] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [parts, setParts] = useState([]);
@@ -779,7 +786,7 @@ export default function BookDetailPage() {
 
   return (
     <div>
-      <Link to="/" className="back-link">← Back to Library</Link>
+      <Link to={backTo} state={backState} className="back-link">{backLabel}</Link>
 
       <div className="book-detail-header">
         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>

@@ -3162,23 +3162,40 @@ h1, h2, h3, h4 {
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--card-radius);
   padding: 12px 16px;
 }
 
+.coll-content-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
 .coll-breadcrumb {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   font-size: 15px;
   font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.coll-breadcrumb-sep { color: var(--text-secondary); font-weight: 400; }
+.coll-breadcrumb-crumb {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.coll-breadcrumb-crumb:last-child { flex: 0 1 auto; min-width: 0; }
+
+.coll-breadcrumb-sep { color: var(--text-secondary); font-weight: 400; flex: 0 0 auto; }
 
 .coll-breadcrumb-item {
   background: none;
@@ -3189,6 +3206,10 @@ h1, h2, h3, h4 {
   font-weight: 600;
   padding: 2px 4px;
   border-radius: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .coll-breadcrumb-item:hover { color: var(--btn-primary); }
 
