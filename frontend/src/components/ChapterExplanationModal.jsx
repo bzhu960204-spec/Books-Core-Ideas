@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Modal from './Modal';
 import RichTextEditor, { normalizeReviewContent } from './RichTextEditor';
 
@@ -16,15 +16,20 @@ export default function ChapterExplanationModal({
   bookTitle,
   explanation,
   startInEdit = false,
+  initialScrollRatio = null,
   onClose,
   onSave,
   onDelete,
+  onBookmark,
+  bookmarking = false,
   saving = false,
 }) {
   const hasContent = !!(explanation && explanation.content && explanation.content.trim());
   const [editing, setEditing] = useState(startInEdit || !hasContent);
   const [draft, setDraft] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
+  const [bookmarkSaved, setBookmarkSaved] = useState(false);
+  const bodyRef = useRef(null);
   const [fontScale, setFontScale] = useState(() => {
     const saved = parseFloat(localStorage.getItem(FONT_KEY));
     return Number.isFinite(saved) ? Math.min(FONT_MAX, Math.max(FONT_MIN, saved)) : 1;
@@ -56,10 +61,35 @@ export default function ChapterExplanationModal({
     return () => document.removeEventListener('keydown', onKey, true);
   }, [fullscreen]);
 
+  // Restore the saved reading position when opening/returning to view mode.
+  useEffect(() => {
+    if (editing || initialScrollRatio == null) return undefined;
+    const el = bodyRef.current;
+    if (!el) return undefined;
+    const id = requestAnimationFrame(() => {
+      const max = el.scrollHeight - el.clientHeight;
+      el.scrollTop = max > 0 ? initialScrollRatio * max : 0;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editing, initialScrollRatio, explanation]);
+
   const handleSave = async () => {
     await onSave?.({ content: draft });
     setEditing(false);
     setFullscreen(false);
+  };
+
+  // Record a "read up to here" bookmark at the current scroll position.
+  const handleBookmark = async () => {
+    const el = bodyRef.current;
+    let scrollRatio = 0;
+    if (el) {
+      const max = el.scrollHeight - el.clientHeight;
+      scrollRatio = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0;
+    }
+    await onBookmark?.({ scrollRatio });
+    setBookmarkSaved(true);
+    setTimeout(() => setBookmarkSaved(false), 1800);
   };
 
   return (
@@ -79,7 +109,7 @@ export default function ChapterExplanationModal({
         </div>
       </header>
 
-      <div className={`review-reader-body ${editing ? 'is-editing' : ''}`}>
+      <div ref={bodyRef} className={`review-reader-body ${editing ? 'is-editing' : ''}`}>
         {editing ? (
           <RichTextEditor
             value={draft}
@@ -154,6 +184,16 @@ export default function ChapterExplanationModal({
               </button>
             </div>
             <span style={{ flex: 1 }} />
+            {hasContent && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleBookmark}
+                disabled={bookmarking}
+                title="Save your reading position so you can continue later"
+              >
+                {bookmarkSaved ? '✓ Saved' : (bookmarking ? 'Saving…' : '🔖 Mark read here')}
+              </button>
+            )}
             <button className="btn btn-danger btn-sm" onClick={onDelete}>
               🗑️ Delete
             </button>

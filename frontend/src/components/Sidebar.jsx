@@ -27,6 +27,9 @@ export default function Sidebar() {
         <NavLink to="/reviews" className={({ isActive }) => isActive ? 'active' : ''}>
           <span>📝</span> Review Bank
         </NavLink>
+        <NavLink to="/history" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span>🔖</span> Reading History
+        </NavLink>
       </nav>
     </aside>
   );

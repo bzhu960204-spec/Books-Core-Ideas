@@ -7,6 +7,7 @@ import IdeaBankPage from './pages/IdeaBankPage';
 import ExcerptBankPage from './pages/ExcerptBankPage';
 import ReviewBankPage from './pages/ReviewBankPage';
 import CollectionsPage from './pages/CollectionsPage';
+import ReadingHistoryPage from './pages/ReadingHistoryPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
               <Route path="/excerpts" element={<ExcerptBankPage />} />
               <Route path="/reviews" element={<ReviewBankPage />} />
               <Route path="/collections" element={<CollectionsPage />} />
+              <Route path="/history" element={<ReadingHistoryPage />} />
             </Routes>
           </main>
         </div>

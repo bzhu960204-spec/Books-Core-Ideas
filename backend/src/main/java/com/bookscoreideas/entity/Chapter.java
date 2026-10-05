@@ -55,6 +55,12 @@ public class Chapter {
     @JsonIgnore
     private ChapterExplanation explanation;
 
+    // Reading-history bookmarks on this chapter's explanation; cascade delete so
+    // removing a chapter (or its book) also removes its bookmarks.
+    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<ReadingBookmark> bookmarks = new ArrayList<>();
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -79,4 +85,8 @@ public class Chapter {
     public ChapterExplanation getExplanation() { return explanation; }
     @JsonIgnore
     public void setExplanation(ChapterExplanation explanation) { this.explanation = explanation; }
+    @JsonIgnore
+    public List<ReadingBookmark> getBookmarks() { return bookmarks; }
+    @JsonIgnore
+    public void setBookmarks(List<ReadingBookmark> bookmarks) { this.bookmarks = bookmarks; }
 }

@@ -99,6 +99,22 @@ export const explanationApi = {
   chapterIds: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/explanation-chapter-ids`),
 };
 
+// Manual reading bookmarks ("I read up to here") on chapter explanations.
+export const bookmarkApi = {
+  create: (chapterId, { scrollRatio = null, note = '' } = {}) =>
+    apiFetch(`${API_BASE}/chapters/${chapterId}/bookmarks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scrollRatio, note }),
+    }),
+  latest: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/bookmarks/latest`),
+  list: (bookId = null) => {
+    const qs = bookId ? `?bookId=${bookId}` : '';
+    return apiFetch(`${API_BASE}/bookmarks${qs}`);
+  },
+  delete: (id) => apiFetch(`${API_BASE}/bookmarks/${id}`, { method: 'DELETE' }),
+};
+
 export const ideaBankApi = {
   search: ({ q = '', bookId = null, tag = '' } = {}) => {
     const params = new URLSearchParams();

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi } from '../api';
+import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi, bookmarkApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
 import PartForm from '../components/PartForm';
 import IdeaForm from '../components/IdeaForm';
@@ -134,6 +134,14 @@ const CHAPTER_COMBINED_HINT = `// Import ideas AND excerpts together:
   ]
 }`;
 
+// Compact "May 3, 2:14 PM" style timestamp for reading bookmarks.
+function formatBookmarkTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
 export default function BookDetailPage() {
   const { id } = useParams();
   const location = useLocation();
@@ -151,6 +159,7 @@ export default function BookDetailPage() {
   const [expandedChapters, setExpandedChapters] = useState({});
   const [scrollToChapter, setScrollToChapter] = useState(null);
   const chapterRefs = useRef({});
+  const openedFromState = useRef(false);
   const [chapterIdeas, setChapterIdeas] = useState({});
   const [chapterExcerpts, setChapterExcerpts] = useState({});
 
@@ -171,8 +180,11 @@ export default function BookDetailPage() {
   const [imageViewer, setImageViewer] = useState(null); // chapterId
   const [chapterImageCounts, setChapterImageCounts] = useState({});
   const [chapterHasExplanation, setChapterHasExplanation] = useState({}); // { chapterId: true }
-  const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit }
+  const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit, initialScrollRatio }
   const [savingExplanation, setSavingExplanation] = useState(false);
+  const [latestBookmark, setLatestBookmark] = useState(null); // most recent reading bookmark for this book
+  const [bookmarkedChapterIds, setBookmarkedChapterIds] = useState({}); // { chapterId: true }
+  const [savingBookmark, setSavingBookmark] = useState(false);
   const [showExplanationExport, setShowExplanationExport] = useState(false);
   // Drag-and-drop: reassign a chapter to another part (or to "Ungrouped").
   const [draggedChapterId, setDraggedChapterId] = useState(null);
@@ -213,6 +225,12 @@ export default function BookDetailPage() {
         try {
           const ids = await explanationApi.chapterIds(id);
           setChapterHasExplanation(Object.fromEntries((ids || []).map(cid => [cid, true])));
+        } catch { /* ignore */ }
+        // Reading bookmarks: latest drives "continue reading", all drive markers.
+        try {
+          const marks = await bookmarkApi.list(id);
+          setLatestBookmark(marks && marks.length ? marks[0] : null);
+          setBookmarkedChapterIds(Object.fromEntries((marks || []).map(m => [m.chapterId, true])));
         } catch { /* ignore */ }
         // Pre-load image counts only when chapter images are enabled
         if (bookData.chapterImagesEnabled) {
@@ -310,13 +328,43 @@ export default function BookDetailPage() {
   };
 
   // Chapter explanation (详解) — open loads the document, then view/edit inline.
-  const openExplanation = async (chapterId, startInEdit = false) => {
+  const openExplanation = async (chapterId, startInEdit = false, initialScrollRatio = null) => {
     let data = null;
     try {
       data = await explanationApi.get(chapterId);
     } catch { /* none yet */ }
-    setExplanationModal({ chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data });
+    setExplanationModal({ chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data, initialScrollRatio });
   };
+
+  // Jump straight to the most recently bookmarked chapter and scroll position.
+  const continueReading = () => {
+    if (!latestBookmark) return;
+    openExplanation(latestBookmark.chapterId, false, latestBookmark.scrollRatio ?? 0);
+  };
+
+  // Record a "read up to here" bookmark for the open chapter's explanation.
+  const handleBookmark = async ({ scrollRatio }) => {
+    if (!explanationModal) return;
+    const chapterId = explanationModal.chapterId;
+    setSavingBookmark(true);
+    try {
+      const saved = await bookmarkApi.create(chapterId, { scrollRatio });
+      setLatestBookmark(saved);
+      setBookmarkedChapterIds(prev => ({ ...prev, [chapterId]: true }));
+    } finally {
+      setSavingBookmark(false);
+    }
+  };
+
+  // Deep-link from Reading History: open an explanation at the saved position.
+  useEffect(() => {
+    if (openedFromState.current || !book) return;
+    const target = location.state?.openExplanation;
+    if (target?.chapterId) {
+      openedFromState.current = true;
+      openExplanation(target.chapterId, false, target.scrollRatio ?? 0);
+    }
+  }, [book, location.state]);
 
   const handleSaveExplanation = async ({ content }) => {
     if (!explanationModal) return;
@@ -700,6 +748,18 @@ export default function BookDetailPage() {
             onClick={() => openExplanation(chapter.id)}
             style={{ opacity: chapterHasExplanation[chapter.id] ? 1 : 0.5 }}
           >📄{chapterHasExplanation[chapter.id] ? '✓' : ''}</button>
+          {bookmarkedChapterIds[chapter.id] && (
+            <button
+              className="btn-icon"
+              title={latestBookmark?.chapterId === chapter.id ? 'Continue reading from here' : 'You have a reading bookmark here'}
+              onClick={() => openExplanation(
+                chapter.id,
+                false,
+                latestBookmark?.chapterId === chapter.id ? (latestBookmark.scrollRatio ?? 0) : null,
+              )}
+              style={{ opacity: latestBookmark?.chapterId === chapter.id ? 1 : 0.55 }}
+            >🔖</button>
+          )}
           <button
             className="btn-icon"
             title="Edit chapter"
@@ -805,6 +865,18 @@ export default function BookDetailPage() {
               <ReadingStatusControl status={book.readingStatus} onChange={handleStatusChange} />
             </div>
             {book.description && <p className="book-detail-desc">{book.description}</p>}
+            {latestBookmark && (
+              <div className="continue-reading">
+                <button className="btn btn-primary btn-sm" onClick={continueReading}>
+                  ▶ Continue reading
+                </button>
+                <span className="continue-reading-meta">
+                  Last read: <strong>{latestBookmark.chapterTitle || 'Chapter'}</strong>
+                  {' · '}{formatBookmarkTime(latestBookmark.createdAt)}
+                  {latestBookmark.scrollRatio != null && ` · ~${Math.round(latestBookmark.scrollRatio * 100)}%`}
+                </span>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.5rem' }}>
               {book.isbn && (
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -1092,10 +1164,13 @@ export default function BookDetailPage() {
           bookTitle={book.title}
           explanation={explanationModal.data}
           startInEdit={explanationModal.startInEdit}
+          initialScrollRatio={explanationModal.initialScrollRatio}
           saving={savingExplanation}
+          bookmarking={savingBookmark}
           onClose={() => setExplanationModal(null)}
           onSave={handleSaveExplanation}
           onDelete={handleDeleteExplanation}
+          onBookmark={handleBookmark}
         />
       )}
 
