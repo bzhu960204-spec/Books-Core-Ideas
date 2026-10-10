@@ -12,7 +12,7 @@ import { Highlight } from '@tiptap/extension-highlight';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { marked } from 'marked';
 import LinkFixPrompt from './LinkFixPrompt';
-import { analyzeMarkdownLinks, analyzeHtmlLinks } from '../utils/linkFix';
+import { analyzeHtmlLinks } from '../utils/linkFix';
 
 // Custom extension: adds a `fontSize` attribute to the textStyle mark so the
 // font-size dropdown can read/write inline `style="font-size: …"`.
@@ -192,13 +192,16 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
   // to keep the editing surface tall; core actions live in the compact row.
   const [showMore, setShowMore] = useState(false);
 
-  // Pending malformed-link prompt: { kind, fixes, fixedText?, rawText?, fixedHtml? }.
+  // Pending malformed-link prompt from the "scan & fix" button: { fixes, fixedHtml }.
   const [linkPrompt, setLinkPrompt] = useState(null);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        // Don't silently rewrite content on paste/type; links are applied only
+        // via the toolbar or the explicit "scan & fix" action.
+        link: { autolink: false, linkOnPaste: false },
       }),
       // TextStyle is already included in StarterKit v3 and supports fontFamily/color
       FontFamily,
@@ -246,12 +249,6 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
         const insertAsMarkdown = () => {
           if (!editor || !text) return false;
           event.preventDefault();
-          // Intercept Copilot-style malformed links and let the user decide.
-          const { fixed, fixes } = analyzeMarkdownLinks(text);
-          if (fixes.length > 0) {
-            setLinkPrompt({ kind: 'paste', fixes, fixedText: fixed, rawText: text });
-            return true;
-          }
           editor.chain().focus().insertContent(markdownToHtml(text)).run();
           return true;
         };
@@ -459,7 +456,7 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
             className="rte-btn"
             onClick={() => {
               const { fixed, fixes } = analyzeHtmlLinks(editor.getHTML());
-              setLinkPrompt({ kind: 'scan', fixes, fixedHtml: fixed });
+              setLinkPrompt({ fixes, fixedHtml: fixed });
             }}
             title="Scan & fix malformed links"
           >🩹</button>
@@ -645,17 +642,9 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
         <LinkFixPrompt
           fixes={linkPrompt.fixes}
           onFix={() => {
-            if (linkPrompt.kind === 'paste') {
-              editor.chain().focus().insertContent(markdownToHtml(linkPrompt.fixedText)).run();
-            } else {
-              editor.commands.setContent(linkPrompt.fixedHtml);
-            }
+            editor.commands.setContent(linkPrompt.fixedHtml);
             setLinkPrompt(null);
           }}
-          onKeepRaw={linkPrompt.kind === 'paste' ? () => {
-            editor.chain().focus().insertContent(markdownToHtml(linkPrompt.rawText)).run();
-            setLinkPrompt(null);
-          } : undefined}
           onClose={() => setLinkPrompt(null)}
         />
       )}

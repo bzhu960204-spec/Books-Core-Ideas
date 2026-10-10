@@ -23,6 +23,29 @@ function readUrl(text, start) {
   return { url: text.slice(start, i), end: i };
 }
 
+// Index of the destination's closing ')'. Prefers a balanced match, but Copilot
+// filenames can carry an unbalanced '(' (e.g. "(z-library.sk,.pdf"), which never
+// balances — so fall back to the last ')' on the same line.
+function findDestEnd(text, destOpen) {
+  let depth = 0;
+  for (let k = destOpen; k < text.length; k++) {
+    const c = text[k];
+    if (c === '\n') break;
+    if (c === '(') depth++;
+    else if (c === ')') {
+      depth--;
+      if (depth === 0) return k;
+    }
+  }
+  let last = -1;
+  for (let k = destOpen + 1; k < text.length; k++) {
+    const c = text[k];
+    if (c === '\n') break;
+    if (c === ')') last = k;
+  }
+  return last;
+}
+
 // Try to parse a malformed link beginning at `start` ('['). Returns null when
 // the construct is a normal, well-formed link (so it is left untouched).
 function tryParseMalformed(text, start) {
@@ -55,24 +78,20 @@ function tryParseMalformed(text, start) {
   // Grab the first real http(s) URL anywhere inside the destination.
   const httpIdx = text.indexOf('http', destOpen);
   if (httpIdx === -1) return null;
-  const { url } = readUrl(text, httpIdx);
+
+  // Close of the outer destination, then read the URL up to (never past) it.
+  const destClose = findDestEnd(text, destOpen);
+  if (destClose === -1) return null;
+  const urlEnd = Math.min(readUrl(text, httpIdx).end, destClose);
+  const url = text.slice(httpIdx, urlEnd);
   if (!url) return null;
 
-  // Find the matching close of the outer destination paren.
-  let depth = 0;
-  let k = destOpen;
-  for (; k < text.length; k++) {
-    if (text[k] === '(') depth++;
-    else if (text[k] === ')') {
-      depth--;
-      if (depth === 0) { k++; break; }
-    }
-  }
-
   return {
-    end: k,
+    end: destClose + 1,
+    label,
+    url,
     replacement: `[${label}](${url})`,
-    original: text.slice(start, k),
+    original: text.slice(start, destClose + 1),
   };
 }
 
@@ -106,6 +125,12 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+// Drop any nested HTML tags, leaving visible text only. TipTap's autolink can
+// inject an <a> into a citation label on paste; this recovers the plain label.
+function stripTags(s) {
+  return s.replace(/<[^>]+>/g, '');
+}
+
 // Human-readable label from a URL: the decoded final path segment.
 function labelFromUrl(href) {
   try {
@@ -130,7 +155,7 @@ const HTML_EXPOSED_URL_RE =
 export function analyzeHtmlLinks(html) {
   const fixes = [];
   let out = html.replace(HTML_BRACKET_LINK_RE, (match, label, href) => {
-    const text = (label || '').trim() || labelFromUrl(href);
+    const text = stripTags(label || '').trim() || labelFromUrl(href);
     const fixed = `<a href="${escapeHtml(href)}">${escapeHtml(text)}</a>`;
     fixes.push({ original: match, fixed });
     return fixed;
@@ -140,5 +165,30 @@ export function analyzeHtmlLinks(html) {
     fixes.push({ original: match, fixed });
     return fixed;
   });
+  // Finally, collapse malformed links that survived as *literal text* (e.g. a
+  // Rich paste with autolink off leaves "[[Label]](url)" untouched in the DOM).
+  out = collapseTextMarkdownLinks(out, fixes);
   return { fixed: out, fixes };
+}
+
+// Walk HTML text, turning literal malformed markdown links into clean anchors.
+function collapseTextMarkdownLinks(html, fixes) {
+  let out = '';
+  let i = 0;
+  while (i < html.length) {
+    if (html[i] === '[') {
+      const parsed = tryParseMalformed(html, i);
+      if (parsed) {
+        const label = stripTags(parsed.label).trim() || labelFromUrl(parsed.url);
+        const fixed = `<a href="${escapeHtml(parsed.url)}">${escapeHtml(label)}</a>`;
+        fixes.push({ original: parsed.original, fixed });
+        out += fixed;
+        i = parsed.end;
+        continue;
+      }
+    }
+    out += html[i];
+    i++;
+  }
+  return out;
 }
