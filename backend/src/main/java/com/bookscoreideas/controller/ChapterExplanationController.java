@@ -3,7 +3,9 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.entity.ChapterExplanation;
 import com.bookscoreideas.repository.ChapterExplanationRepository;
 import com.bookscoreideas.repository.ChapterRepository;
+import com.bookscoreideas.repository.ExplanationMarkRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -15,11 +17,14 @@ public class ChapterExplanationController {
 
     private final ChapterExplanationRepository explanationRepository;
     private final ChapterRepository chapterRepository;
+    private final ExplanationMarkRepository markRepository;
 
     public ChapterExplanationController(ChapterExplanationRepository explanationRepository,
-                                        ChapterRepository chapterRepository) {
+                                        ChapterRepository chapterRepository,
+                                        ExplanationMarkRepository markRepository) {
         this.explanationRepository = explanationRepository;
         this.chapterRepository = chapterRepository;
+        this.markRepository = markRepository;
     }
 
     @GetMapping
@@ -46,10 +51,13 @@ public class ChapterExplanationController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // Saved passages point into the explanation text, so they go with it.
     @DeleteMapping
+    @Transactional
     public ResponseEntity<Void> deleteExplanation(@PathVariable Long chapterId) {
         return explanationRepository.findByChapterId(chapterId)
                 .map(explanation -> {
+                    markRepository.deleteByChapterId(chapterId);
                     explanationRepository.delete(explanation);
                     return ResponseEntity.noContent().<Void>build();
                 })

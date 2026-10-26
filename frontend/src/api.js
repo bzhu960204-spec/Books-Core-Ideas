@@ -115,6 +115,24 @@ export const bookmarkApi = {
   delete: (id) => apiFetch(`${API_BASE}/bookmarks/${id}`, { method: 'DELETE' }),
 };
 
+// Passages saved from chapter explanations (text + location), listed per book.
+export const markApi = {
+  create: (chapterId, mark) =>
+    apiFetch(`${API_BASE}/chapters/${chapterId}/marks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mark),
+    }),
+  listByBook: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/marks`),
+  updateNote: (id, note) =>
+    apiFetch(`${API_BASE}/marks/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    }),
+  delete: (id) => apiFetch(`${API_BASE}/marks/${id}`, { method: 'DELETE' }),
+};
+
 export const ideaBankApi = {
   search: ({ q = '', bookId = null, tag = '' } = {}) => {
     const params = new URLSearchParams();

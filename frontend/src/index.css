@@ -2801,6 +2801,139 @@ h1, h2, h3, h4 {
   background: var(--bg-secondary, var(--bg-card));
 }
 
+/* ===== Saved passages (explanation marks) ===== */
+/* Floating menu next to the selected (or just-saved) passage. Position is set
+   from script. */
+.mark-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: 0.35rem 0.45rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px var(--shadow);
+}
+.mark-menu-input {
+  width: 15rem;
+  padding: 0.3rem 0.5rem;
+}
+.mark-menu-error {
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+.mark-menu-status {
+  padding: 0 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.mark-missed-notice {
+  margin: 0 2rem 0.6rem 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent-hover);
+  border-radius: 3px;
+}
+
+/* Keeps the pending passage looking like the browser's own selection when the
+   native one is lost (e.g. while typing a note). */
+::highlight(mark-pending) {
+  background-color: Highlight;
+  color: HighlightText;
+}
+
+/* Saved passages stay highlighted in the text. */
+::highlight(mark-saved) {
+  background-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  color: inherit;
+}
+
+/* Flash for a jumped-to passage: Custom Highlight API where supported, with a
+   block-level fallback. Runtime-only; the explanation HTML is never altered. */
+::highlight(mark-flash) {
+  background-color: #ff9800;
+  color: #1a1a1a;
+}
+.mark-flash-block {
+  animation: markFlash 2.2s ease-out;
+}
+@keyframes markFlash {
+  0%, 60% { background-color: var(--accent); }
+  100% { background-color: transparent; }
+}
+
+.marks-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.marks-group-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.marks-item {
+  padding: 0.6rem 0;
+  border-bottom: 1px dashed var(--border);
+}
+.marks-item:last-child {
+  border-bottom: none;
+}
+.marks-quote {
+  margin: 0;
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  border-left: 3px solid var(--accent-hover);
+  font-style: italic;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.marks-expand {
+  margin: 0.2rem 0 0 0.75rem;
+  font-size: 0.8rem;
+}
+.marks-note {
+  margin: 0.4rem 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+.marks-note-edit {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.4rem 0 0 0.75rem;
+}
+.marks-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.marks-stale {
+  color: var(--danger);
+}
+.marks-error {
+  margin-bottom: 0.75rem;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
 /* ===== Rich Text Editor (TipTap) ===== */
 .rte-wrapper {
   display: flex;

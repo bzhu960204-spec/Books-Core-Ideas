@@ -61,6 +61,11 @@ public class Chapter {
     @JsonIgnore
     private List<ReadingBookmark> bookmarks = new ArrayList<>();
 
+    // Passages saved from this chapter's explanation; cascade delete like bookmarks.
+    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<ExplanationMark> explanationMarks = new ArrayList<>();
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -89,4 +94,8 @@ public class Chapter {
     public List<ReadingBookmark> getBookmarks() { return bookmarks; }
     @JsonIgnore
     public void setBookmarks(List<ReadingBookmark> bookmarks) { this.bookmarks = bookmarks; }
+    @JsonIgnore
+    public List<ExplanationMark> getExplanationMarks() { return explanationMarks; }
+    @JsonIgnore
+    public void setExplanationMarks(List<ExplanationMark> explanationMarks) { this.explanationMarks = explanationMarks; }
 }

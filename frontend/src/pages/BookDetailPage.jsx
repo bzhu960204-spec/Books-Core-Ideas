@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi, bookmarkApi } from '../api';
+import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi, bookmarkApi, markApi } from '../api';
 import ChapterForm from '../components/ChapterForm';
 import PartForm from '../components/PartForm';
 import IdeaForm from '../components/IdeaForm';
@@ -11,6 +11,7 @@ import ChapterImageViewer from '../components/ChapterImageViewer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
 import ChapterExplanationModal from '../components/ChapterExplanationModal';
+import ExplanationMarksPanel from '../components/ExplanationMarksPanel';
 import ExplanationExportModal from '../components/ExplanationExportModal';
 import ReadingStatusControl from '../components/ReadingStatusControl';
 
@@ -180,8 +181,11 @@ export default function BookDetailPage() {
   const [imageViewer, setImageViewer] = useState(null); // chapterId
   const [chapterImageCounts, setChapterImageCounts] = useState({});
   const [chapterHasExplanation, setChapterHasExplanation] = useState({}); // { chapterId: true }
-  const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit, initialScrollRatio }
+  const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit, initialScrollRatio, initialAnchor }
   const [savingExplanation, setSavingExplanation] = useState(false);
+  const [marks, setMarks] = useState([]); // saved explanation passages for this book
+  const [showMarks, setShowMarks] = useState(false);
+  const [staleMarkIds, setStaleMarkIds] = useState({}); // { markId: true } when a jump could not find the text
   const [latestBookmark, setLatestBookmark] = useState(null); // most recent reading bookmark for this book
   const [bookmarkedChapterIds, setBookmarkedChapterIds] = useState({}); // { chapterId: true }
   const [savingBookmark, setSavingBookmark] = useState(false);
@@ -231,6 +235,10 @@ export default function BookDetailPage() {
           const marks = await bookmarkApi.list(id);
           setLatestBookmark(marks && marks.length ? marks[0] : null);
           setBookmarkedChapterIds(Object.fromEntries((marks || []).map(m => [m.chapterId, true])));
+        } catch { /* ignore */ }
+        // Saved explanation passages for the "Saved Passages" panel.
+        try {
+          setMarks((await markApi.listByBook(id)) || []);
         } catch { /* ignore */ }
         // Pre-load image counts only when chapter images are enabled
         if (bookData.chapterImagesEnabled) {
@@ -328,12 +336,47 @@ export default function BookDetailPage() {
   };
 
   // Chapter explanation (详解) — open loads the document, then view/edit inline.
-  const openExplanation = async (chapterId, startInEdit = false, initialScrollRatio = null) => {
+  const openExplanation = async (chapterId, startInEdit = false, initialScrollRatio = null, initialAnchor = null) => {
     let data = null;
     try {
       data = await explanationApi.get(chapterId);
     } catch { /* none yet */ }
-    setExplanationModal({ chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data, initialScrollRatio });
+    setExplanationModal({ chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data, initialScrollRatio, initialAnchor });
+  };
+
+  // Save a passage selected in the open explanation.
+  const handleSaveMark = async (mark) => {
+    if (!explanationModal) return null;
+    const saved = await markApi.create(explanationModal.chapterId, mark);
+    setMarks(prev => [...prev, saved].sort((a, b) =>
+      (a.chapterOrderIndex ?? 0) - (b.chapterOrderIndex ?? 0)
+      || (a.startOffset ?? 0) - (b.startOffset ?? 0)
+      || a.id - b.id));
+    return saved;
+  };
+
+  const handleUpdateMarkNote = async (markId, note) => {
+    const updated = await markApi.updateNote(markId, note);
+    setMarks(prev => prev.map(m => (m.id === markId ? updated : m)));
+  };
+
+  const handleDeleteMark = async (markId) => {
+    await markApi.delete(markId);
+    setMarks(prev => prev.filter(m => m.id !== markId));
+  };
+
+  const jumpToMark = (mark) => {
+    setShowMarks(false);
+    openExplanation(mark.chapterId, false, null, mark);
+  };
+
+  const handleAnchorResult = ({ id: markId, exact }) => {
+    setStaleMarkIds(prev => {
+      if (!!prev[markId] === !exact) return prev;
+      const next = { ...prev };
+      if (exact) delete next[markId]; else next[markId] = true;
+      return next;
+    });
   };
 
   // Jump straight to the most recently bookmarked chapter and scroll position.
@@ -384,6 +427,7 @@ export default function BookDetailPage() {
     if (!explanationModal) return;
     const chapterId = explanationModal.chapterId;
     await explanationApi.delete(chapterId);
+    setMarks(prev => prev.filter(m => m.chapterId !== chapterId));
     setChapterHasExplanation(prev => {
       const next = { ...prev };
       delete next[chapterId];
@@ -889,6 +933,9 @@ export default function BookDetailPage() {
               <button className="btn btn-secondary btn-sm" onClick={() => setShowExplanationExport(true)}>
                 📄 Export Explanations
               </button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowMarks(true)}>
+                📑 Saved Passages ({marks.length})
+              </button>
             </div>
           </div>
         </div>
@@ -1165,12 +1212,28 @@ export default function BookDetailPage() {
           explanation={explanationModal.data}
           startInEdit={explanationModal.startInEdit}
           initialScrollRatio={explanationModal.initialScrollRatio}
+          initialAnchor={explanationModal.initialAnchor}
           saving={savingExplanation}
           bookmarking={savingBookmark}
           onClose={() => setExplanationModal(null)}
           onSave={handleSaveExplanation}
           onDelete={handleDeleteExplanation}
           onBookmark={handleBookmark}
+          onSaveMark={handleSaveMark}
+          onDeleteMark={handleDeleteMark}
+          marks={marks.filter(m => m.chapterId === explanationModal.chapterId)}
+          onAnchorResult={handleAnchorResult}
+        />
+      )}
+
+      {showMarks && (
+        <ExplanationMarksPanel
+          marks={marks}
+          staleIds={staleMarkIds}
+          onJump={jumpToMark}
+          onUpdateNote={handleUpdateMarkNote}
+          onDelete={handleDeleteMark}
+          onClose={() => setShowMarks(false)}
         />
       )}
 
