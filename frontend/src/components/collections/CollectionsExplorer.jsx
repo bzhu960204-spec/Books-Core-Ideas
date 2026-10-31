@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { bookCollectionApi } from '../../api';
-import CollectionTree, { buildFolderTree, BOOK_DND_TYPE, BOOK_SOURCE_DND_TYPE } from './CollectionTree';
+import CollectionTree, { BOOK_DND_TYPE, BOOK_SOURCE_DND_TYPE } from './CollectionTree';
+import { buildFolderTree } from './folderTree';
 import PickBooksModal from './PickBooksModal';
 
 export default function CollectionsExplorer() {

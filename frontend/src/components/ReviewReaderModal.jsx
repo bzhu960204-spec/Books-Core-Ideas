@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
-import RichTextEditor, { normalizeReviewContent } from './RichTextEditor';
+import RichTextEditor from './RichTextEditor';
+import { normalizeReviewContent } from '../utils/reviewContent';
 
 export default function ReviewReaderModal({
   review,

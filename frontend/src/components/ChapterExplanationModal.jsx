@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo } from 'react';
 import Modal from './Modal';
-import RichTextEditor, { normalizeReviewContent } from './RichTextEditor';
+import RichTextEditor from './RichTextEditor';
+import { normalizeReviewContent } from '../utils/reviewContent';
 import {
   captureAnchor, findAnchor, findAnchorRanges, flashRange, highlightsSupported, scrollRangeIntoView,
 } from '../utils/explanationAnchor';

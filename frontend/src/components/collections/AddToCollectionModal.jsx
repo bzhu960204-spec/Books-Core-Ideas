@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { bookCollectionApi } from '../../api';
-import { buildFolderTree } from './CollectionTree';
+import { buildFolderTree } from './folderTree';
 
 /** Flatten the folder tree into rows carrying their depth for indentation. */
 function flatten(nodes, depth = 0) {

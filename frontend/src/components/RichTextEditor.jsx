@@ -10,11 +10,11 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Highlight } from '@tiptap/extension-highlight';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { marked } from 'marked';
 import LinkFixPrompt from './LinkFixPrompt';
 import { analyzeHtmlLinks } from '../utils/linkFix';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { looksLikeMarkdown, markdownToHtml } from '../utils/markdownPaste';
+import { normalizeReviewContent } from '../utils/reviewContent';
 
 // Custom extension: adds a `fontSize` attribute to the textStyle mark so the
 // font-size dropdown can read/write inline `style="font-size: …"`.
@@ -375,25 +375,6 @@ const COLORS = [
   '#10b981', '#3b82f6', '#6366f1', '#a855f7', '#ec4899',
 ];
 
-// Detect whether existing content is already HTML (from new editor) or
-// legacy Markdown (from the old textarea-based reviews).
-function isLikelyHtml(s) {
-  if (!s) return false;
-  return /<\/?(p|h[1-6]|ul|ol|li|strong|em|u|s|blockquote|br|span|a|div|hr|pre|code)\b/i.test(s);
-}
-
-// Stored content as safe HTML for rendering or loading into the editor. Every
-// display path goes through here, so it is also where stored HTML is sanitized.
-export function normalizeReviewContent(content) {
-  if (!content) return '';
-  if (isLikelyHtml(content)) return sanitizeHtml(content);
-  try {
-    return sanitizeHtml(marked.parse(content, { breaks: true, gfm: true }));
-  } catch {
-    return sanitizeHtml(content);
-  }
-}
-
 export default function RichTextEditor({ value, onChange, placeholder, autoFocus = false, fill = false }) {
   const initialHtmlRef = useRef(normalizeReviewContent(value));
   const fileInputRef = useRef(null);
@@ -547,7 +528,6 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
     if (incoming !== editor.getHTML()) {
       editor.commands.setContent(incoming || '', { emitUpdate: false });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor]);
 
   // Rewrite the just-pasted range with its pseudo-code blocks as real code blocks.

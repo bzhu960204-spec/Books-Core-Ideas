@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { reviewApi, bookApi } from '../api';
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
-import RichTextEditor, { normalizeReviewContent } from '../components/RichTextEditor';
+import RichTextEditor from '../components/RichTextEditor';
+import { normalizeReviewContent } from '../utils/reviewContent';
 import ReviewReaderModal from '../components/ReviewReaderModal';
 
 // Derive a fallback title from review content for legacy reviews that

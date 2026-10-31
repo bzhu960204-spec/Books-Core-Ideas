@@ -17,6 +17,10 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      // `const { drop, ...rest } = obj` is the idiom for omitting fields.
+      'no-unused-vars': ['error', { ignoreRestSiblings: true }],
+    },
   },
   {
     // Build tooling config runs in Node, not the browser.

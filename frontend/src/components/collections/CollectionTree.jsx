@@ -9,21 +9,6 @@ export const BOOK_SOURCE_DND_TYPE = 'application/x-book-collection-book-source';
 /** dataTransfer type used when dragging a folder onto another folder to reparent it. */
 export const FOLDER_DND_TYPE = 'application/x-book-collection-folder';
 
-/** Build a nested tree from the flat folder list (already sorted by sortOrder/name). */
-export function buildFolderTree(folders) {
-  const byId = new Map();
-  folders.forEach(f => byId.set(f.id, { ...f, children: [] }));
-  const roots = [];
-  for (const node of byId.values()) {
-    if (node.parentId != null && byId.has(node.parentId)) {
-      byId.get(node.parentId).children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-  return roots;
-}
-
 function collectSubtreeIds(node, out) {
   out.add(node.id);
   node.children.forEach(child => collectSubtreeIds(child, out));

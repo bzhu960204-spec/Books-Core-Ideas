@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useTheme } from '../ThemeContext';
+import { useTheme } from '../useTheme';
 
 // Representative accent color for each theme swatch
 const SWATCH_COLORS = {

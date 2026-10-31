@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sanitizeHtml } from './sanitizeHtml';
-import { normalizeReviewContent } from '../components/RichTextEditor';
+import { normalizeReviewContent } from './reviewContent';
 
 describe('sanitizeHtml', () => {
   it('removes scripts, event handlers and javascript: URLs', () => {

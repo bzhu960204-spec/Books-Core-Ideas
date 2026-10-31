@@ -309,7 +309,7 @@ ${renderTocTree(toc)}
       });
     });
   })();
-<\/script>`
+</script>`
     : '';
 
   const printScript = includePrintScript
@@ -319,7 +319,7 @@ ${renderTocTree(toc)}
     setTimeout(function () { window.print(); }, 150);
     window.onafterprint = function () { window.close(); };
   });
-<\/script>`
+</script>`
     : '';
 
   return `<!DOCTYPE html>

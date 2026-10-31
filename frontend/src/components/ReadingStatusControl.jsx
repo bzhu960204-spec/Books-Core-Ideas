@@ -6,7 +6,7 @@ const STATUS_OPTIONS = [
   { value: 'FINISHED', label: '✅ Finished', cls: 'finished' },
 ];
 
-export function statusMeta(status) {
+function statusMeta(status) {
   return STATUS_OPTIONS.find(o => o.value === status) || null;
 }
 
