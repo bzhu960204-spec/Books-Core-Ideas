@@ -25,9 +25,8 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose, o
     try {
       const data = await chapterImageApi.getAll(chapterId);
       setImages(data);
-      if (data.length > 0 && idx >= data.length) {
-        setIdx(data.length - 1);
-      }
+      // Clamp against the current index (e.g. after deleting the last image).
+      setIdx(i => (data.length > 0 && i >= data.length ? data.length - 1 : i));
     } catch (e) {
       console.error('Failed to load images', e);
     } finally {

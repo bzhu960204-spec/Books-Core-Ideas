@@ -16,6 +16,7 @@
 | BUG-09 | ⚪ P3 | `POST /api/books` 携带 `id` 时 500 | ✅ 实测 |
 | BUG-10 | ⚪ P3 | 图片上传：序号计算偏差 & 静默吞异常 | 🔍 代码确认 |
 | BUG-11 | 🟡 P2 | 编辑器按 Markdown 粘贴时，```` ``` ```` 代码块原样变成段落文字（✅ 已修复） | ✅ 实测 |
+| BUG-12 | 🟡 P2 | 章节图片查看器：删除最后一张图片后整页崩溃（✅ 已修复） | ✅ 实测 |
 
 ---
 
@@ -197,3 +198,14 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 **现象**：在编辑器里粘贴 AI 回答等 Markdown 纯文本（Auto 模式识别为 Markdown，或 MD 模式）时，标题、列表都会正常转换，但 ```` ```lang … ``` ```` 代码块会变成一个包含反引号原文的普通段落（`<p>```js …```</p>`），换行和缩进也会被编辑器合并掉。
 
 **根因**：原 `markdownToHtml` 为了不让 marked 的行内规则破坏公式，把公式和**围栏代码**都替换成占位符，渲染后再把**原始文本**放回去。代码块因此根本没经过 marked，也就不会被转成 `<pre><code>`。
+
+---
+
+<a id="bug-12"></a>
+## BUG-12 · 章节图片查看器：删除最后一张图片后崩溃 🟡
+
+> **✅ 已修复（2026-10-31）**：FE-02 清理 `exhaustive-deps` 警告时发现。`loadImages` 改为 `setIdx(i => …)` 函数式更新，按当前序号收回到末尾。测试见 [ChapterImageViewer.test.jsx](../../frontend/src/components/ChapterImageViewer.test.jsx)（2 个）；未修复时"删除最后一张"用例失败，并抛出 `TypeError: Cannot read properties of undefined (reading 'id')`。浏览器验证（临时库）：上传 2 张图片，翻到 2/2 后删除，正常回到剩下的那张。
+
+**现象**：在图片查看器中翻到最后一张（如 2/2）并删除，React 渲染时访问 `images[idx].id` 抛出 TypeError。应用没有 ErrorBoundary（FE-05），因此**整页白屏**，需要刷新。
+
+**根因**：[ChapterImageViewer.jsx](../../frontend/src/components/ChapterImageViewer.jsx) 中 `loadImages` 的 `useCallback` 依赖只有 `chapterId`，闭包里的 `idx` 始终是打开查看器时的值（0）。删除后"序号超出则收回到末尾"的判断用的是这个旧值，所以不会生效，`idx` 停在已越界的位置。lint 的 `react-hooks/exhaustive-deps` 警告指出的正是这个问题。

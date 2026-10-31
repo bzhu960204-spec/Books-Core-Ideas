@@ -96,6 +96,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-09 | P3 | POST 带 id 500 | 4 | ⬜ | |
 | BUG-10 | P3 | 图片上传序号/吞异常 | 4 | ⬜ | |
 | BUG-11 | P2 | Markdown 粘贴代码块不转换 | — | ✅ | 评审后发现；公式改用 marked 扩展 + markdownPaste.test.js |
+| BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |
 | BE-01 | P1 | Service 层 | 2 | ⬜ | |
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ⬜ | |
 | BE-03 | P2 | API 风格统一 | 2 | ⬜ | |
