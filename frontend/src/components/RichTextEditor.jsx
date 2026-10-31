@@ -9,7 +9,7 @@ import { Color } from '@tiptap/extension-color';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { Highlight } from '@tiptap/extension-highlight';
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import LinkFixPrompt from './LinkFixPrompt';
 import { analyzeHtmlLinks } from '../utils/linkFix';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
@@ -376,14 +376,13 @@ const COLORS = [
 ];
 
 export default function RichTextEditor({ value, onChange, placeholder, autoFocus = false, fill = false }) {
-  const initialHtmlRef = useRef(normalizeReviewContent(value));
+  const [initialHtml] = useState(() => normalizeReviewContent(value));
   const fileInputRef = useRef(null);
 
   // How pasted content is interpreted: auto-detect Markdown, keep rich HTML, or
   // always parse plain text as Markdown. A ref mirrors it for the paste handler.
   const [pasteMode, setPasteMode] = useState('auto');
   const pasteModeRef = useRef('auto');
-  pasteModeRef.current = pasteMode;
 
   // Secondary toolbar (fonts, colors, alignment, etc.) is collapsed by default
   // to keep the editing surface tall; core actions live in the compact row.
@@ -398,13 +397,18 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
   // handlePaste to onUpdate, where the pasted range's end is known.
   const [copilotBlocks, setCopilotBlocks] = useState(null);
   const copilotBlocksRef = useRef(null);
-  copilotBlocksRef.current = copilotBlocks;
   const pendingCopilotRef = useRef(null);
   const copilotSetAtRef = useRef(0);
   // Set while our own convert/fix transactions run so they don't dismiss the offer.
   const convertingRef = useRef(false);
   const [brokenCodeCount, setBrokenCodeCount] = useState(0);
   const [cardImageCount, setCardImageCount] = useState(0);
+
+  // Editor callbacks are created once, so they read the latest state via refs.
+  useLayoutEffect(() => {
+    pasteModeRef.current = pasteMode;
+    copilotBlocksRef.current = copilotBlocks;
+  }, [pasteMode, copilotBlocks]);
 
   const editor = useEditor({
     extensions: [
@@ -426,7 +430,7 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
       TableHeader,
       TableCell,
     ],
-    content: initialHtmlRef.current,
+    content: initialHtml,
     autofocus: autoFocus,
     onUpdate: ({ editor }) => {
       const pendingC = pendingCopilotRef.current;
