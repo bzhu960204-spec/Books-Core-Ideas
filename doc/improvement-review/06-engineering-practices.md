@@ -15,7 +15,7 @@
 ## ENG-01 · 前后端零测试 🔴
 
 > **进展（2026-10-31）**：后端测试骨架已建立——[IntegrationTest](../../backend/src/test/java/com/bookscoreideas/support/IntegrationTest.java) 基类（`@SpringBootTest` + MockMvc + `test` profile，随机内存库、`ddl-auto=validate`），首批 3 个测试覆盖空库/老库迁移。运行：`cd backend; mvn test`。
-> 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`）和 `@testing-library/react`（组件测试，FE-02 引入）。现有纯函数测试 `sanitizeHtml`、`markdownPaste`（BUG-11），组件测试 `RichTextEditor`、`ChapterImageViewer`（BUG-12）、各编辑表单、讲解和书评 Modal、`ExcerptReader`，共 37 个；CI 中前端测试为阻断步骤。
+> 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`）和 `@testing-library/react`（组件测试，FE-02 引入）。现有纯函数测试 `sanitizeHtml`、`markdownPaste`（BUG-11），组件测试 `RichTextEditor`、`ChapterImageViewer`（BUG-12）、各编辑表单、讲解和书评 Modal、`ExcerptReader`、迁移弹窗预览（BE-08），共 41 个；CI 中前端测试为阻断步骤。
 
 **现状**：`backend/src/test` 不存在（虽然 pom 已引入 `spring-boot-starter-test`）；前端没有测试框架。本次发现的 BUG-01~05 都是一个最基础的集成测试就能拦住的。
 
@@ -82,7 +82,7 @@ frontend: npm ci && npm run lint && npm test && npm run build   (在 frontend/ �
   - 没有"环境要求 / 首次安装 / 数据备份与恢复"章节；
   - 书库导入 excerpts 的说明与实际行为不符（BUG-06）。
 - [database-schema-and-flyway.md](../database-schema-and-flyway.md)：~~声称 Flyway 已关闭，与配置矛盾；含个人机器路径~~ ✅ 已随 BUG-01 重写。
-- [migration-feature.md](../migration-feature.md)：未说明归档不含书评/书签/标记/书单（BE-08）。
+- [migration-feature.md](../migration-feature.md)：~~未说明归档不含书评/书签/标记/书单（BE-08）~~ ✅ 随 BE-08 更新为 v2，写明了归档范围。
 - `doc/` 没有索引页。
 
 **建议**：README 重写为"简介 → 功能 → 快速开始 → 环境要求 → 数据与备份 → 文档索引"，JSON 导入格式移到 `doc/json-import-format.md`；`doc/README.md` 做索引。

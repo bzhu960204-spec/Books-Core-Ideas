@@ -23,9 +23,14 @@ public class BookReview {
 
     private LocalDate updatedAt;
 
+    // Imports bring the original date; everything else gets "now".
     @PrePersist
+    protected void onCreate() {
+        if (updatedAt == null) updatedAt = LocalDate.now();
+    }
+
     @PreUpdate
-    protected void onSave() {
+    protected void onUpdate() {
         updatedAt = LocalDate.now();
     }
 

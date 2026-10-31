@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react';
 import Modal from './Modal';
 import { migrationApi } from '../api';
+import { previewSummary } from '../utils/migrationPreview';
 
 /**
  * Whole-book migration: export selected books (metadata + chapters/ideas/
- * excerpts + AI explanations + chapter images) as a ZIP archive, and import
+ * excerpts + AI explanations + chapter images + reviews, reading bookmarks,
+ * saved passages and collection memberships) as a ZIP archive, and import
  * such an archive back. Conflicting books (same title + author) are skipped.
  */
 export default function BookMigrationModal({ books, onClose, onImported }) {
@@ -96,7 +98,8 @@ function ExportPanel({ books, onClose }) {
     <div>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 0 }}>
         Select the books to export. The archive includes book details, chapters, key ideas,
-        excerpts, AI explanations and chapter images.
+        excerpts, AI explanations, chapter images, reviews, reading bookmarks, saved passages
+        and the collections each book is in.
       </p>
 
       <input
@@ -309,7 +312,7 @@ function ImportPanel({ onClose, onImported }) {
                         <span style={{ fontWeight: 500 }}>{b.title}</span>
                         {b.author && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>— {b.author}</span>}
                         <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                          {b.chapterCount} ch · {b.imageCount} img{b.hasExplanations ? ' · 详解' : ''}
+                          {previewSummary(b)}
                         </span>
                         {b.conflict && (
                           <span style={{ fontSize: '0.72rem', color: '#e0912b', border: '1px solid #e0912b', borderRadius: '4px', padding: '0 0.3rem' }}>

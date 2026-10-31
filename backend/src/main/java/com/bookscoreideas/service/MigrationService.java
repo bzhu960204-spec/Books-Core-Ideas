@@ -2,31 +2,16 @@ package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.migration.BookArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
-import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
-import com.bookscoreideas.dto.migration.ExplanationArchiveDto;
 import com.bookscoreideas.dto.migration.ImageArchiveDto;
 import com.bookscoreideas.dto.migration.ImportBookResultDto;
 import com.bookscoreideas.dto.migration.ImportPreviewDto;
 import com.bookscoreideas.dto.migration.ImportPreviewEntryDto;
 import com.bookscoreideas.dto.migration.ImportResultDto;
-import com.bookscoreideas.dto.migration.KeyIdeaArchiveDto;
 import com.bookscoreideas.dto.migration.ManifestDto;
 import com.bookscoreideas.dto.migration.ManifestEntryDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
 import com.bookscoreideas.entity.Book;
-import com.bookscoreideas.entity.Chapter;
-import com.bookscoreideas.entity.ChapterExplanation;
-import com.bookscoreideas.entity.ChapterImage;
-import com.bookscoreideas.entity.Excerpt;
-import com.bookscoreideas.entity.KeyIdea;
-import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.repository.BookRepository;
-import com.bookscoreideas.repository.ChapterExplanationRepository;
-import com.bookscoreideas.repository.ChapterImageRepository;
-import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.ExcerptRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
-import com.bookscoreideas.repository.PartRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,36 +38,28 @@ import java.util.zip.ZipOutputStream;
 @Service
 public class MigrationService {
 
-    public static final int FORMAT_VERSION = 1;
+    /**
+     * Archive format written by this version. 1: book tree, explanations, images.
+     * 2 (BE-08): plus reviews, reading bookmarks, saved passages, collection paths, and
+     * imports keep the original timestamps. Imports accept every version up to this one.
+     */
+    public static final int FORMAT_VERSION = 2;
 
     // Guards against zip bombs during import.
     private static final long MAX_TOTAL_UNCOMPRESSED = 500L * 1024 * 1024; // 500 MB
     private static final int MAX_ENTRIES = 50_000;
 
     private final BookRepository bookRepository;
-    private final PartRepository partRepository;
-    private final ChapterRepository chapterRepository;
-    private final KeyIdeaRepository keyIdeaRepository;
-    private final ExcerptRepository excerptRepository;
-    private final ChapterExplanationRepository explanationRepository;
-    private final ChapterImageRepository imageRepository;
+    private final BookArchiveBuilder archiveBuilder;
     private final MigrationImporter importer;
     private final ObjectMapper objectMapper;
     private final ChapterImageStorage imageStorage;
 
-    public MigrationService(BookRepository bookRepository, PartRepository partRepository,
-                            ChapterRepository chapterRepository, KeyIdeaRepository keyIdeaRepository,
-                            ExcerptRepository excerptRepository,
-                            ChapterExplanationRepository explanationRepository,
-                            ChapterImageRepository imageRepository, MigrationImporter importer,
-                            ObjectMapper objectMapper, ChapterImageStorage imageStorage) {
+    public MigrationService(BookRepository bookRepository, BookArchiveBuilder archiveBuilder,
+                            MigrationImporter importer, ObjectMapper objectMapper,
+                            ChapterImageStorage imageStorage) {
         this.bookRepository = bookRepository;
-        this.partRepository = partRepository;
-        this.chapterRepository = chapterRepository;
-        this.keyIdeaRepository = keyIdeaRepository;
-        this.excerptRepository = excerptRepository;
-        this.explanationRepository = explanationRepository;
-        this.imageRepository = imageRepository;
+        this.archiveBuilder = archiveBuilder;
         this.importer = importer;
         this.objectMapper = objectMapper;
         this.imageStorage = imageStorage;
@@ -102,7 +79,7 @@ public class MigrationService {
 
             for (Book book : books) {
                 String slug = uniqueSlug(book, usedSlugs);
-                BookArchiveDto dto = buildBookDto(book);
+                BookArchiveDto dto = archiveBuilder.build(book);
 
                 String jsonPath = "books/" + slug + "/book.json";
                 zip.putNextEntry(new ZipEntry(jsonPath));
@@ -132,63 +109,6 @@ public class MigrationService {
             zip.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(manifest));
             zip.closeEntry();
         }
-    }
-
-    private BookArchiveDto buildBookDto(Book book) {
-        boolean isParts = "PARTS".equals(book.getStructureType());
-        List<PartArchiveDto> parts = null;
-        List<ChapterArchiveDto> chapters = null;
-
-        if (isParts) {
-            parts = new ArrayList<>();
-            for (Part part : partRepository.findByBookIdOrderByOrderIndexAsc(book.getId())) {
-                List<ChapterArchiveDto> partChapters = new ArrayList<>();
-                for (Chapter chapter : chapterRepository.findByPart_IdOrderByOrderIndexAsc(part.getId())) {
-                    partChapters.add(buildChapterDto(chapter));
-                }
-                parts.add(new PartArchiveDto(part.getTitle(), part.getOrderIndex(), part.getSummary(), partChapters));
-            }
-        } else {
-            chapters = new ArrayList<>();
-            for (Chapter chapter : chapterRepository.findByBookIdOrderByOrderIndexAsc(book.getId())) {
-                chapters.add(buildChapterDto(chapter));
-            }
-        }
-
-        return new BookArchiveDto(
-                FORMAT_VERSION,
-                book.getTitle(), book.getAuthor(), book.getIsbn(), book.getDescription(),
-                book.getCoverUrl(), book.getRating(), book.getCategory(), book.getReadingStatus(),
-                toStringOrNull(book.getDateAdded()), toStringOrNull(book.getStartDate()),
-                toStringOrNull(book.getFinishDate()), book.getChapterImagesEnabled(),
-                isParts ? "PARTS" : "CHAPTERS", parts, chapters);
-    }
-
-    private ChapterArchiveDto buildChapterDto(Chapter chapter) {
-        List<KeyIdeaArchiveDto> ideas = new ArrayList<>();
-        for (KeyIdea idea : keyIdeaRepository.findByChapterIdOrderByOrderIndexAsc(chapter.getId())) {
-            ideas.add(new KeyIdeaArchiveDto(idea.getContent(), idea.getExample(), idea.getTags(),
-                    idea.isHighlighted(), idea.getOrderIndex()));
-        }
-
-        List<ExcerptArchiveDto> excerpts = new ArrayList<>();
-        for (Excerpt excerpt : excerptRepository.findByChapterIdOrderByOrderIndexAsc(chapter.getId())) {
-            excerpts.add(new ExcerptArchiveDto(excerpt.getContent(), excerpt.getNote(), excerpt.getSource(),
-                    excerpt.isHighlighted(), excerpt.getOrderIndex()));
-        }
-
-        ExplanationArchiveDto explanation = explanationRepository.findByChapterId(chapter.getId())
-                .map(e -> new ExplanationArchiveDto(e.getContent(), toStringOrNull(e.getUpdatedAt())))
-                .orElse(null);
-
-        List<ImageArchiveDto> images = new ArrayList<>();
-        for (ChapterImage img : imageRepository.findByChapterIdOrderByOrderIndexAsc(chapter.getId())) {
-            images.add(new ImageArchiveDto(img.getFilename(), img.getOriginalName(),
-                    img.getContentType(), img.getOrderIndex()));
-        }
-
-        return new ChapterArchiveDto(chapter.getTitle(), chapter.getOrderIndex(), chapter.getSummary(),
-                explanation, ideas, excerpts, images);
     }
 
     // ---------------------------------------------------------------- IMPORT
@@ -265,7 +185,11 @@ public class MigrationService {
                             && !c.explanation().content().isBlank());
 
             entries.add(new ImportPreviewEntryDto(dto.title(), dto.author(), chapters.size(),
-                    entry.imageCount(), hasExplanations, conflict));
+                    entry.imageCount(), hasExplanations, conflict,
+                    size(dto.reviews()),
+                    chapters.stream().mapToInt(c -> size(c.bookmarks())).sum(),
+                    chapters.stream().mapToInt(c -> size(c.marks())).sum(),
+                    size(dto.collectionPaths())));
         }
 
         return new ImportPreviewDto(manifest.formatVersion(), entries.size(), conflicts, entries);
@@ -295,6 +219,11 @@ public class MigrationService {
             throw new IllegalArgumentException("Not a valid migration archive: manifest.json is missing.");
         }
         ManifestDto manifest = objectMapper.readValue(bytes, ManifestDto.class);
+        if (manifest.formatVersion() > FORMAT_VERSION) {
+            // Importing it anyway would silently drop whatever the newer format added.
+            throw new IllegalArgumentException("This archive uses format version " + manifest.formatVersion()
+                    + "; this app reads versions up to " + FORMAT_VERSION + ". Update the app to import it.");
+        }
         if (manifest.books() == null) {
             throw new IllegalArgumentException("Migration archive manifest has no books.");
         }
@@ -370,6 +299,10 @@ public class MigrationService {
         return allChapters(dto).size();
     }
 
+    private static int size(List<?> list) {
+        return list == null ? 0 : list.size();
+    }
+
     private String uniqueSlug(Book book, Set<String> used) {
         String base = slugify(book.getTitle());
         String slug = base;
@@ -387,9 +320,5 @@ public class MigrationService {
                 .replaceAll("[^a-z0-9\\u4e00-\\u9fff]+", "-")
                 .replaceAll("^-+|-+$", "");
         return slug.isEmpty() ? "book" : slug;
-    }
-
-    private static String toStringOrNull(Object value) {
-        return value != null ? value.toString() : null;
     }
 }

@@ -1,29 +1,39 @@
 package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.migration.BookArchiveDto;
+import com.bookscoreideas.dto.migration.BookmarkArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
 import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
 import com.bookscoreideas.dto.migration.ImageArchiveDto;
 import com.bookscoreideas.dto.migration.KeyIdeaArchiveDto;
+import com.bookscoreideas.dto.migration.MarkArchiveDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
+import com.bookscoreideas.dto.migration.ReviewArchiveDto;
 import com.bookscoreideas.entity.Book;
+import com.bookscoreideas.entity.BookReview;
 import com.bookscoreideas.entity.Chapter;
 import com.bookscoreideas.entity.ChapterExplanation;
 import com.bookscoreideas.entity.ChapterImage;
 import com.bookscoreideas.entity.Excerpt;
+import com.bookscoreideas.entity.ExplanationMark;
 import com.bookscoreideas.entity.KeyIdea;
 import com.bookscoreideas.entity.Part;
+import com.bookscoreideas.entity.ReadingBookmark;
 import com.bookscoreideas.repository.BookRepository;
+import com.bookscoreideas.repository.BookReviewRepository;
 import com.bookscoreideas.repository.ChapterExplanationRepository;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.ExcerptRepository;
+import com.bookscoreideas.repository.ExplanationMarkRepository;
 import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
+import com.bookscoreideas.repository.ReadingBookmarkRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,12 +55,18 @@ public class MigrationImporter {
     private final ExcerptRepository excerptRepository;
     private final ChapterExplanationRepository explanationRepository;
     private final ChapterImageRepository imageRepository;
+    private final BookReviewRepository reviewRepository;
+    private final ReadingBookmarkRepository bookmarkRepository;
+    private final ExplanationMarkRepository markRepository;
+    private final BookCollectionService collectionService;
 
     public MigrationImporter(BookRepository bookRepository, PartRepository partRepository,
                              ChapterRepository chapterRepository, KeyIdeaRepository keyIdeaRepository,
                              ExcerptRepository excerptRepository,
                              ChapterExplanationRepository explanationRepository,
-                             ChapterImageRepository imageRepository) {
+                             ChapterImageRepository imageRepository, BookReviewRepository reviewRepository,
+                             ReadingBookmarkRepository bookmarkRepository, ExplanationMarkRepository markRepository,
+                             BookCollectionService collectionService) {
         this.bookRepository = bookRepository;
         this.partRepository = partRepository;
         this.chapterRepository = chapterRepository;
@@ -58,6 +74,10 @@ public class MigrationImporter {
         this.excerptRepository = excerptRepository;
         this.explanationRepository = explanationRepository;
         this.imageRepository = imageRepository;
+        this.reviewRepository = reviewRepository;
+        this.bookmarkRepository = bookmarkRepository;
+        this.markRepository = markRepository;
+        this.collectionService = collectionService;
     }
 
     public record PendingImageWrite(String filename, byte[] bytes) {}
@@ -108,6 +128,23 @@ public class MigrationImporter {
             }
         }
 
+        if (dto.reviews() != null) {
+            for (ReviewArchiveDto reviewDto : dto.reviews()) {
+                BookReview review = new BookReview();
+                review.setBook(book);
+                review.setTitle(reviewDto.title());
+                review.setContent(reviewDto.content());
+                review.setUpdatedAt(parseDate(reviewDto.updatedAt()));
+                reviewRepository.save(review);
+            }
+        }
+
+        if (dto.collectionPaths() != null) {
+            for (List<String> path : dto.collectionPaths()) {
+                collectionService.addBook(collectionService.findOrCreatePath(path).getId(), book.getId());
+            }
+        }
+
         return new PersistOutcome(chapterCount, writes);
     }
 
@@ -153,7 +190,37 @@ public class MigrationImporter {
             ChapterExplanation explanation = new ChapterExplanation();
             explanation.setChapter(chapter);
             explanation.setContent(chDto.explanation().content());
+            explanation.setUpdatedAt(parseDate(chDto.explanation().updatedAt()));
             explanationRepository.save(explanation);
+        }
+
+        if (chDto.bookmarks() != null) {
+            for (BookmarkArchiveDto bmDto : chDto.bookmarks()) {
+                ReadingBookmark bookmark = new ReadingBookmark();
+                bookmark.setBook(book);
+                bookmark.setChapter(chapter);
+                bookmark.setScrollRatio(bmDto.scrollRatio());
+                bookmark.setNote(bmDto.note());
+                bookmark.setCreatedAt(parseDateTime(bmDto.createdAt()));
+                bookmarkRepository.save(bookmark);
+            }
+        }
+
+        if (chDto.marks() != null) {
+            for (MarkArchiveDto markDto : chDto.marks()) {
+                ExplanationMark mark = new ExplanationMark();
+                mark.setBook(book);
+                mark.setChapter(chapter);
+                mark.setQuote(markDto.quote());
+                mark.setPrefix(markDto.prefix());
+                mark.setSuffix(markDto.suffix());
+                mark.setStartOffset(markDto.startOffset());
+                mark.setEndOffset(markDto.endOffset());
+                mark.setNote(markDto.note());
+                mark.setCreatedAt(parseDateTime(markDto.createdAt()));
+                mark.setUpdatedAt(parseDateTime(markDto.updatedAt()));
+                markRepository.save(mark);
+            }
         }
 
         if (chDto.images() != null) {
@@ -179,6 +246,16 @@ public class MigrationImporter {
         if (value == null || value.isBlank()) return null;
         try {
             return LocalDate.parse(value);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Unparseable or missing timestamps fall back to "now" (set by the entity on insert).
+    private static LocalDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(value);
         } catch (Exception e) {
             return null;
         }

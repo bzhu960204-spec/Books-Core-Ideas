@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -62,6 +63,31 @@ public class BookCollectionService {
         c.setParentId(parentId);
         c.setSortOrder(sortOrder != null ? sortOrder : 0);
         return repo.save(c);
+    }
+
+    /**
+     * The folder at {@code names} (root first), creating any missing level. An existing
+     * sibling with the same (trimmed) name is reused, so imported paths merge into the
+     * current tree instead of duplicating it.
+     */
+    public BookCollection findOrCreatePath(List<String> names) {
+        if (names == null || names.isEmpty()) throw new IllegalArgumentException("collection path is empty");
+        List<BookCollection> all = new ArrayList<>(list());
+        BookCollection current = null;
+        for (String raw : names) {
+            String name = sanitizeName(raw);
+            Long parentId = current == null ? null : current.getId();
+            BookCollection next = all.stream()
+                    .filter(c -> Objects.equals(c.getParentId(), parentId) && c.getName().equals(name))
+                    .findFirst()
+                    .orElse(null);
+            if (next == null) {
+                next = create(name, parentId, null);
+                all.add(next);
+            }
+            current = next;
+        }
+        return current;
     }
 
     /**

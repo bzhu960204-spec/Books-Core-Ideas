@@ -1,117 +1,101 @@
 package com.bookscoreideas.service;
 
-import com.bookscoreideas.entity.Chapter;
-import com.bookscoreideas.entity.Excerpt;
-import com.bookscoreideas.entity.KeyIdea;
-import com.bookscoreideas.entity.Part;
+import com.bookscoreideas.dto.migration.BookArchiveDto;
+import com.bookscoreideas.dto.migration.ChapterArchiveDto;
+import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
+import com.bookscoreideas.dto.migration.KeyIdeaArchiveDto;
+import com.bookscoreideas.dto.migration.PartArchiveDto;
 import com.bookscoreideas.repository.BookRepository;
-import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.ExcerptRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
-import com.bookscoreideas.repository.PartRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
-/** Single-book JSON export (the "Export JSON" button). */
+/**
+ * Single-book JSON export (the "Export JSON" button). Its shape is the documented
+ * JSON import format (see README), so it stays as it is: a subset of the archive
+ * snapshot (no explanation, images, reviews, bookmarks, marks or collections), read
+ * through the same {@link BookArchiveBuilder} as the ZIP migration.
+ */
 @Service
 public class BookExportService {
 
     private final BookRepository bookRepository;
-    private final ChapterRepository chapterRepository;
-    private final KeyIdeaRepository keyIdeaRepository;
-    private final ExcerptRepository excerptRepository;
-    private final PartRepository partRepository;
+    private final BookArchiveBuilder archiveBuilder;
 
-    public BookExportService(BookRepository bookRepository, ChapterRepository chapterRepository,
-                             KeyIdeaRepository keyIdeaRepository, ExcerptRepository excerptRepository,
-                             PartRepository partRepository) {
+    public BookExportService(BookRepository bookRepository, BookArchiveBuilder archiveBuilder) {
         this.bookRepository = bookRepository;
-        this.chapterRepository = chapterRepository;
-        this.keyIdeaRepository = keyIdeaRepository;
-        this.excerptRepository = excerptRepository;
-        this.partRepository = partRepository;
+        this.archiveBuilder = archiveBuilder;
     }
 
-    /** The book as the JSON file offered for download (format kept until BE-08). @return empty if missing */
+    /** @return empty if the book does not exist */
     @Transactional(readOnly = true)
     public Optional<Map<String, Object>> export(Long bookId) {
         return bookRepository.findById(bookId).map(book -> {
+            BookArchiveDto archive = archiveBuilder.build(book);
             Map<String, Object> result = new LinkedHashMap<>();
-            result.put("title", book.getTitle());
-            result.put("author", book.getAuthor());
-            result.put("isbn", book.getIsbn());
-            result.put("description", book.getDescription());
-            result.put("category", book.getCategory());
-            result.put("rating", book.getRating());
-            result.put("readingStatus", book.getReadingStatus());
-            result.put("dateAdded", book.getDateAdded() != null ? book.getDateAdded().toString() : null);
+            result.put("title", archive.title());
+            result.put("author", archive.author());
+            result.put("isbn", archive.isbn());
+            result.put("description", archive.description());
+            result.put("category", archive.category());
+            result.put("rating", archive.rating());
+            result.put("readingStatus", archive.readingStatus());
+            result.put("dateAdded", archive.dateAdded());
+            // As stored (the archive normalises unknown values to CHAPTERS).
             result.put("structureType", book.getStructureType());
-
-            if ("PARTS".equals(book.getStructureType())) {
-                List<Part> parts = partRepository.findByBookIdOrderByOrderIndexAsc(book.getId());
-                List<Map<String, Object>> partsExport = new ArrayList<>();
-                for (Part part : parts) {
-                    Map<String, Object> partMap = new LinkedHashMap<>();
-                    partMap.put("title", part.getTitle());
-                    partMap.put("orderIndex", part.getOrderIndex());
-                    partMap.put("summary", part.getSummary());
-
-                    List<Chapter> chapters = chapterRepository.findByPart_IdOrderByOrderIndexAsc(part.getId());
-                    List<Map<String, Object>> chaptersExport = new ArrayList<>();
-                    for (Chapter chapter : chapters) {
-                        chaptersExport.add(exportChapter(chapter));
-                    }
-                    partMap.put("chapters", chaptersExport);
-                    partsExport.add(partMap);
-                }
-                result.put("parts", partsExport);
+            if (archive.parts() != null) {
+                result.put("parts", archive.parts().stream().map(BookExportService::part).toList());
             } else {
-                List<Chapter> chapters = chapterRepository.findByBookIdOrderByOrderIndexAsc(book.getId());
-                List<Map<String, Object>> chaptersExport = new ArrayList<>();
-                for (Chapter chapter : chapters) {
-                    chaptersExport.add(exportChapter(chapter));
-                }
-                result.put("chapters", chaptersExport);
+                result.put("chapters", chapters(archive.chapters()));
             }
-
             return result;
         });
     }
 
-    private Map<String, Object> exportChapter(Chapter chapter) {
-        Map<String, Object> chapterMap = new LinkedHashMap<>();
-        chapterMap.put("title", chapter.getTitle());
-        chapterMap.put("orderIndex", chapter.getOrderIndex());
-        chapterMap.put("summary", chapter.getSummary());
+    private static Map<String, Object> part(PartArchiveDto part) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("title", part.title());
+        map.put("orderIndex", part.orderIndex());
+        map.put("summary", part.summary());
+        map.put("chapters", chapters(part.chapters()));
+        return map;
+    }
 
-        List<KeyIdea> ideas = keyIdeaRepository.findByChapterIdOrderByOrderIndexAsc(chapter.getId());
-        List<Map<String, Object>> ideasExport = new ArrayList<>();
-        for (KeyIdea idea : ideas) {
-            Map<String, Object> ideaMap = new LinkedHashMap<>();
-            ideaMap.put("content", idea.getContent());
-            ideaMap.put("example", idea.getExample());
-            ideaMap.put("tags", idea.getTags());
-            ideaMap.put("highlighted", idea.isHighlighted());
-            ideaMap.put("orderIndex", idea.getOrderIndex());
-            ideasExport.add(ideaMap);
-        }
-        chapterMap.put("keyIdeas", ideasExport);
+    private static List<Map<String, Object>> chapters(List<ChapterArchiveDto> chapters) {
+        return chapters.stream().map(BookExportService::chapter).toList();
+    }
 
-        List<Excerpt> excerpts = excerptRepository.findByChapterIdOrderByOrderIndexAsc(chapter.getId());
-        List<Map<String, Object>> excerptsExport = new ArrayList<>();
-        for (Excerpt excerpt : excerpts) {
-            Map<String, Object> excerptMap = new LinkedHashMap<>();
-            excerptMap.put("content", excerpt.getContent());
-            excerptMap.put("note", excerpt.getNote());
-            excerptMap.put("source", excerpt.getSource());
-            excerptMap.put("highlighted", excerpt.isHighlighted());
-            excerptMap.put("orderIndex", excerpt.getOrderIndex());
-            excerptsExport.add(excerptMap);
-        }
-        chapterMap.put("excerpts", excerptsExport);
+    private static Map<String, Object> chapter(ChapterArchiveDto chapter) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("title", chapter.title());
+        map.put("orderIndex", chapter.orderIndex());
+        map.put("summary", chapter.summary());
+        map.put("keyIdeas", chapter.keyIdeas().stream().map(BookExportService::idea).toList());
+        map.put("excerpts", chapter.excerpts().stream().map(BookExportService::excerpt).toList());
+        return map;
+    }
 
-        return chapterMap;
+    private static Map<String, Object> idea(KeyIdeaArchiveDto idea) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("content", idea.content());
+        map.put("example", idea.example());
+        map.put("tags", idea.tags());
+        map.put("highlighted", idea.highlighted());
+        map.put("orderIndex", idea.orderIndex());
+        return map;
+    }
+
+    private static Map<String, Object> excerpt(ExcerptArchiveDto excerpt) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("content", excerpt.content());
+        map.put("note", excerpt.note());
+        map.put("source", excerpt.source());
+        map.put("highlighted", excerpt.highlighted());
+        map.put("orderIndex", excerpt.orderIndex());
+        return map;
     }
 }

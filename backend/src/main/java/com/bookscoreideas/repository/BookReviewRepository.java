@@ -9,6 +9,9 @@ import java.util.List;
 public interface BookReviewRepository extends JpaRepository<BookReview, Long> {
     List<BookReview> findByBookIdOrderByUpdatedAtDescIdDesc(Long bookId);
 
+    /** In creation order (migration export: re-imported rows keep their relative order). */
+    List<BookReview> findByBookIdOrderByIdAsc(Long bookId);
+
     /** All reviews with their (eagerly mapped) book fetched in the same query. */
     @Query("SELECT r FROM BookReview r JOIN FETCH r.book ORDER BY r.updatedAt DESC, r.id DESC")
     List<BookReview> findAllWithBook();

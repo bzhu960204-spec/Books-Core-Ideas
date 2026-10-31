@@ -116,6 +116,7 @@
 - **两处 uploadDir 初始化**：`ChapterImageController` 与 `MigrationService` 各自 `@Value("${app.upload.dir}")` + `createDirectories`。建议抽 `@ConfigurationProperties("app")` + `ImageStorageService`（保存、读取、删除、路径穿越校验集中一处）。
   > 进展：随 BUG-03 新增了 `ChapterImageStorage`，`ChapterImageController` 已改用它；`MigrationService` / `MigrationImporter` 尚未迁移。
   > **✅ 图片存储部分已完成（2026-10-31，随 BE-01 ④）**：`MigrationService` 也改用 `ChapterImageStorage`，`app.upload.dir` 只在一处读取。"两套导出"按决定推迟到 BE-08（迁移归档 v2）一起设计；"两套 JSON 导入"属于前端，随 FE-08 / BUG-06 处理。
+  > **✅ 两套导出已统一（2026-10-31，随 BE-08）**：两者共用 `BookArchiveBuilder` 读取书籍树。单本 JSON 导出是 JSON 导入格式，输出保持逐字节不变（`BookJsonExportTest`）。
 - **两套 JSON 导入**：前端 `LibraryPage` 与 `BookDetailPage` 各写一遍（导致 BUG-06）。
 
 ---
@@ -141,6 +142,30 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 [migration-feature.md](../migration-feature.md) 也没有说明这一限制。如果把"导出 ZIP"当作备份或换机手段，这些数据会**静默丢失**。
 
 **建议**：`FORMAT_VERSION` 升到 2，补齐以上实体（marks 依赖 explanation 文本偏移，需一并导出）；导入时兼容 v1；在文档和 UI 上明确归档范围。也可与 [DB-05 备份](03-database-and-data-safety.md#db-05) 分工：ZIP 用于"分享/迁移书"，数据库级备份用于"灾备"。
+
+> **✅ 已完成（2026-10-31）**：归档格式 v2。用户授权"按最佳判断"，所做选择及理由如下。
+>
+> **设计决定**
+> 1. **数据放在所属位置**：书评放在书级 `reviews`；书签、标记放在章节的 `bookmarks` / `marks` 中，和标记偏移量所指向的 `explanation` 正文在一起。
+> 2. **书单用名称路径**（`collectionPaths: [["心理学","习惯"]]`），不用 ID，因为 ID 在另一套部署里没有意义。导入时用新增的 `BookCollectionService.findOrCreatePath` 按路径查找或新建，**合并**进现有的树。不导出空书单、书单排序和加入时间，也就是只覆盖"书在哪些书单里"。
+> 3. **保留原始时间戳**：书签的 `createdAt` 决定阅读历史时间线的顺序，属于数据本身。v1 其实已经导出了讲解的 `updatedAt`，但导入时被 `@PrePersist` 覆盖成当天；现在 `BookReview` / `ChapterExplanation` 的 `@PrePersist` 只在为空时填"现在"，修改时仍由 `@PreUpdate` 更新。
+> 4. **版本检查**：v1 归档照常导入（缺少的部分为空）；**更新版本的归档返回 400**。原来完全不检查版本，新格式会被"导入成功"，但新增内容被悄悄丢掉。
+> 5. **两套导出（BE-06）**：单本 JSON 导出同时也是 README 中记录的、可手工编辑的 **JSON 导入格式**，所以**输出保持不变**。它与 ZIP 迁移共用新的 [BookArchiveBuilder](../../backend/src/main/java/com/bookscoreideas/service/BookArchiveBuilder.java)，后者是唯一遍历书籍树的地方；JSON 导出只是把快照映射成导入格式。
+> 6. 列表按创建顺序（ID 升序）导出，导入后相对顺序不变，因此"导出 → 导入 → 再导出"的结果完全相同。
+> 7. 前端：迁移弹窗的说明文字写明了归档范围；导入预览会显示书评、书签、标记、书单的数量（仅在非零时显示）。
+>
+> **测试**
+> - [MigrationArchiveTest](../../backend/src/test/java/com/bookscoreideas/migration/MigrationArchiveTest.java)：4 个，改动前全部失败。
+>   - 往返：再导出与原导出**完全相同**，并显式检查时间戳和书单（删掉的子书单会被重建，根书单不重复）；
+>   - v1 兼容；
+>   - 拒绝 v3；
+>   - 预览计数。
+> - [BookJsonExportTest](../../backend/src/test/java/com/bookscoreideas/books/BookJsonExportTest.java)：3 个，特征测试，锁定逐字节输出，改动前后都通过。
+> - 前端：`migrationPreview.test.js`，以及 `BookMigrationModal.test.jsx`（改动前失败）。
+>
+> **真实数据验证**
+> - 2,724 个 GET 响应中，只有 24 个迁移 ZIP 导出不同，且全部是**纯新增**：去掉 v2 新字段、把版本号改回 1 后与改动前逐字节相同；新增内容为 5 条书评、1 个书签、4 条书单成员。
+> - 整库往返：从真实库副本导出全部 24 本书，导入一个全新的空库，再全部导出。25 个 JSON 条目**全部相同**（1,285 条想法、932 条摘录、51 篇讲解、书评、书签、书单路径及时间戳）。唯一的差别是 book 195 的 5 条图片记录：它们的文件本来就不在 `backend/data/images/` 中（见 [development-workflow.md](../development-workflow.md#7-已知的数据现状2026-10-31)），导入时因没有文件而跳过。
 
 ---
 

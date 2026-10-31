@@ -13,6 +13,9 @@ public interface ReadingBookmarkRepository extends JpaRepository<ReadingBookmark
 
     Optional<ReadingBookmark> findFirstByBookIdOrderByCreatedAtDescIdDesc(Long bookId);
 
+    /** In creation order (migration export: re-imported rows keep their relative order). */
+    List<ReadingBookmark> findByChapterIdOrderByIdAsc(Long chapterId);
+
     /** Columns for the reading-history list, joined in one query instead of loading entities per row. */
     interface BookmarkRow {
         Long getId();

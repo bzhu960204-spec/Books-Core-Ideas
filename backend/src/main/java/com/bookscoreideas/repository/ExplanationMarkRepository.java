@@ -12,6 +12,9 @@ public interface ExplanationMarkRepository extends JpaRepository<ExplanationMark
 
     void deleteByChapterId(Long chapterId);
 
+    /** In creation order (migration export: re-imported rows keep their relative order). */
+    List<ExplanationMark> findByChapterIdOrderByIdAsc(Long chapterId);
+
     /** Columns for listing saved passages, joined in one query instead of loading entities per row. */
     interface MarkRow {
         Long getId();

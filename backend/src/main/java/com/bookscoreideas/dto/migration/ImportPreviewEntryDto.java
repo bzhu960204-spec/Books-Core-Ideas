@@ -6,5 +6,9 @@ public record ImportPreviewEntryDto(
         int chapterCount,
         int imageCount,
         boolean hasExplanations,
-        boolean conflict
+        boolean conflict,
+        int reviewCount,
+        int bookmarkCount,
+        int markCount,
+        int collectionCount
 ) {}
