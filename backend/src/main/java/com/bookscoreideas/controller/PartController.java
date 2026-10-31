@@ -1,5 +1,6 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.PartRequest;
 import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.PartRepository;
@@ -27,8 +28,12 @@ public class PartController {
     }
 
     @PostMapping
-    public ResponseEntity<Part> createPart(@PathVariable Long bookId, @Valid @RequestBody Part part) {
+    public ResponseEntity<Part> createPart(@PathVariable Long bookId, @Valid @RequestBody PartRequest request) {
         return bookRepository.findById(bookId).map(book -> {
+            Part part = new Part();
+            part.setTitle(request.title());
+            part.setOrderIndex(request.orderIndex());
+            part.setSummary(request.summary());
             part.setBook(book);
             return ResponseEntity.ok(partRepository.save(part));
         }).orElse(ResponseEntity.notFound().build());
@@ -37,11 +42,11 @@ public class PartController {
     @PutMapping("/{partId}")
     public ResponseEntity<Part> updatePart(@PathVariable Long bookId,
                                             @PathVariable Long partId,
-                                            @Valid @RequestBody Part part) {
+                                            @Valid @RequestBody PartRequest request) {
         return partRepository.findByIdAndBookId(partId, bookId).map(existing -> {
-            existing.setTitle(part.getTitle());
-            existing.setOrderIndex(part.getOrderIndex());
-            existing.setSummary(part.getSummary());
+            existing.setTitle(request.title());
+            existing.setOrderIndex(request.orderIndex());
+            existing.setSummary(request.summary());
             return ResponseEntity.ok(partRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }

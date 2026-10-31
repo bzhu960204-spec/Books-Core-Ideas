@@ -1,5 +1,6 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.KeyIdeaRequest;
 import com.bookscoreideas.entity.KeyIdea;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.KeyIdeaRepository;
@@ -27,8 +28,10 @@ public class KeyIdeaController {
     }
 
     @PostMapping
-    public ResponseEntity<KeyIdea> createIdea(@PathVariable Long chapterId, @Valid @RequestBody KeyIdea idea) {
+    public ResponseEntity<KeyIdea> createIdea(@PathVariable Long chapterId, @Valid @RequestBody KeyIdeaRequest request) {
         return chapterRepository.findById(chapterId).map(chapter -> {
+            KeyIdea idea = new KeyIdea();
+            apply(idea, request);
             idea.setChapter(chapter);
             return ResponseEntity.ok(keyIdeaRepository.save(idea));
         }).orElse(ResponseEntity.notFound().build());
@@ -37,15 +40,19 @@ public class KeyIdeaController {
     @PutMapping("/{ideaId}")
     public ResponseEntity<KeyIdea> updateIdea(@PathVariable Long chapterId,
                                                @PathVariable Long ideaId,
-                                               @Valid @RequestBody KeyIdea idea) {
+                                               @Valid @RequestBody KeyIdeaRequest request) {
         return keyIdeaRepository.findByIdAndChapterId(ideaId, chapterId).map(existing -> {
-            existing.setContent(idea.getContent());
-            existing.setExample(idea.getExample());
-            existing.setTags(idea.getTags());
-            existing.setHighlighted(idea.isHighlighted());
-            existing.setOrderIndex(idea.getOrderIndex());
+            apply(existing, request);
             return ResponseEntity.ok(keyIdeaRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private static void apply(KeyIdea idea, KeyIdeaRequest request) {
+        idea.setContent(request.content());
+        idea.setExample(request.example());
+        idea.setTags(request.tags());
+        idea.setHighlighted(request.highlighted());
+        idea.setOrderIndex(request.orderIndex());
     }
 
     @DeleteMapping("/{ideaId}")

@@ -1,5 +1,6 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.ChapterRequest;
 import com.bookscoreideas.entity.Chapter;
 import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.repository.BookRepository;
@@ -32,9 +33,13 @@ public class ChapterController {
     }
 
     @PostMapping
-    public ResponseEntity<Chapter> createChapter(@PathVariable Long bookId, @Valid @RequestBody Chapter chapter) {
+    public ResponseEntity<Chapter> createChapter(@PathVariable Long bookId, @Valid @RequestBody ChapterRequest request) {
         return bookRepository.findById(bookId).map(book -> {
-            applyPart(chapter, bookId, chapter.getPartId());
+            Chapter chapter = new Chapter();
+            chapter.setTitle(request.title());
+            chapter.setOrderIndex(request.orderIndex());
+            chapter.setSummary(request.summary());
+            applyPart(chapter, bookId, request.partId());
             chapter.setBook(book);
             return ResponseEntity.ok(chapterRepository.save(chapter));
         }).orElse(ResponseEntity.notFound().build());
@@ -57,12 +62,12 @@ public class ChapterController {
     @PutMapping("/{chapterId}")
     public ResponseEntity<Chapter> updateChapter(@PathVariable Long bookId,
                                                   @PathVariable Long chapterId,
-                                                  @Valid @RequestBody Chapter chapter) {
+                                                  @Valid @RequestBody ChapterRequest request) {
         return chapterRepository.findByIdAndBookId(chapterId, bookId).map(existing -> {
-            applyPart(existing, bookId, chapter.getPartId());
-            existing.setTitle(chapter.getTitle());
-            existing.setOrderIndex(chapter.getOrderIndex());
-            existing.setSummary(chapter.getSummary());
+            applyPart(existing, bookId, request.partId());
+            existing.setTitle(request.title());
+            existing.setOrderIndex(request.orderIndex());
+            existing.setSummary(request.summary());
             return ResponseEntity.ok(chapterRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }

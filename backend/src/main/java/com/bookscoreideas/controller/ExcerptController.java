@@ -1,5 +1,6 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.ExcerptRequest;
 import com.bookscoreideas.entity.Excerpt;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.ExcerptRepository;
@@ -27,8 +28,10 @@ public class ExcerptController {
     }
 
     @PostMapping
-    public ResponseEntity<Excerpt> createExcerpt(@PathVariable Long chapterId, @Valid @RequestBody Excerpt excerpt) {
+    public ResponseEntity<Excerpt> createExcerpt(@PathVariable Long chapterId, @Valid @RequestBody ExcerptRequest request) {
         return chapterRepository.findById(chapterId).map(chapter -> {
+            Excerpt excerpt = new Excerpt();
+            apply(excerpt, request);
             excerpt.setChapter(chapter);
             return ResponseEntity.ok(excerptRepository.save(excerpt));
         }).orElse(ResponseEntity.notFound().build());
@@ -37,15 +40,19 @@ public class ExcerptController {
     @PutMapping("/{excerptId}")
     public ResponseEntity<Excerpt> updateExcerpt(@PathVariable Long chapterId,
                                                   @PathVariable Long excerptId,
-                                                  @Valid @RequestBody Excerpt excerpt) {
+                                                  @Valid @RequestBody ExcerptRequest request) {
         return excerptRepository.findByIdAndChapterId(excerptId, chapterId).map(existing -> {
-            existing.setContent(excerpt.getContent());
-            existing.setNote(excerpt.getNote());
-            existing.setSource(excerpt.getSource());
-            existing.setOrderIndex(excerpt.getOrderIndex());
-            existing.setHighlighted(excerpt.isHighlighted());
+            apply(existing, request);
             return ResponseEntity.ok(excerptRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    private static void apply(Excerpt excerpt, ExcerptRequest request) {
+        excerpt.setContent(request.content());
+        excerpt.setNote(request.note());
+        excerpt.setSource(request.source());
+        excerpt.setOrderIndex(request.orderIndex());
+        excerpt.setHighlighted(request.highlighted());
     }
 
     @DeleteMapping("/{excerptId}")

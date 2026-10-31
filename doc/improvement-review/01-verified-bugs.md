@@ -17,6 +17,7 @@
 | BUG-10 | ⚪ P3 | 图片上传：序号计算偏差 & 静默吞异常 | 🔍 代码确认 |
 | BUG-11 | 🟡 P2 | 编辑器按 Markdown 粘贴时，```` ``` ```` 代码块原样变成段落文字（✅ 已修复） | ✅ 实测 |
 | BUG-12 | 🟡 P2 | 章节图片查看器：删除最后一张图片后整页崩溃（✅ 已修复） | ✅ 实测 |
+| BUG-13 | 🟠 P1 | 新建章节 / Part / 想法 / 摘录时请求带 `id`，会覆盖并挪走其他书里的那一行（✅ 已修复） | ✅ 实测 |
 
 ---
 
@@ -213,3 +214,16 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 **现象**：在图片查看器中翻到最后一张（如 2/2）并删除，React 渲染时访问 `images[idx].id` 抛出 TypeError。应用没有 ErrorBoundary（FE-05），因此**整页白屏**，需要刷新。
 
 **根因**：[ChapterImageViewer.jsx](../../frontend/src/components/ChapterImageViewer.jsx) 中 `loadImages` 的 `useCallback` 依赖只有 `chapterId`，闭包里的 `idx` 始终是打开查看器时的值（0）。删除后"序号超出则收回到末尾"的判断用的是这个旧值，所以不会生效，`idx` 停在已越界的位置。lint 的 `react-hooks/exhaustive-deps` 警告指出的正是这个问题。
+
+---
+
+<a id="bug-13"></a>
+## BUG-13 · 子资源新建时带 `id` 会覆盖并挪走已有数据 🟠
+
+> **✅ 已修复（2026-10-31，BE-01 开工前单独修复）**：章节、Part、想法、摘录的新建/更新改用请求 record（[ChapterRequest](../../backend/src/main/java/com/bookscoreideas/dto/ChapterRequest.java)、[PartRequest](../../backend/src/main/java/com/bookscoreideas/dto/PartRequest.java)、[KeyIdeaRequest](../../backend/src/main/java/com/bookscoreideas/dto/KeyIdeaRequest.java)、[ExcerptRequest](../../backend/src/main/java/com/bookscoreideas/dto/ExcerptRequest.java)），只包含可编辑字段，请求中的 `id` 和嵌套数据一律忽略。回归测试 [ChildCreateIgnoresClientIdTest](../../backend/src/test/java/com/bookscoreideas/books/ChildCreateIgnoresClientIdTest.java)（4 个）修复前全部失败。响应格式不变。
+
+**现象**：与 BUG-09 同源。`POST /api/books/{B}/chapters`（以及 parts、`/chapters/{c}/ideas`、`/chapters/{c}/excerpts`）的请求体如果带有另一行的 `id`，Hibernate 会把这次保存当作 merge：**那一行的内容被覆盖，并被挪到新的父级下**（比如另一本书里的想法被移到当前章节），接口照常返回 200。新建章节时请求里夹带的 `keyIdeas` 也会被保存，但不属于任何章节。
+
+**能否通过界面触发**：能。详情页的"Import JSON"会把 JSON 里的字段原样传给 `chapterApi.create` / `ideaApi.create` / `excerptApi.create`。如果导入的 JSON 带有 `id`（例如 AI 按 API 返回格式生成的 JSON），就会悄悄改动其他书的数据。
+
+**根因**：控制器把请求体直接绑定到 JPA 实体后调用 `save()`。

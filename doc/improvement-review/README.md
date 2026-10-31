@@ -97,6 +97,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-10 | P3 | 图片上传序号/吞异常 | 4 | ⬜ | |
 | BUG-11 | P2 | Markdown 粘贴代码块不转换 | — | ✅ | 评审后发现；公式改用 marked 扩展 + markdownPaste.test.js |
 | BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |
+| BUG-13 | P1 | 子资源新建带 id 会覆盖/挪走数据 | 2 | ✅ | BUG-09 同源（章节/Part/想法/摘录）；ChildCreateIgnoresClientIdTest |
 | BE-01 | P1 | Service 层 | 2 | ⬜ | |
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ✅ | /api/books 请求/响应 DTO + chapterCount；列表 757 KB→25 KB；含 BUG-09 |
 | BE-03 | P2 | API 风格统一 | 2 | ⬜ | |
