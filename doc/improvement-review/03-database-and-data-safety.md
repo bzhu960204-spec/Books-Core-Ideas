@@ -117,12 +117,21 @@
 > **决定（2026-10-31）**：数据重要性一般，**不做自动/定时备份**，只在大的重构（尤其是 schema 变更）前手动备份。优先级由 P0 调整为 P2。
 >
 > **已完成**：
-> - [backup-data.ps1](../../backup-data.ps1)：把 `backend/data`（数据库 + images）打包为 `backups/data-<时间戳>[-标签].zip`；检测到 H2 `.lock.db`（应用运行中）时拒绝执行，保证快照一致；`-Force` 可绕过陈旧锁文件。
+> - [backup-data.ps1](../../backup-data.ps1)：把 `backend/data`（数据库 + images）打包为 `backups/data-<时间戳>[-标签].zip`；检测到数据库正在使用时拒绝执行，保证快照一致；~~`-Force` 可绕过陈旧锁文件~~（见下方 2026-10-31 补充）。
 > - [restore-data.ps1](../../restore-data.ps1)：`-Latest` 或 `-BackupFile` 恢复；恢复前自动把当前数据另存为 `*-pre-restore.zip`；支持 `backend/data` 为 junction 的情况（只替换内容，保留 junction）；带 `-Confirm` 确认。
 > - `backups/` 已加入 `.gitignore`；主 [README](../../README.md) 增加 "Data Backup & Restore" 章节。
 > - 验证：在临时目录上测试了"带锁拒绝 / 标签清洗 / 恢复 / 恢复前安全备份 / junction 恢复"，并确认在运行中的真实数据目录上会拒绝执行。
 >
 > 下方原始分析中的第 2、4、5 条（在线定时备份、防并发、换存放位置）暂不实施。
+>
+> **补充（2026-10-31，DB-01 开工时发现）：陈旧锁文件导致备份未执行**
+> - **经过**：`stop-dev.ps1` 按端口强杀进程，H2 来不及删除 `booksdb.lock.db`。之后执行 `backup-data.ps1 -Label before-db01-db02` 时，脚本把这个陈旧锁当成"应用运行中"而拒绝，没有生成备份，但这一点很容易被忽略。
+> - **调查中还发现**：原来的 `-Force` 对**真正运行中**的库也不起作用。H2 进程一直打开着 `.mv.db`，`Compress-Archive` 读不了，失败时还可能留下半个 zip。
+> - **修复**：新增共享的 [tools/data-lock.ps1](../../tools/data-lock.ps1)，backup/restore 都使用它。
+>   - 判断依据改为"是否有进程打开着 `*.mv.db`"：尝试独占打开，失败即视为在用，**拒绝且没有覆盖开关**。
+>   - 只有锁文件、没有进程打开数据库时，视为陈旧锁：给出警告后继续。
+>   - `-Force` 仍可传入，但会被忽略并给出警告；压缩失败时删除半成品 zip。
+> - **测试**：新增 [tools/tests/data-scripts.test.ps1](../../tools/tests/data-scripts.test.ps1)，6 个场景，在临时目录中运行，修复前有 3 个失败。另外用真实 H2 进程验证：应用运行中拒绝；强杀后陈旧锁被识别并完成备份。
 
 **现状**：
 - 真实数据（`booksdb.mv.db` + `images/`）通过 junction 指向 OneDrive（[setup-data-link.ps1](../../setup-data-link.ps1)）。OneDrive **不是备份**：损坏的文件同样会被同步覆盖到所有设备。

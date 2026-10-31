@@ -15,7 +15,7 @@ Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`.
 
 ## Data Backup & Restore
 
-Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while the database is in use.
+Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while a process has the database open. A `booksdb.lock.db` left behind by a killed app (e.g. after `stop-dev.ps1`) is recognised as stale and ignored with a warning, so `-Force` is no longer needed (it is accepted but ignored).
 
 ```powershell
 .\stop-dev.ps1
@@ -24,6 +24,7 @@ Data lives in `backend/data/` (H2 database + uploaded images). Take a manual sna
 ```
 
 `restore-data.ps1` first saves the current data as `*-pre-restore.zip`, so you can undo a restore. `backups/` is git-ignored.
+Scenario tests for both scripts: `powershell -NoProfile -File tools\tests\data-scripts.test.ps1`.
 
 ## Tests & CI
 

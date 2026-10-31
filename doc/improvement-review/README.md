@@ -112,7 +112,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | DB-02 | P1 | 外键与级联 | 2 | ✅ | V9：级联 + 图片 RESTRICT + 补外键 + 复合外键保证 book_id 一致；ForeignKeyConstraintsTest；副本演练零差异 |
 | DB-03 | P3 | 删除 migrate.sql | 0 | ✅ | |
 | DB-04 | P2 | 内联 base64 图片 | 4 | ⬜ | |
-| DB-05 | P2 | 备份机制 | 0 | ✅ | 按需求缩小为手动 backup/restore 脚本，不做自动备份 |
+| DB-05 | P2 | 备份机制 | 0 | ✅ | 按需求缩小为手动 backup/restore 脚本，不做自动备份；陈旧锁自动识别（data-scripts.test.ps1） |
 | DB-06 | P3 | 建模细节 | 4 | 🔄 | `Chapter.explanation` 反向一对一已去掉（ChapterExplanationLoadingTest）；DATE→TIMESTAMP、分类拆表待做 |
 | FE-01 | P1 | 拆分超大组件/样式 | 3 | ⬜ | |
 | FE-02 | P1 | ESLint 清零 | 1 | ✅ | 0 error / 0 warning，CI 阻断；9 处加载 effect 暂用 disable，待 FE-03 删除 |
@@ -132,4 +132,4 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |
 | ENG-05 | P2 | 文档更新 | 4 | ⬜ | 每阶段顺带更新相关文档 |
-| ENG-06 | P3 | 脚本小问题 | 4 | ⬜ | |
+| ENG-06 | P3 | 脚本小问题 | 4 | 🔄 | 强杀留下的陈旧锁不再阻止备份/恢复；端口记录、健康检查、重复代码待做 |
