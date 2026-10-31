@@ -62,7 +62,7 @@
 | 顺序 | ID | 事项 |
 |---|---|---|
 | 2.1 | BE-02 | ✅ `GET /api/books` 瘦身 + 引入 DTO |
-| 2.2 | BE-01 / BE-06 | Service 层、ImageStorageService、统一导出逻辑 |
+| 2.2 | BE-01 / BE-06 | ✅ Service 层（含 open-in-view=false）、✅ 图片存储统一；统一导出推迟到 BE-08 |
 | 2.3 | DB-01 / DB-02 | Flyway 成为唯一 schema 来源，补外键与级联，`ddl-auto=validate` |
 | 2.4 | BE-08 | 迁移归档 v2：补齐书评/书签/标记/书单 |
 | 2.5 | BE-05 / BE-03 | 校验、枚举、API 风格统一 |
@@ -98,9 +98,9 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-11 | P2 | Markdown 粘贴代码块不转换 | — | ✅ | 评审后发现；公式改用 marked 扩展 + markdownPaste.test.js |
 | BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |
 | BUG-13 | P1 | 子资源新建带 id 会覆盖/挪走数据 | 2 | ✅ | BUG-09 同源（章节/Part/想法/摘录）；ChildCreateIgnoresClientIdTest |
-| BE-01 | P1 | Service 层 | 2 | 🔄 | 与 BE-03 DTO 化合并，按聚合推进：① 章节/Part ✅ ② 想法/摘录 ✅ ③ 阅读相关 ✅ ④ 图片 ✅ |
+| BE-01 | P1 | Service 层 | 2 | ✅ | 与 BE-03 DTO 化合并；控制器不再直接用 Repository；open-in-view=false；2,695 个响应零差异 |
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ✅ | /api/books 请求/响应 DTO + chapterCount；列表 757 KB→25 KB；含 BUG-09 |
-| BE-03 | P2 | API 风格统一 | 2 | ⬜ | |
+| BE-03 | P2 | API 风格统一 | 2 | 🔄 | 响应 DTO 化已随 BE-01 完成；状态码等契约变更待做（需配合前端） |
 | BE-04 | P1 | 全局异常处理 | 1 | ✅ | ProblemDetail + 前端解析 detail |
 | BE-05 | P2 | 校验与枚举 | 2 | ⬜ | |
 | BE-06 | P2 | 重复代码 | 2 | 🔄 | 图片存储统一 ✅；两套导出推迟到 BE-08；JSON 导入随 FE-08 |
@@ -127,7 +127,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 39 个（含 N+1 回归）+ 前端 Vitest 37 个（含 RTL 组件测试）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 62 个（含 N+1 回归、迁移往返、OSIV 关闭）+ 前端 Vitest 37 个（含 RTL 组件测试）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

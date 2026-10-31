@@ -3,7 +3,6 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.dto.CreateBookRequest;
 import com.bookscoreideas.dto.UpdateBookRequest;
-import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.service.BookService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +14,9 @@ import java.util.List;
 @RequestMapping("/api/books")
 public class BookController {
 
-    private final BookRepository bookRepository;
     private final BookService bookService;
 
-    public BookController(BookRepository bookRepository, BookService bookService) {
-        this.bookRepository = bookRepository;
+    public BookController(BookService bookService) {
         this.bookService = bookService;
     }
 
@@ -30,7 +27,7 @@ public class BookController {
 
     @GetMapping("/categories")
     public List<String> getCategories() {
-        return bookRepository.findDistinctCategories();
+        return bookService.categories();
     }
 
     @GetMapping("/{id}")

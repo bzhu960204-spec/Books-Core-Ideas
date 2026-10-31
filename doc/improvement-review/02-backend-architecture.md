@@ -28,13 +28,16 @@
 
 > 进展：随 BUG-02/08 新增了 `BookService`（目前只有 `delete`）。
 >
-> **BE-01 进行中（2026-10-31）**，按决定与 BE-03 的"DTO 化"合并做，**JSON 字段保持不变**。每一步都用真实数据副本采集全部 2,695 个 GET 响应，与改动前的基线逐条对比：
+> **✅ BE-01 已完成（2026-10-31）**，按决定与 BE-03 的"DTO 化"合并做，**JSON 字段保持不变**。每一步都用真实数据副本采集全部 2,695 个 GET 响应，与改动前的基线逐条对比：
 > - ① 章节与 Part：`ChapterService` / `PartService`，`ChapterDto`（含 `KeyIdeaDto` 列表）/ `PartDto`。`GET /books/{id}/chapters` 原来每个章节要额外查 2 次：想法 1 次；讲解 1 次，因为 `Chapter.explanation` 是反向一对一，没有字节码增强就无法懒加载。现在改为"投影查询章节 + 一次批量查询想法"，**固定 2 条 SQL**。测试 [ChapterApiTest](../../backend/src/test/java/com/bookscoreideas/books/ChapterApiTest.java)（6 个，N+1 用例改动前失败）；真实数据对比 2,695 个响应零差异。
 > - 发现并单独修复了 **BUG-13**（子资源新建时带 `id` 会覆盖并挪走已有数据）。
 > - ② 想法与摘录：`KeyIdeaService` / `ExcerptService`（同时负责想法库、摘录库的全局搜索），`ExcerptDto`。测试 [ContentApiTest](../../backend/src/test/java/com/bookscoreideas/books/ContentApiTest.java)（4 个，改动前后都通过）；真实数据对比 2,695 个响应零差异。
 > - ③ 阅读相关：`ExplanationService` / `ReviewService` / `BookmarkService` / `MarkService`，`ExplanationDto` / `ReviewDto` / `ReviewBankEntryDto` / `BookmarkDto` / `MarkDto` 取代手工拼装的 `Map`（空值兜底规则不变）。请求体的宽松解析（`Map` + `instanceof Number`）暂时保留在控制器里，留给 BE-05。书签列表和片段收藏列表原来每行都要单独加载章节（连带讲解）和书，现在改为一条投影查询；书评库用 `JOIN FETCH` 取书。讲解、书评、片段收藏的更新改用 `saveAndFlush`，确保响应里的 `updatedAt` 是新值：讲解和书评原本就是这样，挪进事务后要显式 flush 才能保持；片段收藏的 PATCH 原来返回旧值，现在也返回新值。测试 [ReadingApiTest](../../backend/src/test/java/com/bookscoreideas/books/ReadingApiTest.java)（5 个：4 个特征测试改动前后都通过，N+1 用例改动前失败；把 `saveAndFlush` 换回 `save` 会让 2 个用例失败）；真实数据对比 2,695 个响应零差异。
 > - ④ 章节图片 + BE-06 图片存储统一：`ChapterImageService`、`ChapterImageDto`。路径校验、写入、读取全部集中到 `ChapterImageStorage`（新增 `existing`/`store`/`write`），`MigrationService` 不再自己读取 `app.upload.dir`，改用它；配置项现在只在一处读取。上传行为保持原样（序号偏差和静默跳过 IO 异常属于 BUG-10，留到阶段 4）。唯一的细微差别：数据库中文件名非法时，原来返回 400，现在和"文件不存在"一样返回 404（文件名由服务端生成 UUID，正常情况下不会出现）。测试 [ImageApiTest](../../backend/src/test/java/com/bookscoreideas/books/ImageApiTest.java)（3 个，改动前后都通过），其中包括**迁移导出 → 删除 → 导入后图片字节一致**的往返测试（迁移功能此前没有任何测试）；真实数据对比 2,695 个响应零差异。
+> - ⑤ 收尾：单书 JSON 导出原样搬进 `BookExportService`（格式留给 BE-08）；分类查询移进 `BookService`。**现在所有控制器都不再直接注入 Repository。** 迁移导出加上只读事务（它在 `StreamingResponseBody` 的异步线程里执行，以前靠 OSIV 的异步绑定）。设置 **`spring.jpa.open-in-view=false`**，并用 [OpenInViewDisabledTest](../../backend/src/test/java/com/bookscoreideas/config/OpenInViewDisabledTest.java) 锁定（强制打开 OSIV 时该测试失败）；全部 62 个后端测试在 OSIV 关闭下通过。真实数据验证：2,695 个响应零差异；整库迁移导出 ZIP 与上一个提交（OSIV 开启）导出的 25 个条目逐字节一致（不计导出时间戳）；浏览器中 8 个页面和讲解阅读窗口正常，后端日志无异常。
 > - 留给 DB-06：其他地方加载 `Chapter` 实体时仍会顺带加载讲解（大字段），可以考虑把这个反向一对一去掉，改由服务层负责级联删除。
+> - 留给 BE-05：请求体的 `Map` 宽松解析（书签、片段收藏、讲解、书评）改为带校验的请求 record。
+> - 留给 BE-03（契约变更，需配合前端）：DELETE 返回 200 还是 204、查无时返回 204 还是 404、POST 是否返回 201，目前仍和原来一样不统一。
 
 ---
 
@@ -47,7 +50,7 @@
 > - **效果**（备份库副本，24 本书 / 479 章 / 1285 条想法）：`GET /api/books` 响应体从 **757,737 → 25,637 字节（−97%）**，预热后耗时 **约 800 → 44 ms**；SQL 条数不再随书本数量增长。
 > - **一致性**：对比改动前后共 29 个响应文件、56 个书籍对象，除 `chapters` → `chapterCount` 外**零差异**；界面上 24 本书显示的章节数与旧数据逐本一致。浏览器验证：在书库改评分、在详情页改阅读状态，PUT 往返后只有目标字段变化（描述等字段不丢失）；书单视图、按 Part 组织的书的详情页均正常。
 > - 测试：[BookRequestTest](../../backend/src/test/java/com/bookscoreideas/books/BookRequestTest.java)（5 个）、[BookResponseTest](../../backend/src/test/java/com/bookscoreideas/books/BookResponseTest.java)（6 个，其中 N+1 回归用 Hibernate statistics 统计 SQL 条数；改动前 5 个失败，"列表回传 PUT 不丢字段"这个保护用例前后都通过）。
-> - 未做（按决定推迟）：`spring.jpa.open-in-view=false` 推迟到 BE-01（`ChapterController` 等接口还依赖序列化时的懒加载）；状态码统一留给 BE-03；`Book` 实体上的 `chapters` 集合仍保留（用于级联删除），只是不再出现在 API 中。
+> - 未做（按决定推迟）：`spring.jpa.open-in-view=false` 推迟到 BE-01（**已随 BE-01 ⑤ 完成**）；状态码统一留给 BE-03；`Book` 实体上的 `chapters` 集合仍保留（用于级联删除），只是不再出现在 API 中。
 
 **现状**：
 - `Book.chapters` 没有 `@JsonIgnore`，于是 **`GET /api/books` 返回每本书的全部章节 + 全部 keyIdeas**（已实测响应中含 `"chapters":`）。书库、想法库、摘录库、书评库、阅读历史 5 个页面都调用 `bookApi.getAll()`，每次都下载整个库的内容，且每本书触发懒加载查询（N+1）。

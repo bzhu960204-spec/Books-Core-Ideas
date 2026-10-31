@@ -29,6 +29,7 @@ import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -89,6 +90,7 @@ public class MigrationService {
 
     // ---------------------------------------------------------------- EXPORT
 
+    @Transactional(readOnly = true)
     public void exportBooks(List<Long> bookIds, OutputStream os) throws IOException {
         List<Book> books = (bookIds == null || bookIds.isEmpty())
                 ? bookRepository.findAll()

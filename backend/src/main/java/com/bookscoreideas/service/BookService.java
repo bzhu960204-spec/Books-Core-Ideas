@@ -40,6 +40,12 @@ public class BookService {
         return bookRepository.findById(id).map(this::toDto);
     }
 
+    /** Distinct individual categories across all books, sorted. */
+    @Transactional(readOnly = true)
+    public List<String> categories() {
+        return bookRepository.findDistinctCategories();
+    }
+
     /** Books as DTOs with their chapter counts, in one count query regardless of size. */
     @Transactional(readOnly = true)
     public List<BookDto> toDtos(List<Book> books) {
