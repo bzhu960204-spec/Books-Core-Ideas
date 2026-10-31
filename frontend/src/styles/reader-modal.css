@@ -1,0 +1,151 @@
+/* Review and explanation reader modals (incl. the editor inside them). */
+
+/* ===== Review Reader Modal ===== */
+.review-reader-modal {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 0;
+}
+
+/* Distraction-free fullscreen editing mode */
+.review-reader-modal.is-fullscreen {
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+.review-reader-modal.is-fullscreen .review-reader-header {
+  padding: 1rem 3rem 0.6rem;
+}
+.review-reader-modal.is-fullscreen .rte-wrapper--fill .rte-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1.75rem clamp(2rem, 5vw, 6rem) 4rem;
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
+.review-reader-modal.is-fullscreen .rte-wrapper--fill .rte-toolbar {
+  padding: 0.5rem clamp(2rem, 5vw, 6rem);
+}
+.review-reader-modal.is-fullscreen .review-reader-actions {
+  padding: 0.85rem clamp(2rem, 5vw, 6rem);
+}
+
+.review-reader-header {
+  padding: 1rem 1.75rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-reader-title {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 2rem 0.3rem 0;
+  line-height: 1.3;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.review-reader-title-input {
+  margin: 0 2rem 0.5rem 0;
+  font-size: 1.4rem;
+}
+
+.review-reader-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  align-items: baseline;
+  padding-bottom: 0.6rem;
+}
+
+.review-reader-body {
+  padding: 1.25rem 1.75rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* When editing, hand off all space + scrolling to the editor itself so we
+   don't end up with a nested scroll container and empty padding around it. */
+.review-reader-body.is-editing {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+}
+
+.review-reader-body.is-editing > .rte-wrapper--fill {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* In fill mode the toolbar stays visible but matches the modal surface so it
+   doesn't look like a separate inner panel. */
+.rte-wrapper--fill .rte-toolbar {
+  background: var(--bg-card);
+  position: static;
+  padding: 0.5rem 1.25rem;
+}
+
+.rte-wrapper--fill .rte-editor {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  background: transparent;
+}
+
+.rte-wrapper--fill .rte-content {
+  min-height: 100%;
+  padding: 1.25rem 1.75rem 2rem;
+  background: transparent;
+}
+
+.review-reader-content {
+  font-size: calc(1.08rem * var(--reader-font-scale, 1));
+  line-height: 1.95;
+  max-width: none;
+  margin: 0;
+}
+
+/* Distraction-free fullscreen reading fills most of the screen; a generous
+   max-width only caps line length on ultra-wide displays. */
+.review-reader-modal.is-fullscreen .review-reader-body {
+  padding: 1.75rem clamp(1.5rem, 5vw, 6rem);
+}
+.review-reader-modal.is-fullscreen .review-reader-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
+
+/* Grouped A− / A+ font-size controls in the reading toolbar. */
+.reader-font-controls {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-left: 0.35rem;
+}
+.reader-font-controls .btn {
+  min-width: 2.1rem;
+  font-weight: 600;
+}
+
+.review-reader-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.85rem 1.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary, var(--bg-card));
+}

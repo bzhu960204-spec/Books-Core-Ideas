@@ -1,0 +1,49 @@
+/* Reset, default theme variables (the Old Oak values; ThemeContext overrides them from themes.js), body and headings. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg-primary: #FFF8E1;
+  --bg-secondary: #F5E6C8;
+  --bg-card: #FFFDF5;
+  --bg-sidebar: #3E2723;
+  --text-primary: #3E2723;
+  --text-secondary: #5D4037;
+  --text-on-dark: #FFF8E1;
+  --accent: #FFD54F;
+  --accent-hover: #FFC107;
+  --border: #D7CCC8;
+  --shadow: rgba(62, 39, 35, 0.15);
+  --surface: #F5E6C8;
+  --btn-primary: #8D6E63;
+  --btn-primary-hover: #6D4C41;
+  --btn-text: #FFF8E1;
+  --input-bg: #FFFDF5;
+  --input-border: #BCAAA4;
+  --danger: #C62828;
+  --ornament-opacity: 1;
+  --card-radius: 4px;
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Lora', serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background 0.4s ease, color 0.4s ease;
+  scrollbar-gutter: stable;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+}

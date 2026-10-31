@@ -16,6 +16,7 @@
 
 > **进展（2026-10-31）**：后端测试骨架已建立——[IntegrationTest](../../backend/src/test/java/com/bookscoreideas/support/IntegrationTest.java) 基类（`@SpringBootTest` + MockMvc + `test` profile，随机内存库、`ddl-auto=validate`），首批 3 个测试覆盖空库/老库迁移。运行：`cd backend; mvn test`。
 > 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`）和 `@testing-library/react`（组件测试，FE-02 引入）。现有纯函数测试 `sanitizeHtml`、`markdownPaste`（BUG-11），组件测试 `RichTextEditor`、`ChapterImageViewer`（BUG-12）、各编辑表单、讲解和书评 Modal、`ExcerptReader`、迁移弹窗预览（BE-08），共 41 个；CI 中前端测试为阻断步骤。
+> 之后：FE-03 / FE-08 加入 fetch 层假后端（[fakeBackend.js](../../frontend/src/test/fakeBackend.js)）和页面测试；FE-01 拆分前先写了详情页、讲解弹窗、编辑器的特征测试，拆出的纯函数也有了单测。现为 119 个。
 
 **现状**：`backend/src/test` 不存在（虽然 pom 已引入 `spring-boot-starter-test`）；前端没有测试框架。本次发现的 BUG-01~05 都是一个最基础的集成测试就能拦住的。
 
@@ -25,7 +26,7 @@
    - 删除带书评/图片/书签/标记的书与章节（BUG-02/03）；
    - 跨章节修改/删除返回 404（BUG-05）；
    - 迁移导出 → 导入往返后数据一致（BE-08）。
-2. **前端单测**（Vitest）：纯函数优先——[linkFix.js](../../frontend/src/utils/linkFix.js)、[explanationAnchor.js](../../frontend/src/utils/explanationAnchor.js)、`RichTextEditor` 中的粘贴/代码块转换函数（拆出后，见 FE-01）、JSON 导入解析（FE-08，✅ [jsonImport.test.js](../../frontend/src/utils/jsonImport.test.js)）。
+2. **前端单测**（Vitest）：纯函数优先——[linkFix.js](../../frontend/src/utils/linkFix.js)、[explanationAnchor.js](../../frontend/src/utils/explanationAnchor.js)、`RichTextEditor` 中的粘贴/代码块转换函数（✅ FE-01 拆出后：[pasteTransforms.test.js](../../frontend/src/components/richText/pasteTransforms.test.js)）、JSON 导入解析（FE-08，✅ [jsonImport.test.js](../../frontend/src/utils/jsonImport.test.js)）。
 3. 后续可加一条 Playwright 冒烟测试（建书 → 加章 → 加想法 → 删除）。
 
 ---

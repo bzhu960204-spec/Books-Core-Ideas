@@ -19,6 +19,43 @@
 <a id="fe-01"></a>
 ## FE-01 · 超大组件与超大样式文件 🟠
 
+> **✅ 已完成（2026-11-01）**：行为不变的重构，分 5 个提交：① 特征测试；② `RichTextEditor`；③ `ChapterExplanationModal`；④ `BookDetailPage`；⑤ `index.css`。
+>
+> | 文件 | 拆分前 | 拆分后 | 拆出的部分 |
+> |---|---|---|---|
+> | [BookDetailPage.jsx](../../frontend/src/pages/BookDetailPage.jsx) | 1049 | 483 | [pages/bookDetail/](../../frontend/src/pages/bookDetail/)：`useBookDetailData`（缓存数据 + 即时更新）、`useExplanationReader`（讲解、深链接、书签、段落）、`useChapterDrag`、`BookHeader`、`PartList`、`ChapterCard`、`ImportModals` + `jsonImportHints`、`explanationExport.js` |
+> | [RichTextEditor.jsx](../../frontend/src/components/RichTextEditor.jsx) | 1029 | 144 | [components/richText/](../../frontend/src/components/richText/)：`pasteTransforms` / `codeRepairs`（纯函数，原样搬出）、`pasteHandlers`、`useCodeBlockRepairs`、`extensions` + `ResizableImageView`、`EditorToolbar`、`MoreToolbar`、`SelectionBubbleMenu` |
+> | [ChapterExplanationModal.jsx](../../frontend/src/components/ChapterExplanationModal.jsx) | 531 | 175 | [components/explanation/](../../frontend/src/components/explanation/)：`useReaderPreferences`、`useReadingPosition`、`usePassageMarks`、`useFloatingMenu`、`ExplanationHtml`、`PassageMenu`、`ExplanationFooter` |
+> | [index.css](../../frontend/src/index.css) | 3860 | 26（清单） | [styles/](../../frontend/src/styles/)：按原有分节切成 22 个文件，最大的 `collections.css` 621 行 |
+>
+> 设计选择（按最佳判断）：
+> - **顺序与提交粒度**：先写特征测试并在旧代码上跑通（单独提交，可检出验证"改动前也通过"），再自底向上拆：编辑器 → 讲解弹窗（用到编辑器）→ 详情页（用到讲解弹窗）→ 样式。每个组件一个提交，便于单独回退。
+> - **拆分边界**：纯函数原样搬出（只加 `export`），之后可以直接单测；状态和副作用按职责拆成 hook；JSX 拆成展示组件，元素、属性和顺序保持不变。各 hook 中 effect 的函数体不变，原来的局部 ref 变成 hook 参数后列入依赖（ref 对象不变，所以 effect 的执行时机不变）。
+> - **入口文件不动**：`BookDetailPage`、`RichTextEditor`、`ChapterExplanationModal` 仍在原路径，调用方和测试中的 `vi.mock` 无需修改；拆出的部分放在同名的小写目录中。
+> - **详情页的弹窗状态保留在页面中**（每个弹窗一个 `useState`，写操作也在页面）。合并成一个状态会改变"一个弹窗打开另一个"时的行为，例如删除摘录后阅读器重新打开。下一步若要继续缩小页面，可以让各表单弹窗自己负责保存。
+> - **CSS 用普通 CSS 文件，不用 CSS Modules**：CSS Modules 需要改写几百处 `className`，而很多类名跨组件共用（`.btn`、`.empty-state`；`.chapter-summary` 也用于 Part；`.review-bank-content` 也用于讲解阅读器），还有全局的 `::highlight()`。
+> - **CSS 不分散到各组件中 import**：层叠依赖源顺序，例如"Review Reader Modal"一节中针对编辑器的 `.rte-*` 规则必须排在编辑器一节之前，窄屏 `@media` 必须排在被它覆盖的规则之后。按组件 import 的顺序由模块图决定，与原顺序不同。所以 [index.css](../../frontend/src/index.css) 只保留字体 `@import`，再按原顺序 `@import` 各文件；文件头注释写明了顺序不能调整。FE-04 做代码分割时，如需按页面拆分 CSS，要逐条确认没有跨文件覆盖。
+> - **主题**：没有单独的 `theme.css`。主题变量由 [themes.js](../../frontend/src/themes.js) 经 `ThemeContext` 写到 `:root`，CSS 中只有 `:root` 的默认值（与 Old Oak 相同），留在 `base.css`；CSS 中没有按主题区分的选择器。
+>
+> 测试：
+> - 特征测试（在旧代码上全部通过，拆分后仍通过）：
+>   - [BookDetailPage.behavior.test.jsx](../../frontend/src/pages/BookDetailPage.behavior.test.jsx)（22 个）：头部（阅读状态即时生效后以服务器为准、返回链接、JSON 下载）；章节、Part、想法、摘录的增删改及确切的请求；同时只展开一章；拖拽章节到其他 Part / 未分组；讲解导出的阅读顺序；Parts 导入；讲解、书签、段落和阅读历史深链接；
+>   - `ChapterExplanationModal`（4 → 24 个）：字号上下限与记忆、全屏与 Esc、编辑时不随 Esc/点外部关闭、恢复阅读位置、书签、选中保存段落（备注、撤销、重复、失败）、浮动条位置、跳到段落、高亮开关；
+>   - `RichTextEditor`（3 → 16 个）：Copilot 代码块的"Render"提示及其撤回、修复 Plain Text 代码块、Markdown 卡片截图的标记与转换、超大图片、图片文件、工具栏格式、链接、链接修复、外部值同步、清空。改用受控父组件渲染，与应用中的用法一致；
+>   - 变异检查：改坏展开规则、Part 排序、浮动条偏移、代码行拼接，都会使测试失败。
+> - 拆出后新增的单元测试：[pasteTransforms.test.js](../../frontend/src/components/richText/pasteTransforms.test.js)（9 个）、[explanationExport.test.js](../../frontend/src/pages/bookDetail/explanationExport.test.js)（3 个）。
+> - 前端测试 52 → 119；lint 0 / 0。
+>
+> 验证：
+> - **CSS**：`npm run build` 产出的 CSS 与拆分前**逐字节相同**（SHA-256 相同，文件名 `index-DzsAnc4e.css` 也相同）。
+> - **浏览器对比**（真实数据副本，后端 18084）：在临时 worktree 中检出拆分前的 6662f7d，用第二个 Vite（15174）运行，与当前代码（15173）逐场景交替采集。5 个主题 × 18 个场景（书库三种视图；PARTS / CHAPTERS / 67 章的书；展开章节；图片；讲解阅读与编辑（含第二行工具栏）；摘录阅读器；段落面板；两种导入弹窗；想法库、摘录库、书评库、阅读历史、书单），共 305 屏：
+>   - 逐节点的 DOM 签名（包括文本节点的边界）全部相同；
+>   - 逐屏截图逐像素相同。书库页有 3 次不一致，DOM 也不同，原因是外部封面图片加载时序；重跑 2–3 次后都相同。
+>   - 这一对比发现过一处差异：`PartList` 中用模板字符串合并了 "2"、" "、"chapters" 三个文本节点。序列化后的 HTML 相同，但字形位置有次像素偏移。已改回原写法，所以 DOM 签名要包含文本节点边界。
+> - **交互**（新代码，写入副本）：选中文本保存段落（高亮、计数 0→1）并撤销；拖拽章节到另一 Part 再拖回（悬停高亮，与旧代码行为相同）；添加并删除想法；编辑并保存讲解后回到阅读模式；无页面错误。
+>
+> 写特征测试时发现两个现存缺陷，没有在本项中修改：[BUG-15](01-verified-bugs.md#bug-15)（撤销保存段落失败时没有提示）、[BUG-16](01-verified-bugs.md#bug-16)（字体、字号、颜色控件无效）。
+
 | 文件 | 行数 | 说明 |
 |---|---|---|
 | [BookDetailPage.jsx](../../frontend/src/pages/BookDetailPage.jsx) | 1259 | **36 个 `useState`**、68 处 API 调用；集加载、章节/Part/想法/摘录 CRUD、3 种 JSON 导入、图片、讲解、书签、标记于一身 |

@@ -67,6 +67,29 @@ python tools\rehearsal\compare_tables.py $env:TEMP\bci-rehearsal\orig\tables $en
 - **迁移类改动还要检查**：日志中迁移成功；`compare_tables` 各表行数和内容不变。
 - 新增 GET 接口时，同步更新 `capture_api.py`。
 
+### 前端改动：新旧版本并排对比
+
+行为不变的前端重构（FE-01 起），在浏览器里把改动前后两个版本**同时**运行、逐场景交替对比，而不是先截基线、改完再截：
+
+```powershell
+# 1) 后端：在真实数据副本上运行（rehearse.ps1 只解压并导出，不会一直运行）
+.\tools\rehearsal\rehearse.ps1 -Label ui
+$r = "$env:TEMP\bci-rehearsal\ui"; $db = ($r -replace '\\', '/') + '/data/booksdb'
+java '-Dfile.encoding=UTF-8' -jar <jar> --server.port=18084 "--spring.datasource.url=jdbc:h2:file:$db" "--app.upload.dir=$r\data\images" --spring.h2.console.enabled=false
+# 2) 改动前的前端：临时 worktree + 共用 node_modules，Vite 用 15174
+git worktree add --detach $env:TEMP\bci-wt-<sha> <sha>
+cmd /c mklink /J $env:TEMP\bci-wt-<sha>\frontend\node_modules $PWD\frontend\node_modules
+cd $env:TEMP\bci-wt-<sha>\frontend; $env:VITE_API_PROXY_TARGET='http://localhost:18084'; npx.cmd vite --port 15174 --strictPort
+# 3) 当前工作区：同样代理到 18084，Vite 用 15173
+```
+
+- 然后在浏览器中运行 [ui-compare.js](../tools/rehearsal/ui-compare.js)（Playwright 片段），它对 5 个主题 × 18 个场景比较 DOM 签名和逐屏截图，返回不一致的场景。
+- DOM 签名要包含**文本节点的边界**：`innerHTML` 相同时，文本节点合并或拆分仍会让字形产生次像素偏移。
+- 用"滚动窗口、逐屏截图"，不用整页截图：VS Code 内置浏览器的整页截图会以另一个宽度重新布局，结果不可靠。
+- Vite 热更新会给脚本加 `?t=` 时间戳，比较前去掉。书库页的封面是外部图片，偶发的不一致重跑即可判断是否只是加载时序。
+- 只改样式时，另加一项：`npm run build` 产出的 CSS 与改动前逐字节比较（FE-01 的样式拆分即以此为准）。
+- 用完删除 worktree（`git worktree remove --force <路径>`）。
+
 ## 5. 提交与文档
 
 - 每个改进项**单独提交**，使用 Conventional Commits（`fix(scope): …`、`refactor(db): …` 等），正文写清楚原因、做法和验证方式，并加尾注 `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`。

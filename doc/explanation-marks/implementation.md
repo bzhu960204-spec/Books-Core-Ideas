@@ -67,10 +67,10 @@
 |---|---|
 | `src/utils/explanationAnchor.js`（新） | 锚点采集与定位工具，见第 5 节 |
 | `src/api.js` | 新增 `markApi`（`create / listByBook / updateNote / delete`） |
-| `src/components/ChapterExplanationModal.jsx` | 选区检测、浮动菜单、高亮、跳转定位、高亮开关 |
+| `src/components/ChapterExplanationModal.jsx` | 选区检测、浮动菜单、高亮、跳转定位、高亮开关。FE-01 后拆到 `src/components/explanation/`：`usePassageMarks`（选区、保存/撤销、待存/已存高亮）、`useFloatingMenu`（菜单定位）、`useReadingPosition`（跳转定位与闪烁）、`useReaderPreferences`（高亮开关）、`PassageMenu` |
 | `src/components/ExplanationMarksPanel.jsx`（新） | 本书片段面板 |
-| `src/pages/BookDetailPage.jsx` | 持有 `marks` 状态；入口按钮；保存/改批注/删除/跳转接线；向弹窗传入当前章节的 `marks` |
-| `src/index.css` | `.mark-menu`、`.marks-*`、`::highlight(...)` 等样式 |
+| `src/pages/BookDetailPage.jsx` | 持有 `marks` 状态；入口按钮；保存/改批注/删除/跳转接线；向弹窗传入当前章节的 `marks`。FE-01 后：`marks` 来自 `pages/bookDetail/useBookDetailData`，保存/改批注/删除在 `useExplanationReader` |
+| `src/index.css` | `.mark-menu`、`.marks-*`、`::highlight(...)` 等样式。FE-01 后在 `src/styles/passages.css` |
 
 ### 4.2 `ChapterExplanationModal` 新增 props
 

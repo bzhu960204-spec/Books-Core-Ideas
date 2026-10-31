@@ -1,0 +1,62 @@
+/* Book page header and "continue reading". */
+
+/* ===== BOOK DETAIL ===== */
+.book-detail-header {
+  margin-bottom: 2rem;
+}
+
+.book-detail-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.book-detail-author {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.book-detail-desc {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 700px;
+}
+
+/* "Continue reading" resume block fed by the latest reading bookmark. */
+.continue-reading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.continue-reading-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.continue-reading-meta strong {
+  color: var(--text-primary);
+}
+
+.book-detail-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  margin-top: 2.5rem;
+}
+
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+}

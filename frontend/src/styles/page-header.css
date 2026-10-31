@@ -1,0 +1,22 @@
+/* Page headers. */
+
+/* ===== PAGE HEADER ===== */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.page-ornament {
+  width: 60px;
+  height: 2px;
+  background: var(--accent);
+  margin-top: 0.5rem;
+  opacity: var(--ornament-opacity);
+}
