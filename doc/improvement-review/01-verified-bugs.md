@@ -11,7 +11,7 @@
 | BUG-04 | 🟠 P1 | 开发模式下"修改摘录批注"（PATCH）被 CORS 拦截（✅ 已修复） | ✅ 实测 |
 | BUG-05 | 🟠 P1 | 子资源缺少父子归属校验，可跨章节改/删数据 | ✅ 实测 |
 | BUG-06 | 🟠 P1 | 书库页 JSON 导入静默丢弃章节下的 `excerpts` | 🔍 代码确认 |
-| BUG-07 | 🟡 P2 | "不存在 / 参数非法"一律返回 500 | ✅ 实测 |
+| BUG-07 | 🟡 P2 | "不存在 / 参数非法"一律返回 500（✅ 已修复） | ✅ 实测 |
 | BUG-08 | 🟡 P2 | 删除书后，书单（Collection）成员行残留（✅ 已修复） | 🔍 代码确认 |
 | BUG-09 | ⚪ P3 | `POST /api/books` 携带 `id` 时 500 | ✅ 实测 |
 | BUG-10 | ⚪ P3 | 图片上传：序号计算偏差 & 静默吞异常 | 🔍 代码确认 |
@@ -139,6 +139,8 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 
 <a id="bug-07"></a>
 ## BUG-07 · "不存在 / 参数非法"一律 500 🟡
+
+> **✅ 已修复（2026-10-31，随 BE-04）**：`BookCollectionService` 改抛 `NotFoundException`；全局处理器把 404/400/409 映射为 ProblemDetail。回归测试 [ErrorHandlingTest](../../backend/src/test/java/com/bookscoreideas/web/ErrorHandlingTest.java)（修复前 6 个用例全部失败）。
 
 **实测**：`GET /api/book-collections/999/books` → **500**。
 

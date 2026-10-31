@@ -2,11 +2,23 @@
 // (see vite.config.js). VITE_API_BASE can still point at an absolute URL.
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
+// Builds a readable message from an error response: the backend returns RFC 7807
+// problem JSON ({ title, status, detail }); some endpoints return plain text.
+async function errorMessage(res, fallback) {
+  const text = await res.text().catch(() => '');
+  try {
+    const problem = JSON.parse(text);
+    if (problem && (problem.detail || problem.title)) return problem.detail || problem.title;
+  } catch {
+    // not JSON — use the raw text
+  }
+  return text || fallback || `Request failed: ${res.status}`;
+}
+
 async function apiFetch(url, options) {
   const res = await fetch(url, options);
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(text || `Request failed: ${res.status}`);
+    throw new Error(await errorMessage(res));
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') return null;
   return res.json();
@@ -180,7 +192,7 @@ export const migrationApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookIds: bookIds || [] }),
     });
-    if (!res.ok) throw new Error((await res.text().catch(() => '')) || 'Export failed');
+    if (!res.ok) throw new Error(await errorMessage(res, 'Export failed'));
     const disposition = res.headers.get('content-disposition') || '';
     const match = /filename="?([^"]+)"?/.exec(disposition);
     return { blob: await res.blob(), filename: match ? match[1] : 'books-export.zip' };

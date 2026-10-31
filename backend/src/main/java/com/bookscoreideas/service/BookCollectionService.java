@@ -6,6 +6,7 @@ import com.bookscoreideas.entity.BookCollectionItem;
 import com.bookscoreideas.repository.BookCollectionItemRepository;
 import com.bookscoreideas.repository.BookCollectionRepository;
 import com.bookscoreideas.repository.BookRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,7 +50,7 @@ public class BookCollectionService {
     @Transactional(readOnly = true)
     public BookCollection get(Long id) {
         return repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Collection not found: " + id));
+                .orElseThrow(() -> NotFoundException.of("Collection", id));
     }
 
     public BookCollection create(String name, Long parentId, Integer sortOrder) {
@@ -125,7 +126,7 @@ public class BookCollectionService {
     public void addBook(Long collectionId, Long bookId) {
         get(collectionId);
         bookRepo.findById(bookId)
-                .orElseThrow(() -> new RuntimeException("Book not found: " + bookId));
+                .orElseThrow(() -> NotFoundException.of("Book", bookId));
         if (itemRepo.existsByCollectionIdAndBookId(collectionId, bookId)) return;
         BookCollectionItem item = new BookCollectionItem();
         item.setCollectionId(collectionId);

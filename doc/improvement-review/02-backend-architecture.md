@@ -64,6 +64,12 @@
 <a id="be-04"></a>
 ## BE-04 · 没有全局异常处理 🟠
 
+> **✅ 已完成（2026-10-31）**
+> - [GlobalExceptionHandler](../../backend/src/main/java/com/bookscoreideas/web/GlobalExceptionHandler.java)（继承 `ResponseEntityExceptionHandler`）：`NotFoundException`→404、`IllegalArgumentException`→400、`DataIntegrityViolationException`→409、其他异常→500（只返回通用提示，详情写日志）；Spring MVC 自身的错误（校验、JSON 格式、未知路由等）由基类处理。全部返回 `application/problem+json`。
+> - 校验失败时 `detail` 列出具体字段（如 `title: must not be blank`），替代 Spring 默认的 "Invalid request content."。
+> - 前端 [api.js](../../frontend/src/api.js) 新增 `errorMessage()`：优先取 ProblemDetail 的 `detail`，兼容纯文本错误（迁移接口仍返回纯文本）。在浏览器中导入真实 `api.js` 验证了 404 / 400 / 校验 / 迁移纯文本各类错误信息均可读。
+> - 尚未处理：`MigrationController` 自己 try/catch 返回纯文本、`ChapterImageController` 吞掉 `IOException`（见 BUG-10）。
+
 **现状**：无 `@RestControllerAdvice`；服务抛 `RuntimeException` → 500（BUG-07）；`MigrationController` 自己 try/catch 返回纯文本；`ChapterImageController` 吞掉 `IOException`；多处 `catch (Exception e)` 无日志。
 
 **建议**：
