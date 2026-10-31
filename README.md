@@ -35,6 +35,8 @@ cd frontend; npm test; npm run lint; npm run build   # Vitest unit + component t
 
 GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same on every push to `main` and on pull requests.
 
+Development conventions (data safety, migrations, testing, rehearsing changes on a copy of the real data): [doc/development-workflow.md](doc/development-workflow.md).
+
 ---
 
 ## JSON Import Formats
