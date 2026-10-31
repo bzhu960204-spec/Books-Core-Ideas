@@ -66,6 +66,12 @@ public class Chapter {
     @JsonIgnore
     private List<ExplanationMark> explanationMarks = new ArrayList<>();
 
+    // Uploaded images; cascade delete so the chapter_images FK never blocks a
+    // chapter/part/book delete. Files are removed by ChapterImageFileCleanup.
+    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<ChapterImage> images = new ArrayList<>();
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -98,4 +104,8 @@ public class Chapter {
     public List<ExplanationMark> getExplanationMarks() { return explanationMarks; }
     @JsonIgnore
     public void setExplanationMarks(List<ExplanationMark> explanationMarks) { this.explanationMarks = explanationMarks; }
+    @JsonIgnore
+    public List<ChapterImage> getImages() { return images; }
+    @JsonIgnore
+    public void setImages(List<ChapterImage> images) { this.images = images; }
 }

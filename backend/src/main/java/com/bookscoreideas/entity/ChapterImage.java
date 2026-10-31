@@ -1,10 +1,12 @@
 package com.bookscoreideas.entity;
 
+import com.bookscoreideas.service.ChapterImageFileCleanup;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "chapter_images")
+@EntityListeners(ChapterImageFileCleanup.class)
 public class ChapterImage {
 
     @Id

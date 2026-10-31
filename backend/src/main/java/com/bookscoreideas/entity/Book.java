@@ -55,6 +55,12 @@ public class Book {
     @com.fasterxml.jackson.annotation.JsonIgnore
     private List<Part> parts = new ArrayList<>();
 
+    // Reviews are owned by the book: deleting the book deletes its reviews
+    // (otherwise the book_reviews FK blocks the delete).
+    @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private List<BookReview> reviews = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         if (dateAdded == null) dateAdded = LocalDate.now();
@@ -92,4 +98,8 @@ public class Book {
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
     public List<Part> getParts() { return parts; }
     public void setParts(List<Part> parts) { this.parts = parts; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public List<BookReview> getReviews() { return reviews; }
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public void setReviews(List<BookReview> reviews) { this.reviews = reviews; }
 }

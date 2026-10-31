@@ -3,7 +3,7 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.entity.ChapterImage;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
-import org.springframework.beans.factory.annotation.Value;
+import com.bookscoreideas.service.ChapterImageStorage;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -30,15 +29,10 @@ public class ChapterImageController {
 
     public ChapterImageController(ChapterImageRepository imageRepository,
                                    ChapterRepository chapterRepository,
-                                   @Value("${app.upload.dir:./data/images}") String uploadPath) {
+                                   ChapterImageStorage storage) {
         this.imageRepository = imageRepository;
         this.chapterRepository = chapterRepository;
-        this.uploadDir = Paths.get(uploadPath).toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(this.uploadDir);
-        } catch (IOException e) {
-            throw new RuntimeException("Could not create upload directory", e);
-        }
+        this.uploadDir = storage.uploadDir();
     }
 
     @GetMapping
@@ -107,18 +101,11 @@ public class ChapterImageController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
+    // The file itself is removed after commit by ChapterImageFileCleanup.
     @DeleteMapping("/{imageId}")
     public ResponseEntity<Void> deleteImage(@PathVariable Long chapterId,
                                              @PathVariable Long imageId) {
         return imageRepository.findById(imageId).map(image -> {
-            try {
-                Path filePath = uploadDir.resolve(image.getFilename()).normalize();
-                if (filePath.startsWith(uploadDir)) {
-                    Files.deleteIfExists(filePath);
-                }
-            } catch (IOException e) {
-                // file may already be gone
-            }
             imageRepository.delete(image);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());
