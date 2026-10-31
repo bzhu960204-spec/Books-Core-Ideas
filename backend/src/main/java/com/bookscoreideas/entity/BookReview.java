@@ -17,6 +17,7 @@ public class BookReview {
 
     private String title;
 
+    @Lob
     @Column(columnDefinition = "CLOB")
     private String content;
 

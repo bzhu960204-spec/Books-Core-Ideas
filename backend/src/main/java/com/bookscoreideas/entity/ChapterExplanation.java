@@ -19,6 +19,7 @@ public class ChapterExplanation {
     @JsonIgnore
     private Chapter chapter;
 
+    @Lob
     @Column(columnDefinition = "CLOB")
     private String content;
 
