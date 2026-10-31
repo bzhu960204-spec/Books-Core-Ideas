@@ -13,6 +13,18 @@ start-dev.cmd
 
 Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`.
 
+## Data Backup & Restore
+
+Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while the database is in use.
+
+```powershell
+.\stop-dev.ps1
+.\backup-data.ps1 -Label before-refactor      # -> backups\data-<timestamp>-before-refactor.zip
+.\restore-data.ps1 -Latest                    # or -BackupFile .\backups\<file>.zip
+```
+
+`restore-data.ps1` first saves the current data as `*-pre-restore.zip`, so you can undo a restore. `backups/` is git-ignored.
+
 ---
 
 ## JSON Import Formats

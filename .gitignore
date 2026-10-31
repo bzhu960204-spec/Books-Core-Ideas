@@ -47,6 +47,9 @@ Desktop.ini
 .bci-prod-state.json
 .java-home
 
+# Data snapshots made by backup-data.ps1 / restore-data.ps1
+backups/
+
 # ===== Secrets / Env =====
 .env
 .env.*
