@@ -4,7 +4,7 @@
 
 | ID | 优先级 | 主题 |
 |---|---|---|
-| DB-01 | 🔴 P0 | Schema 双源管理（Hibernate `ddl-auto=update` + Flyway 补丁） |
+| DB-01 | 🔴 P0 | Schema 双源管理（Hibernate `ddl-auto=update` + Flyway 补丁）（✅ 已完成） |
 | DB-02 | 🟠 P1 | 外键与级联不完整 |
 | DB-03 | ⚪ P3 | 遗留无用文件 `migrate.sql` |
 | DB-04 | 🟡 P2 | 富文本内联 base64 图片导致数据库膨胀 |
@@ -25,7 +25,29 @@
 **目标状态**：Flyway 是唯一 schema 来源，Hibernate 只做 `validate`。
 
 > **进展（2026-10-31）**：短期止血已完成——新增 `V0__base_schema.sql`，空库可启动（BUG-01）；测试 profile 已使用 `ddl-auto=validate`，证明"仅 Flyway"即可得到与实体一致的 schema。
-> 剩余工作：生产环境切换为 `validate`（需先确认真实库与实体一致，例如 `reading_bookmarks.note` 长度等差异）、补齐 DB-02 外键/级联、给约束起确定的名字。
+>
+> **✅ 已完成（2026-10-31）**：Flyway 成为唯一 schema 来源，生产也改为 `ddl-auto=validate`。
+> - 选择**只新增迁移、不改 V0–V7**（不动 checksum，无需 `flyway repair`）。
+> - 对比真实库（`SCRIPT NODATA`）与空库（V0–V7）发现的差异：
+>   - `CHAPTER_EXPLANATIONS` 的外键/唯一约束名不同（Hibernate 名 vs V3 名/H2 系统名）；
+>   - `STRUCTURE_TYPE` 长度 255 vs 20；
+>   - `CHAPTER_IMAGES_ENABLED` 有无默认值；
+>   - `HIGHLIGHTED` 可空 vs NOT NULL；
+>   - 外键列上有重复的系统索引。
+> - 新增 [V8__normalize_schema.sql](../../backend/src/main/resources/db/migration/V8__normalize_schema.sql)：
+>   - 所有外键/唯一约束/索引改为确定的名字（`FK_<子表>_<目标>` / `UK_` / `IDX_`）；
+>   - 外键列先建命名索引再加外键，消除重复索引；
+>   - 列类型以真实库为准（`STRUCTURE_TYPE` 255），补默认值；`structure_type`、`chapter_images_enabled`、`highlighted` 改为 NOT NULL；
+>   - 外键行为不变（级联留给 DB-02）。
+> - H2 的 DDL 逐条自动提交，所以 V8 开头先用守卫查询检查"约束/索引都是已知名字"，**在任何改动之前**中止于未知形状。
+> - 实体注解同步：唯一约束名、`nullable=false`、`reading_bookmarks.note` 长度 500。
+> - 测试 [SchemaConvergenceTest](../../backend/src/test/java/com/bookscoreideas/migration/SchemaConvergenceTest.java)（3 个，移除 V8 时全部失败）：
+>   - 以真实库 V7 结构夹具 [legacy-schema-v7.sql](../../backend/src/test/resources/db/legacy-schema-v7.sql) 为起点迁移，INFORMATION_SCHEMA 与空库**逐项相同**；
+>   - 老数据保留，NULL 标志变为 FALSE；
+>   - 遇到未知约束时中止且不改动。
+> - 真实库副本演练：V8 迁移成功；12 张表逐行一致；改动前后 2,724 个 GET 响应零差异，覆盖新增的迁移 ZIP 导出和图片数据。
+> - 已重写 [database-schema-and-flyway.md](../database-schema-and-flyway.md)。
+> - 外键/级联见 DB-02。
 
 **建议迁移路径**（需在真实库的**副本**上演练）：
 1. 从当前真实库导出完整 DDL（H2 `SCRIPT NODATA`），整理成一份"完整基线"。
@@ -104,4 +126,4 @@
 
 - `book_reviews.updated_at`、`chapter_explanations.updated_at` 是 `DATE`，丢失时分秒，同一天内多次编辑无法排序（目前靠 `id DESC` 兜底）。建议改 `TIMESTAMP`。
 - `books.category` 用分号拼接多值（`BookRepository.findDistinctCategories` 在 Java 里拆分）。如果分类会继续增强（重命名、统计），建议拆成 `categories` + 关联表；若保持简单可维持现状。
-- `reading_bookmarks.note` 在 V6 中为 `VARCHAR(500)`，实体未声明长度且控制器不截断，超长会 500。
+- `reading_bookmarks.note` 在 V6 中为 `VARCHAR(500)`，控制器不截断，超长会 500（实体已在 DB-01 中标注 `length = 500`，仅为与库一致；超长输入的校验留给 BE-05）。

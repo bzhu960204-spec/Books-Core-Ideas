@@ -38,10 +38,12 @@ public class Book {
 
     private LocalDate finishDate;
 
+    @Column(nullable = false)
     private Boolean chapterImagesEnabled = false;
 
     // Structure of the book: "CHAPTERS" (flat chapters) or "PARTS" (parts that
     // each contain chapters). Defaults to CHAPTERS for backward compatibility.
+    @Column(nullable = false)
     private String structureType = "CHAPTERS";
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)

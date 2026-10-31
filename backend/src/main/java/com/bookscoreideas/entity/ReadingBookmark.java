@@ -30,6 +30,7 @@ public class ReadingBookmark {
     // reader can be restored regardless of font size or viewport changes.
     private Double scrollRatio;
 
+    @Column(length = 500)
     private String note;
 
     private LocalDateTime createdAt;

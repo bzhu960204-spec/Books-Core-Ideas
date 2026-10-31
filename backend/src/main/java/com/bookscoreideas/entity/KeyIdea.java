@@ -22,6 +22,7 @@ public class KeyIdea {
     @Column(length = 500)
     private String tags;
 
+    @Column(nullable = false)
     private boolean highlighted = false;
 
     private Integer orderIndex;

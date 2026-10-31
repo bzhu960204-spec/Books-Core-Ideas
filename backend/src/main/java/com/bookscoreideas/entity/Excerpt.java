@@ -25,6 +25,7 @@ public class Excerpt {
 
     private Integer orderIndex;
 
+    @Column(nullable = false)
     private boolean highlighted = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
