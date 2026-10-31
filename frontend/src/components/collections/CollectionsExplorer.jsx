@@ -7,6 +7,7 @@ import CollectionTree, { BOOK_DND_TYPE, BOOK_SOURCE_DND_TYPE } from './Collectio
 import { buildFolderTree } from './folderTree';
 import PickBooksModal from './PickBooksModal';
 import ConfirmDialog from '../ConfirmDialog';
+import LoadError from '../feedback/LoadError';
 import { attempt, reportError } from '../feedback/toast';
 
 const NONE = [];
@@ -181,6 +182,8 @@ export default function CollectionsExplorer() {
           </div>
           {loadingTree ? (
             <p className="coll-tree-empty">Loading…</p>
+          ) : collectionsQuery.error && !collectionsQuery.data ? (
+            <LoadError what="the collections" error={collectionsQuery.error} onRetry={collectionsQuery.refetch} />
           ) : (
             <CollectionTree
               roots={roots}
@@ -268,6 +271,8 @@ export default function CollectionsExplorer() {
 
               {loadingBooks ? (
                 <p className="coll-tree-empty">Loading…</p>
+              ) : booksQuery.error && !booksQuery.data ? (
+                <LoadError what="the books of this collection" error={booksQuery.error} onRetry={booksQuery.refetch} />
               ) : books.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">📥</div>

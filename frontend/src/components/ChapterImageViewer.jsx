@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { chapterImageApi } from '../api';
 import { useChapterImages, useRefresh } from '../queries';
 import ConfirmDialog from './ConfirmDialog';
+import LoadError from './feedback/LoadError';
 import { attempt, reportError } from './feedback/toast';
 
 const NO_IMAGES = [];
@@ -148,6 +149,8 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
             <>
               {loading ? (
                 <div className="chapter-image-empty">Loading...</div>
+              ) : imagesQuery.error && !imagesQuery.data ? (
+                <LoadError what="the images" error={imagesQuery.error} onRetry={imagesQuery.refetch} />
               ) : images.length === 0 ? (
                 <div className="chapter-image-empty">
                   <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🖼️</div>

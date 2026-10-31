@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { bookCollectionApi } from '../../api';
 import { useBooks } from '../../queries';
+import LoadError from '../feedback/LoadError';
 import { reportError } from '../feedback/toast';
 
 /** Sentinel key for books that have no author. */
@@ -133,6 +134,8 @@ export default function PickBooksModal({ folderId, existingIds, onClose, onAdded
 
             {loading ? (
               <p className="coll-tree-empty">Loading…</p>
+            ) : booksQuery.error && !booksQuery.data ? (
+              <LoadError what="your books" error={booksQuery.error} onRetry={booksQuery.refetch} />
             ) : filtered.length === 0 ? (
               <p className="coll-tree-empty">No books found.</p>
             ) : (

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import LibraryPage from './LibraryPage';
@@ -56,6 +56,21 @@ describe('LibraryPage failures (FE-05)', () => {
       </QueryClientProvider>,
     );
   };
+
+  // Regression (BUG-19): a failed load showed "Your library is empty" and
+  // "+ Add Your First Book", as if the books were gone.
+  it('says the library could not be loaded instead of showing it empty, and retries', async () => {
+    let down = true;
+    renderLibrary((method, path) => (down && path === '/api/books' ? 'network' : null));
+
+    const error = await screen.findByRole('alert', {}, { timeout: 5000 });
+    expect(error.textContent).toContain('Could not load the library — Cannot reach the server');
+    expect(screen.queryByText(/Your library is empty/)).toBeNull();
+
+    down = false;
+    fireEvent.click(within(error).getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByText('Book One')).toBeTruthy();
+  });
 
   it('reports a failed delete and keeps the confirmation open', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});

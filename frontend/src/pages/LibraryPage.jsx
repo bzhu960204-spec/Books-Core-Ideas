@@ -10,6 +10,7 @@ import JsonImportModal from '../components/JsonImportModal';
 import ReadingStatusControl from '../components/ReadingStatusControl';
 import AddToCollectionModal from '../components/collections/AddToCollectionModal';
 import { attempt } from '../components/feedback/toast';
+import LoadError from '../components/feedback/LoadError';
 
 // Opened rarely; kept out of the first screen's bundle (FE-04).
 const BookMigrationModal = lazy(() => import('../components/BookMigrationModal'));
@@ -123,6 +124,20 @@ export default function LibraryPage() {
   };
 
   if (loading) return <div className="loading">Loading library</div>;
+  // A failed load is not an empty library (BUG-19).
+  if (booksQuery.error && !booksQuery.data) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">My Library</h1>
+            <div className="page-ornament" />
+          </div>
+        </div>
+        <LoadError what="the library" error={booksQuery.error} onRetry={booksQuery.refetch} />
+      </div>
+    );
+  }
 
   const q = search.trim().toLowerCase();
   const filteredBooks = books

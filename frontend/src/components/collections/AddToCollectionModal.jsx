@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { bookCollectionApi } from '../../api';
 import { buildFolderTree } from './folderTree';
+import LoadError from '../feedback/LoadError';
 import { reportError } from '../feedback/toast';
 
 /** Flatten the folder tree into rows carrying their depth for indentation. */
@@ -17,6 +18,7 @@ export default function AddToCollectionModal({ bookId, bookTitle, onClose, onCha
   const [collections, setCollections] = useState([]);
   const [memberIds, setMemberIds] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
@@ -26,8 +28,9 @@ export default function AddToCollectionModal({ bookId, bookTitle, onClose, onCha
       .then(([cols, ids]) => {
         setCollections(cols);
         setMemberIds(new Set(ids));
+        setLoadError(null);
       })
-      .catch(err => console.error('Failed to load collections:', err))
+      .catch(setLoadError) // shown instead of "No collections yet" (BUG-19)
       .finally(() => setLoading(false));
 
   useEffect(() => {
@@ -85,6 +88,8 @@ export default function AddToCollectionModal({ bookId, bookTitle, onClose, onCha
 
         {loading ? (
           <p className="coll-tree-empty">Loading…</p>
+        ) : loadError ? (
+          <LoadError what="the collections" error={loadError} onRetry={reload} />
         ) : rows.length === 0 ? (
           <p className="coll-tree-empty">No collections yet. Create one below.</p>
         ) : (

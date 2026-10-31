@@ -23,7 +23,7 @@
 | BUG-16 | 🟡 P2 | 编辑器的字体、字号、文字颜色控件无效并抛错；粘贴内容中的这些内联样式被丢弃（✅ 已修复：控件生效，粘贴行为不变） | ✅ 实测 |
 | BUG-17 | 🟡 P2 | 书评保存失败时，阅读弹窗照常退出编辑，像已保存一样；关掉弹窗后修改丢失（✅ 已修复） | 🔍 代码确认 + 页面测试 |
 | BUG-18 | 🟡 P2 | 打开讲解时请求失败，阅读器以空白编辑器打开；在里面保存会覆盖原讲解（✅ 已修复） | 🔍 代码确认 + 页面测试 |
-| BUG-19 | 🟡 P2 | 加载失败显示成空状态：书库显示"Your library is empty"，书单、加入书单、章节图片同样 | ✅ 实测 |
+| BUG-19 | 🟡 P2 | 加载失败显示成空状态：书库显示"Your library is empty"，书单、加入书单、选书、章节图片同样（✅ 已修复） | ✅ 实测 |
 
 ---
 
@@ -358,10 +358,15 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 
 > 2026-11-01 做 FE-05 盘点时发现；在浏览器中确认（真实数据副本，停掉后端后打开书库和书单页）。
 
+> **✅ 已修复（2026-11-01，单独提交）**：这 6 处在"没有数据且查询失败"时显示 FE-05 的 [LoadError](../../frontend/src/components/feedback/LoadError.jsx)（`Could not load … — 原因` + Retry），不再显示空状态。已有数据时后台刷新失败仍显示原数据（TanStack Query 保留旧数据），不打断使用。
+> - 回归测试（修复前都失败：找不到错误提示）：书库（并检查 Retry 后正常显示）、书单树（同上）、书单内的书、加入书单弹窗（同上）、选书弹窗、章节图片查看器，分布在 [LibraryPage.test.jsx](../../frontend/src/pages/LibraryPage.test.jsx)、[CollectionsExplorer.test.jsx](../../frontend/src/components/collections/CollectionsExplorer.test.jsx)、[collectionPickers.test.jsx](../../frontend/src/components/collections/collectionPickers.test.jsx)、[ChapterImageViewer.test.jsx](../../frontend/src/components/ChapterImageViewer.test.jsx)。
+> - 浏览器验证（真实数据副本）：真的停掉后端，书库显示 `Could not load the library — Cannot reach the server. Is the backend running?`，书单页左侧同样；重启后端后点 Retry，书库显示 24 本书。拦截请求使加入书单弹窗、图片查看器的读取返回 500，都显示原因和 Retry，取消拦截后 Retry 正常加载。
+
 **现象**：数据加载失败时，几个页面显示的是"没有数据"，而不是错误：
 - **书库**：显示"Your library is empty. Add your first book to get started!"和"+ Add Your First Book"按钮，像是数据都没了；
 - **书单页**：左侧显示"No collections yet. Click “New” above to create your first one."；选中的书单显示"This collection has no books yet."；
 - **加入书单弹窗**：显示"No collections yet. Create one below."；
+- **书单的选书弹窗**：显示"No books found."；
 - **章节图片查看器**：显示"No images yet"。
 
 **根因**：这些地方只区分"加载中"和"有数据"，查询失败时数据为空，于是落到空状态分支。想法库、摘录库、书评库、阅读历史已经显示错误，不受影响。

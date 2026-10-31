@@ -95,6 +95,15 @@ describe('ChapterImageViewer', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' }).disabled).toBe(false));
   });
 
+  // Regression (BUG-19): a failed load showed "No images yet".
+  it('says the images could not be loaded instead of "No images yet"', async () => {
+    chapterImageApi.getAll.mockRejectedValueOnce(new Error('down')).mockRejectedValueOnce(new Error('down'));
+    renderViewer();
+
+    expect((await screen.findByRole('alert', {}, { timeout: 5000 })).textContent).toContain('Could not load the images — down');
+    expect(screen.queryByText('No images yet')).toBeNull();
+  });
+
   it('reports a failed upload', async () => {
     chapterImageApi.getAll.mockResolvedValue([]);
     chapterImageApi.upload.mockRejectedValueOnce(new Error('Maximum upload size exceeded'));
