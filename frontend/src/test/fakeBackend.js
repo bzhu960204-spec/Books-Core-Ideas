@@ -56,8 +56,15 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
           return json(d.chapters.map(({ id, title, orderIndex, summary, partId, keyIdeas }) =>
             ({ id, title, orderIndex, summary, partId, keyIdeas })));
         case '/explanation-chapter-ids': return json(d.chapters.filter(c => c.hasExplanation).map(c => c.id));
+        case '/export': return json({ title: d.book.title, chapters: [] });
         default: return notFound(path);
       }
+    }
+    if ((m = path.match(/^\/api\/chapters\/(\d+)\/explanation$/))) {
+      const c = chapters.get(m[1]);
+      if (!c) return notFound(path);
+      if (!c.hasExplanation) return new Response(null, { status: 204 });
+      return json({ chapterId: c.id, content: `<p>Explanation of ${c.title}</p>`, updatedAt: '2026-01-02' });
     }
     if ((m = path.match(/^\/api\/chapters\/(\d+)\/(ideas|excerpts|images)$/))) {
       const c = chapters.get(m[1]);
@@ -105,5 +112,24 @@ export function bookDetail(id, title, chapterCount = 3) {
     chapters,
     bookmarks: [],
     marks: [],
+  };
+}
+
+/**
+ * A PARTS book: part 11 "Part Two" (orderIndex 2, listed first) holds chapter 2,
+ * part 12 "Part One" (orderIndex 1) holds chapter 1, and chapter 3 is ungrouped.
+ * Every chapter has an explanation.
+ */
+export function partsBookDetail(id, title) {
+  const d = bookDetail(id, title, 3);
+  const partOf = [12, 11, null];
+  return {
+    ...d,
+    book: { ...d.book, structureType: 'PARTS' },
+    parts: [
+      { id: 11, title: 'Part Two', orderIndex: 2, summary: null },
+      { id: 12, title: 'Part One', orderIndex: 1, summary: null },
+    ],
+    chapters: d.chapters.map((c, i) => ({ ...c, partId: partOf[i], hasExplanation: true })),
   };
 }
