@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,6 +15,10 @@ public interface KeyIdeaRepository extends JpaRepository<KeyIdea, Long> {
     List<KeyIdea> findByChapterIdOrderByOrderIndexAsc(Long chapterId);
 
     Optional<KeyIdea> findByIdAndChapterId(Long id, Long chapterId);
+
+    /** Ideas of several chapters in one query, in each chapter's display order. */
+    @Query("SELECT k FROM KeyIdea k WHERE k.chapter.id IN :chapterIds ORDER BY k.orderIndex ASC, k.id ASC")
+    List<KeyIdea> findByChapterIds(@Param("chapterIds") Collection<Long> chapterIds);
 
     @Query("""
             SELECT new com.bookscoreideas.dto.IdeaSearchResult(

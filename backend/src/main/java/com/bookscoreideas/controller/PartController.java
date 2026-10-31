@@ -1,9 +1,8 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.PartDto;
 import com.bookscoreideas.dto.PartRequest;
-import com.bookscoreideas.entity.Part;
-import com.bookscoreideas.repository.BookRepository;
-import com.bookscoreideas.repository.PartRepository;
+import com.bookscoreideas.service.PartService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,48 +13,33 @@ import java.util.List;
 @RequestMapping("/api/books/{bookId}/parts")
 public class PartController {
 
-    private final PartRepository partRepository;
-    private final BookRepository bookRepository;
+    private final PartService partService;
 
-    public PartController(PartRepository partRepository, BookRepository bookRepository) {
-        this.partRepository = partRepository;
-        this.bookRepository = bookRepository;
+    public PartController(PartService partService) {
+        this.partService = partService;
     }
 
     @GetMapping
-    public List<Part> getParts(@PathVariable Long bookId) {
-        return partRepository.findByBookIdOrderByOrderIndexAsc(bookId);
+    public List<PartDto> getParts(@PathVariable Long bookId) {
+        return partService.list(bookId);
     }
 
     @PostMapping
-    public ResponseEntity<Part> createPart(@PathVariable Long bookId, @Valid @RequestBody PartRequest request) {
-        return bookRepository.findById(bookId).map(book -> {
-            Part part = new Part();
-            part.setTitle(request.title());
-            part.setOrderIndex(request.orderIndex());
-            part.setSummary(request.summary());
-            part.setBook(book);
-            return ResponseEntity.ok(partRepository.save(part));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PartDto> createPart(@PathVariable Long bookId, @Valid @RequestBody PartRequest request) {
+        return ResponseEntity.of(partService.create(bookId, request));
     }
 
     @PutMapping("/{partId}")
-    public ResponseEntity<Part> updatePart(@PathVariable Long bookId,
-                                            @PathVariable Long partId,
-                                            @Valid @RequestBody PartRequest request) {
-        return partRepository.findByIdAndBookId(partId, bookId).map(existing -> {
-            existing.setTitle(request.title());
-            existing.setOrderIndex(request.orderIndex());
-            existing.setSummary(request.summary());
-            return ResponseEntity.ok(partRepository.save(existing));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<PartDto> updatePart(@PathVariable Long bookId,
+                                              @PathVariable Long partId,
+                                              @Valid @RequestBody PartRequest request) {
+        return ResponseEntity.of(partService.update(bookId, partId, request));
     }
 
     @DeleteMapping("/{partId}")
     public ResponseEntity<Void> deletePart(@PathVariable Long bookId, @PathVariable Long partId) {
-        return partRepository.findByIdAndBookId(partId, bookId).map(part -> {
-            partRepository.delete(part);
-            return ResponseEntity.ok().<Void>build();
-        }).orElse(ResponseEntity.notFound().build());
+        return partService.delete(bookId, partId)
+                ? ResponseEntity.ok().build()
+                : ResponseEntity.notFound().build();
     }
 }

@@ -27,6 +27,11 @@
 **建议**：按聚合拆服务：`BookService`（含级联删除、删除后清图片/书单成员）、`ChapterService`、`ContentService`（ideas/excerpts）、`ReadingService`（bookmarks/marks/explanation）。Controller 只做 HTTP 映射。
 
 > 进展：随 BUG-02/08 新增了 `BookService`（目前只有 `delete`）。
+>
+> **BE-01 进行中（2026-10-31）**，按决定与 BE-03 的"DTO 化"合并做，**JSON 字段保持不变**。每一步都用真实数据副本采集全部 2,695 个 GET 响应，与改动前的基线逐条对比：
+> - ① 章节与 Part：`ChapterService` / `PartService`，`ChapterDto`（含 `KeyIdeaDto` 列表）/ `PartDto`。`GET /books/{id}/chapters` 原来每个章节要额外查 2 次：想法 1 次；讲解 1 次，因为 `Chapter.explanation` 是反向一对一，没有字节码增强就无法懒加载。现在改为"投影查询章节 + 一次批量查询想法"，**固定 2 条 SQL**。测试 [ChapterApiTest](../../backend/src/test/java/com/bookscoreideas/books/ChapterApiTest.java)（6 个，N+1 用例改动前失败）；真实数据对比 2,695 个响应零差异。
+> - 发现并单独修复了 **BUG-13**（子资源新建时带 `id` 会覆盖并挪走已有数据）。
+> - 留给 DB-06：其他地方加载 `Chapter` 实体时仍会顺带加载讲解（大字段），可以考虑把这个反向一对一去掉，改由服务层负责级联删除。
 
 ---
 
