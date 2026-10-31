@@ -77,3 +77,45 @@ describe('BookDetailPage data loading (FE-03)', () => {
     expect(screen.queryByRole('heading', { name: 'Book One' })).toBeNull();
   });
 });
+
+describe('BookDetailPage JSON import (FE-08)', () => {
+  // Regression: "Replace All" read, deleted and re-created every item with its own
+  // request; a failure half-way left the chapter half replaced.
+  it('replaces a chapter\'s ideas and excerpts with one import request', async () => {
+    const { writes } = installFakeBackend({ details: [bookDetail(1, 'Book One', 2)] });
+    renderBookPage('/book/1');
+
+    fireEvent.click((await screen.findAllByTitle('Import JSON for this chapter'))[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Ideas + Excerpts' }));
+    fireEvent.click(screen.getByRole('button', { name: '↺ Replace All' }));
+    const content = { ideas: [{ content: 'New idea' }], excerpts: [{ content: 'New passage', source: 'p.1' }] };
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: JSON.stringify(content) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Replace All' }));
+
+    expect(await screen.findByText('Imported successfully!')).toBeTruthy();
+    expect(writes).toEqual([{
+      method: 'POST',
+      path: '/api/books/1/import/content',
+      body: { mode: 'REPLACE', chapters: [{ chapterId: 101, ...content }] },
+    }]);
+  });
+
+  it('imports ideas for chapters named by title in one request', async () => {
+    const { writes } = installFakeBackend({ details: [bookDetail(1, 'Book One', 2)] });
+    renderBookPage('/book/1');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Import JSON' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ideas (All)' }));
+    const groups = [
+      { chapter: 'Book One chapter 1', ideas: [{ content: 'a' }] },
+      { chapter: 'Book One chapter 2', ideas: [{ content: 'b' }, { content: 'c' }] },
+    ];
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: JSON.stringify(groups) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+
+    expect(await screen.findByText('Imported successfully!')).toBeTruthy();
+    expect(writes).toEqual([{
+      method: 'POST', path: '/api/books/1/import/content', body: { mode: 'ADD', chapters: groups },
+    }]);
+  });
+});

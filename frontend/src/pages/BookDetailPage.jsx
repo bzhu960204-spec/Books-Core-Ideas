@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { useQueryClient } from '@tanstack/react-query';
-import { bookApi, chapterApi, partApi, ideaApi, excerptApi, explanationApi, bookmarkApi, markApi } from '../api';
+import { bookApi, chapterApi, partApi, ideaApi, excerptApi, explanationApi, bookmarkApi, markApi, importApi } from '../api';
 import { queryKeys, useBookDetail, useRefresh } from '../queries';
+import { chapterContentImport, groupedContentImport, structureImport } from '../utils/jsonImport';
 import ChapterForm from '../components/ChapterForm';
 import PartForm from '../components/PartForm';
 import IdeaForm from '../components/IdeaForm';
@@ -473,167 +474,20 @@ export default function BookDetailPage() {
     refresh();
   };
 
-  const handleChapterJsonImport = async (parsed, mode) => {
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    // Guard: a Parts-shaped payload (objects with a `chapters` array) is being
-    // imported into a flat Chapters book.
-    if (items.some(it => Array.isArray(it.chapters))) {
-      throw new Error('This looks like a Parts structure (objects contain a "chapters" array). This book uses the Chapters structure — switch the book to "Parts → Chapters" first, or import a flat chapters array.');
-    }
-    for (const item of items) {
-      if (!item.title) throw new Error('Each chapter must have a "title" field.');
-    }
-    if (mode === 'replace') {
-      const existing = await chapterApi.getAll(id);
-      for (const ch of existing) {
-        await chapterApi.delete(id, ch.id);
-      }
-    }
-    for (const item of items) {
-      const { keyIdeas: rawIdeas, excerpts: rawExcerpts, ...chapterFields } = item;
-      const chapter = await chapterApi.create(id, chapterFields);
-      if (Array.isArray(rawIdeas)) {
-        for (const idea of rawIdeas) {
-          if (!idea.content) throw new Error('Each idea must have a "content" field.');
-          await ideaApi.create(chapter.id, idea);
-        }
-      }
-      if (Array.isArray(rawExcerpts)) {
-        for (const ex of rawExcerpts) {
-          if (!ex.content) throw new Error('Each excerpt must have a "content" field.');
-          await excerptApi.create(chapter.id, ex);
-        }
-      }
-    }
-    refresh();
+  // JSON import (FE-08): one server-side transaction per import; bodies from utils/jsonImport.
+  const handleStructureImport = async (parsed, mode) => {
+    await importApi.structure(id, structureImport(parsed, mode, book.structureType === 'PARTS'));
+    await refresh();
   };
 
-  const handlePartJsonImport = async (parsed, mode) => {
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    // Parts may be imported as bare shells (no `chapters`): existing chapters stay
-    // ungrouped and are dragged into the new parts afterwards.
-    for (const part of items) {
-      if (!part.title) throw new Error('Each part must have a "title" field.');
-      if (part.chapters !== undefined && !Array.isArray(part.chapters)) {
-        throw new Error(`Part "${part.title}" has a "chapters" field that is not an array.`);
-      }
-      for (const ch of (part.chapters || [])) {
-        if (!ch.title) throw new Error(`Each chapter in part "${part.title}" must have a "title" field.`);
-      }
-    }
-    if (mode === 'replace') {
-      const existingParts = await partApi.getAll(id);
-      for (const p of existingParts) await partApi.delete(id, p.id);
-      // Also clear any stray chapters left ungrouped.
-      const existingChapters = await chapterApi.getAll(id);
-      for (const ch of existingChapters) await chapterApi.delete(id, ch.id);
-    }
-    for (const part of items) {
-      const { chapters: rawChapters, ...partFields } = part;
-      const createdPart = await partApi.create(id, partFields);
-      for (const ch of (rawChapters || [])) {
-        const { keyIdeas: rawIdeas, excerpts: rawExcerpts, ...chapterFields } = ch;
-        const chapter = await chapterApi.create(id, { ...chapterFields, partId: createdPart.id });
-        if (Array.isArray(rawIdeas)) {
-          for (const idea of rawIdeas) {
-            if (!idea.content) throw new Error('Each idea must have a "content" field.');
-            await ideaApi.create(chapter.id, idea);
-          }
-        }
-        if (Array.isArray(rawExcerpts)) {
-          for (const ex of rawExcerpts) {
-            if (!ex.content) throw new Error('Each excerpt must have a "content" field.');
-            await excerptApi.create(chapter.id, ex);
-          }
-        }
-      }
-    }
-    refresh();
+  const handleGroupedImport = (kind) => async (parsed, mode) => {
+    await importApi.content(id, groupedContentImport(parsed, mode, kind));
+    await refresh();
   };
 
-  const resolveChapterId = (chapterRef) => {
-    const ch = chapters.find(c =>
-      c.title.toLowerCase() === chapterRef.toLowerCase() ||
-      c.title.toLowerCase().includes(chapterRef.toLowerCase())
-    );
-    if (!ch) throw new Error(`Chapter not found: "${chapterRef}". Make sure the chapter title matches.`);
-    return ch.id;
-  };
-
-  const handleBulkIdeaImport = async (parsed, mode) => {
-    const groups = Array.isArray(parsed) ? parsed : [parsed];
-    for (const group of groups) {
-      if (!group.chapter) throw new Error('Each group must have a "chapter" field (chapter title).');
-      if (!Array.isArray(group.ideas) || group.ideas.length === 0) throw new Error(`"ideas" array is required for chapter "${group.chapter}".`);
-      for (const idea of group.ideas) {
-        if (!idea.content) throw new Error('Each idea must have a "content" field.');
-      }
-    }
-    for (const group of groups) {
-      const chapterId = resolveChapterId(group.chapter);
-      if (mode === 'replace') {
-        const existing = await ideaApi.getAll(chapterId);
-        for (const idea of existing) await ideaApi.delete(chapterId, idea.id);
-      }
-      for (const idea of group.ideas) {
-        await ideaApi.create(chapterId, idea);
-      }
-    }
-    refresh();
-  };
-
-  const handleBulkExcerptImport = async (parsed, mode) => {
-    const groups = Array.isArray(parsed) ? parsed : [parsed];
-    for (const group of groups) {
-      if (!group.chapter) throw new Error('Each group must have a "chapter" field (chapter title).');
-      if (!Array.isArray(group.excerpts) || group.excerpts.length === 0) throw new Error(`"excerpts" array is required for chapter "${group.chapter}".`);
-      for (const ex of group.excerpts) {
-        if (!ex.content) throw new Error('Each excerpt must have a "content" field.');
-      }
-    }
-    for (const group of groups) {
-      const chapterId = resolveChapterId(group.chapter);
-      if (mode === 'replace') {
-        const existing = await excerptApi.getAll(chapterId);
-        for (const ex of existing) await excerptApi.delete(chapterId, ex.id);
-      }
-      for (const ex of group.excerpts) {
-        await excerptApi.create(chapterId, ex);
-      }
-    }
-    refresh();
-  };
-
-  const handleChapterCombinedImport = (chapterId) => async (parsed, mode) => {
-    const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-    if (!obj || (!obj.ideas && !obj.excerpts)) throw new Error('Object must have an "ideas" and/or "excerpts" array.');
-    if (obj.ideas) {
-      for (const item of obj.ideas) {
-        if (!item.content) throw new Error('Each idea must have a "content" field.');
-      }
-    }
-    if (obj.excerpts) {
-      for (const item of obj.excerpts) {
-        if (!item.content) throw new Error('Each excerpt must have a "content" field.');
-      }
-    }
-    if (mode === 'replace') {
-      if (obj.ideas) {
-        const existing = await ideaApi.getAll(chapterId);
-        for (const idea of existing) await ideaApi.delete(chapterId, idea.id);
-      }
-      if (obj.excerpts) {
-        const existing = await excerptApi.getAll(chapterId);
-        for (const ex of existing) await excerptApi.delete(chapterId, ex.id);
-      }
-    }
-    if (obj.ideas) {
-      for (const item of obj.ideas) await ideaApi.create(chapterId, item);
-    }
-    if (obj.excerpts) {
-      for (const item of obj.excerpts) await excerptApi.create(chapterId, item);
-    }
-    refresh();
+  const handleChapterImport = (chapterId, kind) => async (parsed, mode) => {
+    await importApi.content(id, chapterContentImport(parsed, mode, chapterId, kind));
+    await refresh();
   };
 
   if (detailQuery.isPending) return <div className="loading">Loading book</div>;
@@ -1051,10 +905,10 @@ export default function BookDetailPage() {
           title="Import JSON"
           tabs={[
             isParts
-              ? { key: 'parts', label: 'Parts', placeholder: PARTS_JSON_HINT, onImport: handlePartJsonImport }
-              : { key: 'chapters', label: 'Chapters', placeholder: CHAPTERS_JSON_HINT, onImport: handleChapterJsonImport, addOnly: true },
-            { key: 'ideas', label: 'Ideas (All)', placeholder: IDEAS_JSON_HINT, onImport: handleBulkIdeaImport },
-            { key: 'excerpts', label: 'Excerpts (All)', placeholder: EXCERPTS_JSON_HINT, onImport: handleBulkExcerptImport },
+              ? { key: 'parts', label: 'Parts', placeholder: PARTS_JSON_HINT, onImport: handleStructureImport }
+              : { key: 'chapters', label: 'Chapters', placeholder: CHAPTERS_JSON_HINT, onImport: handleStructureImport, addOnly: true },
+            { key: 'ideas', label: 'Ideas (All)', placeholder: IDEAS_JSON_HINT, onImport: handleGroupedImport('ideas') },
+            { key: 'excerpts', label: 'Excerpts (All)', placeholder: EXCERPTS_JSON_HINT, onImport: handleGroupedImport('excerpts') },
           ]}
           onClose={() => setShowJsonImport(false)}
         />
@@ -1064,25 +918,9 @@ export default function BookDetailPage() {
         <JsonImportModal
           title={`Import — ${chapters.find(c => c.id === showChapterImport)?.title || 'Chapter'}`}
           tabs={[
-            { key: 'ideas', label: 'Ideas', placeholder: CHAPTER_IDEAS_HINT, onImport: (parsed, mode) => {
-              const items = Array.isArray(parsed) ? parsed : [parsed];
-              for (const item of items) { if (!item.content) throw new Error('Each idea must have a "content" field.'); }
-              return (async () => {
-                if (mode === 'replace') { const ex = await ideaApi.getAll(showChapterImport); for (const i of ex) await ideaApi.delete(showChapterImport, i.id); }
-                for (const item of items) await ideaApi.create(showChapterImport, item);
-                refresh();
-              })();
-            }},
-            { key: 'excerpts', label: 'Excerpts', placeholder: CHAPTER_EXCERPTS_HINT, onImport: (parsed, mode) => {
-              const items = Array.isArray(parsed) ? parsed : [parsed];
-              for (const item of items) { if (!item.content) throw new Error('Each excerpt must have a "content" field.'); }
-              return (async () => {
-                if (mode === 'replace') { const ex = await excerptApi.getAll(showChapterImport); for (const e of ex) await excerptApi.delete(showChapterImport, e.id); }
-                for (const item of items) await excerptApi.create(showChapterImport, item);
-                refresh();
-              })();
-            }},
-            { key: 'combined', label: 'Ideas + Excerpts', placeholder: CHAPTER_COMBINED_HINT, onImport: handleChapterCombinedImport(showChapterImport) },
+            { key: 'ideas', label: 'Ideas', placeholder: CHAPTER_IDEAS_HINT, onImport: handleChapterImport(showChapterImport, 'ideas') },
+            { key: 'excerpts', label: 'Excerpts', placeholder: CHAPTER_EXCERPTS_HINT, onImport: handleChapterImport(showChapterImport, 'excerpts') },
+            { key: 'combined', label: 'Ideas + Excerpts', placeholder: CHAPTER_COMBINED_HINT, onImport: handleChapterImport(showChapterImport, 'combined') },
           ]}
           onClose={() => setShowChapterImport(null)}
         />

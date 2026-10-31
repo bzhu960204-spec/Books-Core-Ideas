@@ -43,6 +43,8 @@ Development conventions (data safety, migrations, testing, rehearsing changes on
 
 The app supports importing data via JSON. Library page has its own import, and each book's detail page has a unified **Import JSON** button with three tabs: **Chapters** (or **Parts**), **Ideas**, **Excerpts**.
 
+> **One step, all or nothing:** every import is sent to the server as one request and saved in one transaction. If anything is invalid, nothing is imported and the error names the field, e.g. `books[1].chapters[0].excerpts[0].content: must not be blank`. Unknown fields are ignored, so a book's **Export JSON** output can be imported as is.
+
 > **Book structure:** Each book has a `structureType` of either `"CHAPTERS"` (flat list of chapters, the default) or `"PARTS"` (chapters grouped under parts). The detail page renders and imports according to the book's structure. See [Books with Parts](#books-with-parts) below.
 
 ---
@@ -185,7 +187,7 @@ On a PARTS book's detail page, the unified **Import JSON** button's first tab be
 | `summary` | string | No | Max 1000 chars |
 | `chapters` | array | No | Chapter format (see below) |
 
-> The importer validates structure: importing a flat `chapters` payload into a PARTS book (or a `parts` payload into a CHAPTERS book) is rejected with an error.
+> The importer validates structure: a `parts` payload is rejected for a CHAPTERS book, and the Chapters tab rejects objects that contain a `chapters` array (a Parts structure). In the library import, top-level `chapters` of a PARTS book (next to `parts`) become ungrouped chapters.
 
 ---
 
@@ -218,9 +220,9 @@ Creates new chapters. Can include nested `keyIdeas` and `excerpts`.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `title` | string | **Yes** | |
+| `title` | string | **Yes** | Max 255 chars |
 | `orderIndex` | integer | No | Sort order |
-| `summary` | string | No | Max 1000 chars |
+| `summary` | string | No | No length limit |
 | `keyIdeas` | array | No | See Key Idea format below |
 | `excerpts` | array | No | See Excerpt format below |
 
@@ -228,9 +230,9 @@ Creates new chapters. Can include nested `keyIdeas` and `excerpts`.
 
 ### 3. Import Key Ideas — Book Detail Page → "Ideas (All)" tab
 
-Import ideas into **existing** chapters across the whole book. Group by chapter title (fuzzy match).
+Import ideas into **existing** chapters across the whole book, grouped by chapter title: an exact title (ignoring case) wins; otherwise the first chapter whose title contains the given text.
 
-Supports **Add New** (append) or **Replace All** (clear existing ideas first).
+Supports **Add New** (append) or **Replace All** (clear the named chapters' existing ideas first; other chapters and their excerpts are untouched).
 
 ```json
 [
@@ -261,9 +263,9 @@ Supports **Add New** (append) or **Replace All** (clear existing ideas first).
 
 ---
 
-### 4. Import for Single Chapter (⬇ button on chapter header)
+### 4. Import for Single Chapter (`{}` button on chapter header)
 
-Click the **⬇** button on any chapter header. A modal opens with three tabs:
+Click the **`{}`** button on any chapter header. A modal opens with three tabs:
 
 **Tab: Ideas** — flat array, imports into this chapter only.
 
@@ -307,15 +309,15 @@ Click the **⬇** button on any chapter header. A modal opens with three tabs:
 }
 ```
 
-All three tabs support **Add New** or **Replace All**.
+All three tabs support **Add New** or **Replace All** (Replace All clears only the kinds you import: `{ "excerpts": [...] }` keeps the chapter's ideas).
 
 ---
 
 ### 5. Import Excerpts — Book Detail Page → "Excerpts (All)" tab
 
-Import excerpts into **existing** chapters across the whole book. Group by chapter title (fuzzy match).
+Import excerpts into **existing** chapters across the whole book, grouped by chapter title (matched as in the Ideas tab).
 
-Supports **Add New** (append) or **Replace All** (clear existing excerpts first).
+Supports **Add New** (append) or **Replace All** (clear the named chapters' existing excerpts first).
 
 ```json
 [

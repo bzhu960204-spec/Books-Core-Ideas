@@ -174,7 +174,7 @@
 <a id="fe-08"></a>
 ## FE-08 · JSON 导入在前端逐条请求、非事务 🟡
 
-> **🔄 进行中（2026-11-01）**
+> **✅ 已完成（2026-11-01）**，分两个提交：① 后端接口；② 前端改用。
 > **① 后端接口**：[JsonImportController](../../backend/src/main/java/com/bookscoreideas/controller/JsonImportController.java) / [JsonImportService](../../backend/src/main/java/com/bookscoreideas/service/JsonImportService.java)，每个请求一个事务（格式见 [api-conventions.md](../api-conventions.md)）：
 > - `POST /api/books/import`：书库导入，书带 parts / chapters / keyIdeas / excerpts；
 > - `POST /api/books/{id}/import`：详情页的 Chapters / Parts 标签页，ADD / REPLACE；
@@ -212,6 +212,29 @@
 >   - **JSON**：24 本书的 export 经 `POST /api/books/import` 导入后再导出，**全部相同**；
 >   - **ZIP**（检查重构后的迁移导入）：25 个条目中只有 book 195 的 `images` 5 → 0，与 BE-08 时相同，原因是图片文件不在本机。
 > - BUG-06 复现：按旧书库导入的方式 `POST /books/{id}/chapters` 并带上 excerpts，存下 0 条；`POST /api/books/import` 存下 1 条。
+>
+> **② 前端改用**：书库页和详情页的 6 种导入（书库、Chapters / Parts、Ideas (All)、Excerpts (All)、单章 3 个标签页）都改为**一个请求**。请求体由 [utils/jsonImport.js](../../frontend/src/utils/jsonImport.js) 的纯函数生成，两个页面共用。
+> - 共删除约 190 行逐条创建/删除的循环；`api.js` 新增 `importApi`，并删除因 FE-03 / FE-08 不再使用的 7 个读取函数（后端接口保留）。
+> - 前端只保留服务器无法发现的形状检查：
+>   - Chapters 标签页收到带 `chapters` 数组的对象（Parts 结构），服务器会忽略未知字段，所以由前端拦截；
+>   - Ideas / Excerpts (All) 每组必须有 `chapter` 和对应的数组。
+>
+>   字段校验交给服务器，错误信息带路径。
+> - 书库导入的提示示例补上了 `excerpts`。README 的导入说明已同步：全部成功或全部不导入、标题匹配规则、Replace 只清空给出的种类、单章按钮是 `{}`（原文写作 ⬇）、章节 summary 不限长度（原文误写 1000）。
+> - 回归测试（在旧代码上都失败）：
+>   - [LibraryPage.test.jsx](../../frontend/src/pages/LibraryPage.test.jsx)：整本书（含 excerpts）只发一个 `POST /api/books/import`。旧代码依次 POST 书、章节、想法，**excerpts 根本没有发出去**，这正是 BUG-06；
+>   - `BookDetailPage.test.jsx` 新增 2 个：单章"Ideas + Excerpts"的 Replace All，以及 Ideas (All) 按标题导入，都只发一个 `/import/content`。旧代码会先 GET 再逐条 DELETE、POST；
+>   - [jsonImport.test.js](../../frontend/src/utils/jsonImport.test.js) 测试 4 组请求体映射。
+>
+>   前端测试 45 → 52。
+> - 浏览器验证（真实数据副本）：
+>   - 书库导入带 excerpts 的书，书数 24→25，详情页角标 📖 2 / 📖 1，想法也在；
+>   - 一次导入两本书、其中一本有空摘录：错误显示 `books[1].chapters[0].excerpts[0].content: must not be blank`，另一本也**没有**被创建；
+>   - Chapters 标签页粘贴 Parts 结构被拦截；添加章节成功；
+>   - Ideas (All) 用小写标题 `two` 匹配到 "Two"；
+>   - 单章"Ideas + Excerpts"Replace All 只给 excerpts：摘录 2→1，想法保留；
+>   - 67 章的 PARTS 书：添加空 part 成功，Replace All 后只剩新的 part 和章节；
+>   - book 195 的图片文件缺失，对它 Replace 仍正常完成。
 
 书库与详情页的 JSON 导入都由前端循环调用 `create` 接口完成：一本 30 章、每章 10 个想法的书需要 300+ 次串行请求；中途任一失败会留下"半本书"，且没有回滚。两处实现不一致（BUG-06）。
 

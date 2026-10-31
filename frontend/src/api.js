@@ -29,7 +29,6 @@ async function apiFetch(url, options) {
 // Reads take an optional { signal } so the data layer (queries.js) can cancel them.
 export const bookApi = {
   getAll: (opts) => apiFetch(`${API_BASE}/books`, opts),
-  get: (id) => apiFetch(`${API_BASE}/books/${id}`),
   // The book page in one request: book, parts, chapters with ideas/excerpts, bookmarks, marks.
   detail: (id, opts) => apiFetch(`${API_BASE}/books/${id}/detail`, opts),
   getCategories: (opts) => apiFetch(`${API_BASE}/books/categories`, opts),
@@ -48,7 +47,6 @@ export const bookApi = {
 };
 
 export const chapterApi = {
-  getAll: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/chapters`),
   create: (bookId, chapter) => apiFetch(`${API_BASE}/books/${bookId}/chapters`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -63,7 +61,6 @@ export const chapterApi = {
 };
 
 export const partApi = {
-  getAll: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/parts`),
   create: (bookId, part) => apiFetch(`${API_BASE}/books/${bookId}/parts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -78,7 +75,6 @@ export const partApi = {
 };
 
 export const ideaApi = {
-  getAll: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas`),
   create: (chapterId, idea) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -93,7 +89,6 @@ export const ideaApi = {
 };
 
 export const excerptApi = {
-  getAll: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/excerpts`),
   create: (chapterId, excerpt) => apiFetch(`${API_BASE}/chapters/${chapterId}/excerpts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -115,7 +110,6 @@ export const explanationApi = {
     body: JSON.stringify(explanation),
   }),
   delete: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`, { method: 'DELETE' }),
-  chapterIds: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/explanation-chapter-ids`),
 };
 
 // Manual reading bookmarks ("I read up to here") on chapter explanations.
@@ -142,7 +136,6 @@ export const markApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(mark),
     }),
-  listByBook: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/marks`),
   updateNote: (id, note) =>
     apiFetch(`${API_BASE}/marks/${id}`, {
       method: 'PATCH',
@@ -187,6 +180,25 @@ export const chapterImageApi = {
   },
   delete: (chapterId, imageId) => apiFetch(`${API_BASE}/chapters/${chapterId}/images/${imageId}`, { method: 'DELETE' }),
   getUrl: (chapterId, imageId) => `${API_BASE}/chapters/${chapterId}/images/${imageId}/data`,
+};
+
+// JSON import (FE-08): each call is one server transaction; bodies come from utils/jsonImport.js.
+export const importApi = {
+  books: (body) => apiFetch(`${API_BASE}/books/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+  structure: (bookId, body) => apiFetch(`${API_BASE}/books/${bookId}/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
+  content: (bookId, body) => apiFetch(`${API_BASE}/books/${bookId}/import/content`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }),
 };
 
 export const migrationApi = {

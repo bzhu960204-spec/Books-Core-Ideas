@@ -91,7 +91,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-03 | P0 | 删除带图片的章节 500 / 图片不清理 | 0 | ✅ | Chapter.images 级联 + 提交后删文件 |
 | BUG-04 | P1 | CORS 缺 PATCH | 0 | ✅ | 补 PATCH + Vite 代理同源 + CorsConfigTest |
 | BUG-05 | P1 | 子资源归属校验 | 1 | ✅ | 404/400 + ParentOwnershipTest |
-| BUG-06 | P1 | 书库导入丢 excerpts | 3 | ⬜ | |
+| BUG-06 | P1 | 书库导入丢 excerpts | 3 | ✅ | 随 FE-08：导入移到后端单事务接口；JsonImportApiTest + LibraryPage.test（旧代码根本没有发出 excerpts） |
 | BUG-07 | P2 | 404/400 被当成 500 | 1 | ✅ | 随 BE-04 |
 | BUG-08 | P2 | 删书后书单成员残留 | 0 | ✅ | 删书时同事务清除成员行 |
 | BUG-09 | P1 | POST 带 id 500 / 静默覆盖 | 2 | ✅ | 随 BE-02 请求 DTO；严重度由 P3 上调（无 500 时会直接覆盖）；BookRequestTest |
@@ -104,7 +104,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BE-03 | P2 | API 风格统一 | 2 | ✅ | 201/204/404 约定 + 错误一律 ProblemDetail（doc/api-conventions.md）；前端无需改动，浏览器验证 |
 | BE-04 | P1 | 全局异常处理 | 1 | ✅ | ProblemDetail + 前端解析 detail |
 | BE-05 | P2 | 校验与枚举 | 2 | ✅ | 全部写接口 Bean Validation（长度/评分/状态值）+ Map 请求体换成 record；枚举映射因数据中有 '' 暂缓 |
-| BE-06 | P2 | 重复代码 | 2 | 🔄 | 图片存储统一 ✅；两套导出共用 BookArchiveBuilder ✅（随 BE-08）；JSON 导入随 FE-08 |
+| BE-06 | P2 | 重复代码 | 2 | ✅ | 图片存储统一；两套导出共用 BookArchiveBuilder（随 BE-08）；JSON 导入与 ZIP 迁移共用 BookTreeWriter、前端两份导入循环删除（随 FE-08） |
 | BE-07 | P2 | 导入整包入内存 | 4 | ⬜ | |
 | BE-08 | P1 | 迁移归档不完整 | 2 | ✅ | 格式 v2（书评/书签/标记/书单路径 + 原始时间戳）、兼容 v1、拒绝更新版本；真实数据整库往返完全相同 |
 | BE-09 | P3 | 配置分环境 | 4 | ⬜ | |
@@ -122,13 +122,13 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | FE-05 | P2 | 错误处理与反馈 | 3 | ⬜ | |
 | FE-06 | P1 | jszip 依赖归位 | 0 | ✅ | |
 | FE-07 | P3 | api.js 样板 / 类型 | 4 | ⬜ | |
-| FE-08 | P2 | JSON 导入移到后端 | 3 | 🔄 | ① 后端 3 个导入接口 ✅（单事务、与 ZIP 迁移共用 BookTreeWriter；真实数据 24 本 JSON 往返完全相同）；② 前端改用待做 |
+| FE-08 | P2 | JSON 导入移到后端 | 3 | ✅ | 3 个单事务导入接口（与 ZIP 迁移共用 BookTreeWriter）+ 前端 6 种导入各一个请求（utils/jsonImport.js）；真实数据 24 本 JSON 往返完全相同 |
 | SEC-01 | P1 | 富文本 XSS 清洗 | 3 | ✅ | DOMPurify：粘贴入口 + 显示出口 + 导出；真实数据零差异 |
 | SEC-02 | P2 | 图片类型白名单 | 4 | ⬜ | |
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 162 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 45 个（含 RTL 组件测试、fetch 层假后端）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 162 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 52 个（含 RTL 组件测试、fetch 层假后端）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

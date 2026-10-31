@@ -10,7 +10,7 @@
 | BUG-03 | 🔴 P0 | 删除带配图的章节（或含此类章节的书）→ 500，图片文件也不清理（✅ 已修复） | ✅ 实测 |
 | BUG-04 | 🟠 P1 | 开发模式下"修改摘录批注"（PATCH）被 CORS 拦截（✅ 已修复） | ✅ 实测 |
 | BUG-05 | 🟠 P1 | 子资源缺少父子归属校验，可跨章节改/删数据（✅ 已修复） | ✅ 实测 |
-| BUG-06 | 🟠 P1 | 书库页 JSON 导入静默丢弃章节下的 `excerpts` | 🔍 代码确认 |
+| BUG-06 | 🟠 P1 | 书库页 JSON 导入静默丢弃章节下的 `excerpts`（✅ 已修复） | ✅ 实测 |
 | BUG-07 | 🟡 P2 | "不存在 / 参数非法"一律返回 500（✅ 已修复） | ✅ 实测 |
 | BUG-08 | 🟡 P2 | 删除书后，书单（Collection）成员行残留（✅ 已修复） | 🔍 代码确认 |
 | BUG-09 | 🟠 P1 | `POST /api/books` 携带 `id` 时 500，或静默覆盖已有书（✅ 已修复） | ✅ 实测 |
@@ -134,6 +134,13 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 
 <a id="bug-06"></a>
 ## BUG-06 · 书库页 JSON 导入静默丢弃 `excerpts` 🟠
+
+> **✅ 已修复（2026-11-01，随 FE-08）**：JSON 导入整体移到后端（`POST /api/books/import`，单事务，和 ZIP 迁移共用 `BookTreeWriter`）。书库页只发送解析后的 JSON，不再在前端拆分，也就不可能漏掉某种子项。
+> - 实测复现（修复前的接口）：按旧书库导入的方式，`POST /books/{id}/chapters` 时在请求体中带上 excerpts，结果存下 0 条。
+> - 回归测试：
+>   - 后端 [JsonImportApiTest](../../backend/src/test/java/com/bookscoreideas/books/JsonImportApiTest.java) `bookImportKeepsIdeasAndExcerptsOfEveryChapter`，另有"Export JSON → 导入 → 再导出完全相同"；
+>   - 前端 [LibraryPage.test.jsx](../../frontend/src/pages/LibraryPage.test.jsx)：整本书（含 excerpts）只发一个请求。在旧代码上失败：旧代码发出的请求中没有 excerpts。
+> - 真实数据：24 本书的 export 经新接口导入后再导出，全部相同；浏览器中导入带 excerpts 的书，角标数量正确。详见 [FE-08](04-frontend.md#fe-08)。
 
 **根因**：[LibraryPage.jsx](../../frontend/src/pages/LibraryPage.jsx) 的 `handleJsonImport` 只处理 `keyIdeas`，`excerpts` 被留在 `chapterFields` 里发给后端，而 [Chapter.excerpts](../../backend/src/main/java/com/bookscoreideas/entity/Chapter.java) 带 `@JsonIgnore`，于是被丢弃。
 但 [README](../../README.md) 的 "Full — with nested chapters, key ideas, and excerpts" 示例明确声称支持。书详情页的导入（[BookDetailPage.jsx](../../frontend/src/pages/BookDetailPage.jsx) 第 541、583 行）是正确处理 excerpts 的——**两处导入逻辑重复且不一致**。

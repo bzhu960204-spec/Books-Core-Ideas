@@ -11,18 +11,32 @@ const notFound = (path) =>
 /**
  * A fake backend at the fetch level, serving books described as GET /books/{id}/detail
  * responses: the detail endpoint and every fine-grained endpoint it replaces, so the
- * same test runs against code that uses either. Records every request as "METHOD path".
- * `delay(path)` may return a promise to hold a response back.
+ * same test runs against code that uses either. Records every request as "METHOD path"
+ * and the bodies of writes. `delay(path)` may return a promise to hold a response back.
  */
 export function installFakeBackend({ details = [], ideas = [], delay = () => null } = {}) {
   const requests = [];
+  const writes = []; // { method, path, body } of every non-GET request
+  let nextId = 9000;
   const byId = new Map(details.map(d => [String(d.book.id), d]));
   const chapters = new Map();
   for (const d of details) for (const c of d.chapters) chapters.set(String(c.id), c);
 
-  const route = (method, path, query) => {
+  const write = (method, path, body) => {
+    if (method === 'DELETE') return new Response(null, { status: 204 });
+    if (path === '/api/books/import') {
+      return json(body.books.map(b => ({ ...b, id: nextId++, chapterCount: (b.chapters || []).length })), 201);
+    }
+    if (/^\/api\/books\/\d+\/import(\/content)?$/.test(path)) {
+      return json({ parts: 0, chapters: 0, ideas: 0, excerpts: 0 });
+    }
+    // Any other create/update: echo the body with an id, as the real endpoints do.
+    return json({ ...body, id: nextId++ }, method === 'POST' ? 201 : 200);
+  };
+
+  const route = (method, path, query, body) => {
     let m;
-    if (method !== 'GET') return new Response(null, { status: 204 });
+    if (method !== 'GET') return write(method, path, body);
     if (path === '/api/books') return json(details.map(d => d.book));
     if (path === '/api/books/categories') return json([]);
     if (path === '/api/ideas' || path === '/api/excerpts') return json(ideas);
@@ -59,12 +73,14 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
     const method = (options.method || 'GET').toUpperCase();
     const parsed = new URL(url, 'http://localhost');
     requests.push(`${method} ${parsed.pathname}${parsed.search}`);
+    const body = typeof options.body === 'string' ? JSON.parse(options.body) : undefined;
+    if (method !== 'GET') writes.push({ method, path: parsed.pathname, body });
     const hold = delay(parsed.pathname);
     if (hold) await hold;
-    return route(method, parsed.pathname, parsed.searchParams);
+    return route(method, parsed.pathname, parsed.searchParams, body);
   });
   vi.stubGlobal('fetch', fetchMock);
-  return { requests };
+  return { requests, writes };
 }
 
 /** A detail response for a CHAPTERS book with `chapterCount` chapters, two excerpts each. */

@@ -25,7 +25,7 @@
    - 删除带书评/图片/书签/标记的书与章节（BUG-02/03）；
    - 跨章节修改/删除返回 404（BUG-05）；
    - 迁移导出 → 导入往返后数据一致（BE-08）。
-2. **前端单测**（Vitest）：纯函数优先——[linkFix.js](../../frontend/src/utils/linkFix.js)、[explanationAnchor.js](../../frontend/src/utils/explanationAnchor.js)、`RichTextEditor` 中的粘贴/代码块转换函数（拆出后，见 FE-01）、JSON 导入解析（FE-08）。
+2. **前端单测**（Vitest）：纯函数优先——[linkFix.js](../../frontend/src/utils/linkFix.js)、[explanationAnchor.js](../../frontend/src/utils/explanationAnchor.js)、`RichTextEditor` 中的粘贴/代码块转换函数（拆出后，见 FE-01）、JSON 导入解析（FE-08，✅ [jsonImport.test.js](../../frontend/src/utils/jsonImport.test.js)）。
 3. 后续可加一条 Playwright 冒烟测试（建书 → 加章 → 加想法 → 删除）。
 
 ---
@@ -80,7 +80,7 @@ frontend: npm ci && npm run lint && npm test && npm run build   (在 frontend/ �
   - 写 "React 18"，实际是 React 19；
   - 只介绍 JSON 导入格式，没有功能概览（书单、讲解、讲解标记、阅读历史、书评库、迁移、prod 单端口模式、OneDrive 数据链接）；
   - 没有"环境要求 / 首次安装 / 数据备份与恢复"章节；
-  - 书库导入 excerpts 的说明与实际行为不符（BUG-06）。
+  - 书库导入 excerpts 的说明与实际行为不符（BUG-06）。（✅ 随 FE-08 修复，README 导入说明已同步）
 - [database-schema-and-flyway.md](../database-schema-and-flyway.md)：~~声称 Flyway 已关闭，与配置矛盾；含个人机器路径~~ ✅ 已随 BUG-01 重写。
 - [migration-feature.md](../migration-feature.md)：~~未说明归档不含书评/书签/标记/书单（BE-08）~~ ✅ 随 BE-08 更新为 v2，写明了归档范围。
 - `doc/` 没有索引页。

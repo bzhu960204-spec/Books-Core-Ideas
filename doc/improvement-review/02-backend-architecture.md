@@ -156,6 +156,7 @@
   > **✅ 两套导出已统一（2026-10-31，随 BE-08）**：两者共用 `BookArchiveBuilder` 读取书籍树。单本 JSON 导出是 JSON 导入格式，输出保持逐字节不变（`BookJsonExportTest`）。
 - **两套 JSON 导入**：前端 `LibraryPage` 与 `BookDetailPage` 各写一遍（导致 BUG-06）。
   > **后端部分已完成（2026-11-01，随 FE-08 ①）**：JSON 导入移到后端 `JsonImportService`。它和 ZIP 迁移共用新抽出的 `BookTreeWriter`，书库导入直接复用 `MigrationImporter.persistBook`，所以创建这些行的代码只有一处。前端的两份导入循环在 FE-08 ② 中删除。
+  > **✅ 全部完成（2026-11-01，随 FE-08 ②）**：前端两份导入循环已删除，请求体由共用的 `utils/jsonImport.js` 生成。
 
 ---
 

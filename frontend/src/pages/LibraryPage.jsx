@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { bookApi, chapterApi, partApi, ideaApi } from '../api';
+import { bookApi, importApi } from '../api';
 import { queryKeys, useBooks, useCategories, useRefresh } from '../queries';
+import { bookImport } from '../utils/jsonImport';
 import BookForm from '../components/BookForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
@@ -18,7 +19,8 @@ const BOOK_JSON_HINT = `// Single book (simple):
   "description": "A tour of the mind..."
 }
 
-// Or with chapters and ideas nested:
+// Or with chapters, key ideas and excerpts nested
+// (a book's "Export JSON" output imports as is):
 {
   "title": "My Book",
   "author": "Author Name",
@@ -29,6 +31,9 @@ const BOOK_JSON_HINT = `// Single book (simple):
       "summary": "Overview...",
       "keyIdeas": [
         { "content": "Key concept", "example": "For example...", "orderIndex": 1 }
+      ],
+      "excerpts": [
+        { "content": "A memorable passage...", "note": "Why it matters", "orderIndex": 1 }
       ]
     }
   ]
@@ -115,49 +120,8 @@ export default function LibraryPage() {
   };
 
   const handleJsonImport = async (parsed) => {
-    // Support single object or array of books
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    for (const item of items) {
-      if (!item.title) throw new Error('Each book must have a "title" field.');
-      const { chapters: rawChapters, parts: rawParts, keyIdeas, ...bookFields } = item;
-      const isPartsBook = Array.isArray(rawParts) || bookFields.structureType === 'PARTS';
-      const book = await bookApi.create({ ...bookFields, structureType: isPartsBook ? 'PARTS' : 'CHAPTERS' });
-
-      if (isPartsBook && Array.isArray(rawParts)) {
-        for (const rawPart of rawParts) {
-          if (!rawPart.title) throw new Error('Each part must have a "title" field.');
-          const { chapters: partChapters, ...partFields } = rawPart;
-          const part = await partApi.create(book.id, partFields);
-          if (Array.isArray(partChapters)) {
-            for (const rawChapter of partChapters) {
-              if (!rawChapter.title) throw new Error('Each chapter must have a "title" field.');
-              const { keyIdeas: rawIdeas, ...chapterFields } = rawChapter;
-              const chapter = await chapterApi.create(book.id, { ...chapterFields, partId: part.id });
-              if (Array.isArray(rawIdeas)) {
-                for (const idea of rawIdeas) {
-                  if (!idea.content) throw new Error('Each idea must have a "content" field.');
-                  await ideaApi.create(chapter.id, idea);
-                }
-              }
-            }
-          }
-        }
-      } else if (Array.isArray(rawChapters)) {
-        for (const rawChapter of rawChapters) {
-          if (!rawChapter.title) throw new Error('Each chapter must have a "title" field.');
-          const { keyIdeas: rawIdeas, ...chapterFields } = rawChapter;
-          const chapter = await chapterApi.create(book.id, chapterFields);
-
-          if (Array.isArray(rawIdeas)) {
-            for (const idea of rawIdeas) {
-              if (!idea.content) throw new Error('Each idea must have a "content" field.');
-              await ideaApi.create(chapter.id, idea);
-            }
-          }
-        }
-      }
-    }
-    refresh();
+    await importApi.books(bookImport(parsed));
+    await refresh();
   };
 
   if (loading) return <div className="loading">Loading library</div>;
