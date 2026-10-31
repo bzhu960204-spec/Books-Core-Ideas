@@ -28,8 +28,8 @@ public class Excerpt {
     @Column(nullable = false)
     private boolean highlighted = false;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "chapter_id")
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "chapter_id", nullable = false)
     @JsonIgnore
     private Chapter chapter;
 

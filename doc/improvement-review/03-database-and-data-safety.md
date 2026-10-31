@@ -5,7 +5,7 @@
 | ID | 优先级 | 主题 |
 |---|---|---|
 | DB-01 | 🔴 P0 | Schema 双源管理（Hibernate `ddl-auto=update` + Flyway 补丁）（✅ 已完成） |
-| DB-02 | 🟠 P1 | 外键与级联不完整 |
+| DB-02 | 🟠 P1 | 外键与级联不完整（✅ 已完成） |
 | DB-03 | ⚪ P3 | 遗留无用文件 `migrate.sql` |
 | DB-04 | 🟡 P2 | 富文本内联 base64 图片导致数据库膨胀 |
 | DB-05 | 🟡 P2 | 没有备份机制；H2 文件放在 OneDrive 同步目录（✅ 已提供手动备份/恢复脚本） |
@@ -71,6 +71,23 @@
 | `reading_bookmarks / explanation_marks.book_id` | 有 FK、经由 chapter 级联 | 正常，但同时冗余存了 `book_id`，需保证与 `chapter.book_id` 一致 |
 
 **建议**：JPA 级联与数据库 `ON DELETE CASCADE` 双保险；DDL 统一在 DB-01 的新迁移里落地。
+
+> **✅ 已完成（2026-10-31）**：[V9__foreign_keys_and_cascades.sql](../../backend/src/main/resources/db/migration/V9__foreign_keys_and_cascades.sql)
+> - **删除规则**：所有"所有者 → 被拥有者"外键改为 `ON DELETE CASCADE`。JPA 级联保留，实体监听器（删图片文件）仍需经过 JPA。
+> - **唯一例外 `chapter_images` 用 `RESTRICT`**：绕过 JPA 的删除（手动 SQL、批量删除）无法删掉带图片的章节/书，从而不会留下孤儿图片文件。
+> - **补齐缺失外键**：`book_collection_items.book_id / collection_id`、`book_collections.parent_id`（自引用，级联删除子树）。
+> - **NOT NULL**：`parts.book_id`、`chapters.book_id`、`key_ideas / excerpts / chapter_images.chapter_id`。
+> - **冗余 `book_id` 由数据库保证一致**：复合外键 `(chapter_id, book_id) → chapters(id, book_id)`（书签、标记）和 `(part_id, book_id) → parts(id, book_id)`（章节所在 Part 必须属于同一本书）。书签/标记原先单独指向 `books` 的外键随之去掉（书由章节决定）。
+> - 同 V8，开头用守卫查询检查 NULL、孤儿、book_id 不一致，有违规数据时**在任何改动之前**中止（真实数据无违规）。
+> - 实体同步：上述 `@ManyToOne` 改为 `optional = false` + `nullable = false`。
+> - **随之修改**：`BookCollectionService.delete` 改为按"子先于父"的顺序删除子树。否则先删父行会让数据库级联删掉子行，Hibernate 随后删子行时影响 0 行而报 500。这个问题由新增的特征测试发现，该测试在改动前后都通过。
+> - 测试：
+>   - [ForeignKeyConstraintsTest](../../backend/src/test/java/com/bookscoreideas/deletion/ForeignKeyConstraintsTest.java)，7 个，直接用 SQL 验证数据库本身的约束。其中 6 个在 V9 之前失败；图片 RESTRICT 那个在前后都通过（外键原本就是 RESTRICT）。
+>   - `DeletionCascadeTest` 新增嵌套书单删除的特征测试。
+>   - `SchemaConvergenceTest` 新增"违规数据使 V9 中止且不改动"，去掉守卫时失败。
+> - 真实库副本演练：
+>   - V8+V9 迁移成功，12 张表逐行一致，2,724 个 GET 响应零差异。
+>   - 在迁移后的副本上通过 API 删除 3 本真实的书（含 Part、讲解、图片、书签、书单成员），各表行数按预期减少，无孤儿行；重启时 `validate` 通过。
 
 ---
 

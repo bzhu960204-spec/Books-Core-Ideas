@@ -17,6 +17,22 @@
 | V0 `base_schema` | 空库专用：创建核心表 BOOKS / PARTS / CHAPTERS / KEY_IDEAS / EXCERPTS / BOOK_REVIEWS / CHAPTER_IMAGES |
 | V1–V7 | 历史补丁：补列、改约束、新增 CHAPTER_EXPLANATIONS、BOOK_COLLECTIONS(+ITEMS)、READING_BOOKMARKS、EXPLANATION_MARKS |
 | V8 `normalize_schema` | 把老库与空库统一成同一份结构：约束/索引统一命名、外键列都有命名索引、`STRUCTURE_TYPE` 等列类型/默认值对齐、标志列 NOT NULL（DB-01） |
+| V9 `foreign_keys_and_cascades` | 外键删除规则（见下表）、补齐书单相关外键、子表外键列 NOT NULL、复合外键保证冗余 `book_id` 一致（DB-02） |
+
+### 外键删除规则（V9 起）
+
+| 外键 | 规则 |
+|---|---|
+| 书 → Part / 章节 / 书评 / 书单成员 | `ON DELETE CASCADE` |
+| 章节 → 想法 / 摘录 / 讲解 / 书签 / 标记 | `ON DELETE CASCADE` |
+| Part → 章节 | `ON DELETE CASCADE`（复合外键 `(PART_ID, BOOK_ID)`，Part 必须属于同一本书） |
+| 书单 → 子书单 / 成员 | `ON DELETE CASCADE` |
+| 书签 / 标记 → 章节 | 复合外键 `(CHAPTER_ID, BOOK_ID) → CHAPTERS(ID, BOOK_ID)`，保证 `BOOK_ID` 与章节一致 |
+| **章节 → 章节图片** | **`ON DELETE RESTRICT`**：图片文件只由 JPA 实体监听器删除，绕过 JPA 的删除不能悄悄删掉图片行 |
+
+应用里的删除仍走 JPA 级联（两者同时生效）。手动用 SQL 删书时，数据库会级联删除；但如果书中有图片，会被拒绝，此时请走 API。
+
+**写服务层删除代码的注意点**：同一事务中，要先删子行再删父行。如果先删父行，数据库会级联把子行删掉，Hibernate 随后再删子行时影响 0 行，就会报错。`BookCollectionService.delete` 就是按这个顺序写的。
 
 ## 2. 两种数据库各自怎么走
 
@@ -25,7 +41,7 @@
 | **空库**（新 clone / 新机器） | schema 为空 → 不做基线，从 **V0** 开始依次执行 V0…最新。 |
 | **老库**（当初由 Hibernate 建表、后被 Flyway 以版本 0 基线接管） | 历史表里有 `<< Flyway Baseline >>`（版本 0），V0 被跳过（`BASELINE_IGNORED`），其余按版本执行。 |
 
-两条路径的最终结构**完全一致**（由 `SchemaConvergenceTest` 保证）。V8 已在真实库副本上演练：迁移成功，12 张表内容逐行一致，2,724 个 GET 响应与改动前零差异。
+两条路径的最终结构**完全一致**（由 `SchemaConvergenceTest` 保证）。V8、V9 已在真实库副本上演练：迁移成功，12 张表内容逐行一致，2,724 个 GET 响应与改动前零差异。
 
 ## 3. 命名约定
 
@@ -48,7 +64,8 @@
 - `SchemaConvergenceTest`：
   - 以 `src/test/resources/db/legacy-schema-v7.sql`（真实库在 V8 之前的 `SCRIPT NODATA` 结构，不含数据）为起点迁移，要求最终的 INFORMATION_SCHEMA（列、类型、可空、默认值、约束名及定义、ON DELETE 规则、索引）与空库**逐项相同**。
   - 同时检查老数据在迁移后保留。
-  - 检查遇到未知约束时 V8 在改动任何东西之前就中止。
+  - 检查遇到未知约束（V8）或违规数据（V9）时，迁移在改动任何东西之前就中止。
+- `ForeignKeyConstraintsTest`：直接用 SQL 验证数据库自身的级联、RESTRICT、NOT NULL 与复合外键。
 
 ## 5. 新增迁移的约定
 

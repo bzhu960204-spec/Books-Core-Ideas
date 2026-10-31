@@ -23,8 +23,8 @@ public class Chapter {
     @Column(columnDefinition = "CLOB")
     private String summary;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id")
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "book_id", nullable = false)
     @JsonIgnore
     private Book book;
 
@@ -67,7 +67,8 @@ public class Chapter {
     private List<ExplanationMark> explanationMarks = new ArrayList<>();
 
     // Uploaded images; cascade delete so the chapter_images FK never blocks a
-    // chapter/part/book delete. Files are removed by ChapterImageFileCleanup.
+    // chapter/part/book delete. Files are removed by ChapterImageFileCleanup; the
+    // database FK is ON DELETE RESTRICT, so image rows can only go through JPA.
     @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<ChapterImage> images = new ArrayList<>();

@@ -63,7 +63,7 @@
 |---|---|---|
 | 2.1 | BE-02 | ✅ `GET /api/books` 瘦身 + 引入 DTO |
 | 2.2 | BE-01 / BE-06 | ✅ Service 层（含 open-in-view=false）、✅ 图片存储统一；统一导出推迟到 BE-08 |
-| 2.3 | DB-01 / DB-02 | ✅ Flyway 成为唯一 schema 来源，`ddl-auto=validate`（DB-01）；补外键与级联（DB-02） |
+| 2.3 | DB-01 / DB-02 | ✅ Flyway 成为唯一 schema 来源，`ddl-auto=validate`（DB-01）；✅ 补外键与级联（DB-02） |
 | 2.4 | BE-08 | 迁移归档 v2：补齐书评/书签/标记/书单 |
 | 2.5 | BE-05 / BE-03 | 校验、枚举、API 风格统一 |
 
@@ -109,7 +109,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BE-09 | P3 | 配置分环境 | 4 | ⬜ | |
 | BE-10 | P2 | 升级 Spring Boot | 4 | ⬜ | |
 | DB-01 | P0 | Schema 双源管理 | 0/2 | ✅ | V8 统一老库/空库结构 + 生产 `validate`；SchemaConvergenceTest（真实库结构夹具）；副本演练 2,724 响应零差异 |
-| DB-02 | P1 | 外键与级联 | 2 | ⬜ | |
+| DB-02 | P1 | 外键与级联 | 2 | ✅ | V9：级联 + 图片 RESTRICT + 补外键 + 复合外键保证 book_id 一致；ForeignKeyConstraintsTest；副本演练零差异 |
 | DB-03 | P3 | 删除 migrate.sql | 0 | ✅ | |
 | DB-04 | P2 | 内联 base64 图片 | 4 | ⬜ | |
 | DB-05 | P2 | 备份机制 | 0 | ✅ | 按需求缩小为手动 backup/restore 脚本，不做自动备份 |
@@ -127,7 +127,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 65 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致）+ 前端 Vitest 37 个（含 RTL 组件测试）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 74 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束）+ 前端 Vitest 37 个（含 RTL 组件测试）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

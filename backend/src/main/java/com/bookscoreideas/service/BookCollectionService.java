@@ -12,10 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -93,10 +94,12 @@ public class BookCollectionService {
 
     public void delete(Long id) {
         BookCollection c = get(id);
-        Set<Long> all = new HashSet<>();
-        all.add(c.getId());
-        all.addAll(descendantIds(id));
-        List<Long> ids = new ArrayList<>(all);
+        List<Long> ids = new ArrayList<>();
+        ids.add(c.getId());
+        ids.addAll(descendantIds(id));
+        // Children before parents: deleting a parent row makes the database cascade
+        // to its children, and Hibernate's later delete of a child would hit 0 rows.
+        Collections.reverse(ids);
         itemRepo.deleteByCollectionIdIn(ids);
         repo.deleteAllById(ids);
     }
@@ -182,7 +185,7 @@ public class BookCollectionService {
         for (BookCollection c : all) {
             childrenByParent.computeIfAbsent(c.getParentId(), k -> new ArrayList<>()).add(c.getId());
         }
-        Set<Long> out = new HashSet<>();
+        Set<Long> out = new LinkedHashSet<>(); // breadth-first order: parents before children
         Deque<Long> q = new ArrayDeque<>();
         q.add(rootId);
         while (!q.isEmpty()) {

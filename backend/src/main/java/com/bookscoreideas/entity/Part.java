@@ -22,8 +22,8 @@ public class Part {
     @Column(length = 1000)
     private String summary;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "book_id")
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "book_id", nullable = false)
     @JsonIgnore
     private Book book;
 

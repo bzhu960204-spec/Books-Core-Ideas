@@ -27,8 +27,8 @@ public class KeyIdea {
 
     private Integer orderIndex;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "chapter_id")
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "chapter_id", nullable = false)
     @JsonIgnore
     private Chapter chapter;
 

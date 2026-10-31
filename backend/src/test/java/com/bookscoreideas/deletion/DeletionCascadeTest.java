@@ -1,6 +1,7 @@
 package com.bookscoreideas.deletion;
 
 import com.bookscoreideas.repository.BookCollectionItemRepository;
+import com.bookscoreideas.repository.BookCollectionRepository;
 import com.bookscoreideas.repository.BookReviewRepository;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,6 +41,7 @@ class DeletionCascadeTest extends IntegrationTest {
     @Autowired private ReadingBookmarkRepository bookmarkRepository;
     @Autowired private ExplanationMarkRepository markRepository;
     @Autowired private BookCollectionItemRepository collectionItemRepository;
+    @Autowired private BookCollectionRepository collectionRepository;
 
     @Test
     void deletingBookWithReviewSucceeds() throws Exception {
@@ -122,6 +125,29 @@ class DeletionCascadeTest extends IntegrationTest {
     @Test
     void deletingMissingBookReturns404() throws Exception {
         mockMvc.perform(delete("/api/books/987654321")).andExpect(status().isNotFound());
+    }
+
+    // Characterisation: must hold both before and after the self-referencing
+    // ON DELETE CASCADE on book_collections.parent_id (DB-02).
+    @Test
+    void deletingCollectionRemovesItsWholeSubtreeAndMemberships() throws Exception {
+        long bookId = postForId("/api/books", Map.of("title", "Shelved book"));
+        long root = postForId("/api/book-collections", Map.of("name", "Root"));
+        long child = postForId("/api/book-collections", Map.of("name", "Child", "parentId", root));
+        long grandchild = postForId("/api/book-collections", Map.of("name", "Grandchild", "parentId", child));
+        long sibling = postForId("/api/book-collections", Map.of("name", "Sibling"));
+        for (long folder : new long[]{root, child, grandchild, sibling}) {
+            mockMvc.perform(post("/api/book-collections/" + folder + "/books/" + bookId))
+                    .andExpect(status().is2xxSuccessful());
+        }
+
+        mockMvc.perform(delete("/api/book-collections/" + root)).andExpect(status().isNoContent());
+
+        assertThat(collectionRepository.findAllById(List.of(root, child, grandchild))).isEmpty();
+        assertThat(collectionRepository.existsById(sibling)).isTrue();
+        assertThat(collectionItemRepository.findByBookId(bookId))
+                .extracting(item -> item.getCollectionId()).containsExactly(sibling);
+        mockMvc.perform(get("/api/books/" + bookId)).andExpect(status().isOk());
     }
 
     private JsonNode uploadImage(long chapterId) throws Exception {

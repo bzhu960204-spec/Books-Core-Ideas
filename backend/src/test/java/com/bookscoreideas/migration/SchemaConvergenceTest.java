@@ -21,7 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * the migrations and the real (legacy) database, whose tables were originally made
  * by Hibernate, must end up with exactly the same schema, so that Hibernate's
  * ddl-auto=validate (checked against fresh databases by every Spring test) holds
- * for both.
+ * for both. Migrations that could fail half-way (H2 commits each DDL statement)
+ * must stop in their guards, before changing anything.
  */
 class SchemaConvergenceTest {
 
@@ -84,6 +85,26 @@ class SchemaConvergenceTest {
         try (Connection c = connect(legacy); Statement s = c.createStatement()) {
             assertThat(row(s, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS "
                     + "WHERE CONSTRAINT_NAME = 'FKED84IWJ3KFAGV35ULS80TXKJ4'")).containsExactly("1");
+        }
+    }
+
+    @Test
+    void violatingDataAbortsV9BeforeChangingAnything() throws Exception {
+        String legacy = newLegacyDatabaseAtV7();
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            s.execute("INSERT INTO BOOK_COLLECTIONS (ID, NAME) VALUES (1, 'Folder')");
+            s.execute("INSERT INTO BOOK_COLLECTION_ITEMS (COLLECTION_ID, BOOK_ID) VALUES (1, 42)");
+        }
+
+        assertThatThrownBy(() -> flyway(legacy, "7").migrate())
+                .isInstanceOf(FlywayException.class)
+                .hasMessageContaining("V9 aborted: BOOK_COLLECTION_ITEMS with missing book (1 rows)");
+
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            assertThat(row(s, "SELECT MAX(\"version\") FROM \"flyway_schema_history\" WHERE \"success\""))
+                    .containsExactly("8");
+            assertThat(row(s, "SELECT DELETE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS "
+                    + "WHERE CONSTRAINT_NAME = 'FK_PARTS_BOOK'")).containsExactly("RESTRICT");
         }
     }
 
