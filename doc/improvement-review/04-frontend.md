@@ -169,6 +169,38 @@
 <a id="fe-04"></a>
 ## FE-04 · 包体积：无代码分割 🟡
 
+> **✅ 已完成（2026-11-01）**：首屏 JS 从 1,249 KB（gzip 380 KB）降到 311 KB（gzip 97 KB）。编辑器、Markdown 渲染、jszip 等只在用到时加载。
+>
+> | 产物 | 之前 | 之后 | 何时加载 |
+> |---|---|---|---|
+> | 首屏：`index` + `jsx-runtime` + `Modal` | 1,249 KB（单个 chunk） | 301 + 9 + 1 KB | 打开应用 |
+> | `RichTextEditor`（TipTap + ProseMirror） | （在首屏中） | 542 KB | 第一次进入编辑（讲解或书评） |
+> | `lib`（react-markdown 一系） | 〃 | 115 KB | 第一次打开书、想法库或摘录库 |
+> | `ExplanationExportModal`（jszip） | 〃 | 111 KB | 第一次点"Export Explanations" |
+> | `BookDetailPage` / `reviewContent`（marked）/ `sanitizeHtml`（DOMPurify） | 〃 | 54 / 42 / 29 KB | 第一次打开书 |
+> | 其余页面、`BookMigrationModal` | 〃 | 3–17 KB | 第一次打开时 |
+> | CSS | 60.58 KB | 不变（逐字节相同） | 打开应用 |
+>
+> 设计选择（按最佳判断）：
+> - **路由级**：除首屏书库外的 6 个页面用 `React.lazy`，[App.jsx](../../frontend/src/App.jsx) 中在 `<main>` 内放一个 Suspense，回退界面沿用现有的 `.loading`（侧边栏不受影响）。
+> - **组件级**：[LazyRichTextEditor](../../frontend/src/components/LazyRichTextEditor.jsx) 替代 3 处直接引用（讲解弹窗、书评库、书评阅读弹窗），回退显示"Loading editor"。`ExplanationExportModal`、`BookMigrationModal` 在打开时加载，回退为空，避免在页面中闪出加载提示。
+> - **不手工拆 vendor chunk、不预取**：rolldown 自动生成共享 chunk（如 `lib`）；本地服务加载一个 chunk 只需几毫秒。
+> - **首屏 301 KB，比目标（< 300 KB）多 1 KB**：首屏 chunk 中约 93% 是框架（react-dom、react-router、TanStack Query），应用自身只剩书库页及其弹窗。再把书库的几个弹窗也改成懒加载可以降到 300 KB 以下，但只少约 3%，还会让常用弹窗多一次加载，所以没有这样做。
+> - **旧 chunk 失效**：打开着页面时重新构建（prod 的 jar 直接从 `frontend/dist` 提供文件，缺失的文件会回退成 index.html），页面会请求已不存在的 chunk。这是代码分割带来的新问题。[chunkReload.js](../../frontend/src/chunkReload.js) 监听 Vite 的 `vite:preloadError`，自动刷新一次；10 秒内再次失败就不再刷新，让错误照常抛出，避免循环刷新。
+>
+> 开发模式下发现并修复的问题：TipTap 3 的 `useEditor` 默认在**渲染时**创建编辑器，并在 1 ms 后销毁未挂载的实例。懒加载的组件在 Suspense 恢复时提交，React 19 会把这次提交推迟（最多约 300 ms），编辑器因此在挂载前就被销毁，值同步 effect 随后调用 `getHTML()` 报错，编辑器无法显示（只在懒加载后出现）。现在给 `useEditor` 传 `immediatelyRender: false`，在挂载后才创建编辑器。回归测试 [LazyRichTextEditor.test.jsx](../../frontend/src/components/LazyRichTextEditor.test.jsx)：在 StrictMode 下渲染真实的懒加载编辑器，修复前等待 10 秒仍没有编辑器。
+>
+> 测试（126 → 130）：
+> - 新增 [App.test.jsx](../../frontend/src/App.test.jsx)（直接打开懒加载页面的 URL；从书库导航到想法库）、[chunkReload.test.js](../../frontend/src/chunkReload.test.js)（刷新一次、10 秒内不再刷新、之后可以再次刷新），以及上面的回归测试；
+> - 编辑器、导出弹窗变为异步出现：相关测试中首次出现的查询改为 `findBy`，懒加载页面的首次加载给 5 秒，因为并行运行时导入整个页面模块较慢。用 3 个随机种子打乱顺序运行，结果都通过，说明不依赖"前一个测试已加载过模块"。
+>
+> 验证：
+> - 开发模式：改动前（ca48d4f，worktree + Vite 15174）与改动后（15173）用 [ui-compare.js](../../tools/rehearsal/ui-compare.js) 对比，2 个主题 × 18 个场景（122 屏）的 DOM 签名和截图全部相同；各页面和编辑流程无页面错误。
+> - 生产构建（`vite preview`，代理到真实数据副本）：
+>   - 按网络请求确认各 chunk 在上表所列时机才加载；进入编辑后 Markdown 粘贴正常；
+>   - 让 ReadingHistoryPage 的 chunk 返回 404，或返回 index.html（模拟 jar 的回退）：都只自动刷新一次；仍然失败时错误照常抛出，此时主区域为空白，需要 FE-05 的 ErrorBoundary；恢复后刷新，页面正常。
+>   - 刷新前会短暂报一次错（`reading 'default'`）：阻止默认处理后 `import()` 得到 undefined，React.lazy 随即报错，页面紧接着刷新。加上 ErrorBoundary 后这里只会短暂显示错误界面。
+
 单 chunk 1.19MB。TipTap（含 ProseMirror）、`marked`、`react-markdown`、`jszip` 都打进了首屏，即使只打开书库列表。
 
 **建议**：
@@ -184,6 +216,7 @@
 - 6 处 `.catch(() => {})` 静默吞错（如各页面加载书列表）；多处 `catch { console.error(...) }` 用户无感知。
 - 确认/提示混用：自有 `ConfirmDialog` 与 `window.confirm` / `window.alert`（`CollectionsExplorer`、`PickBooksModal`、`ExplanationExportModal`、`RichTextEditor`）。
 - 没有 React Error Boundary：任一组件抛错整页白屏。
+  - FE-04 之后多了一种情况：懒加载的 chunk 加载失败、自动刷新一次后仍然失败时，错误会抛出到 React（见 FE-04 的"旧 chunk 失效"）。ErrorBoundary 应当在这里显示"重新加载"之类的提示。
 - 没有 404 路由（`/book/abc` 或未知路径）。
 
 **建议**：一个轻量 Toast 组件 + 全局 `ErrorBoundary` + `<Route path="*">`；`apiFetch` 解析后端 `ProblemDetail`（BE-04）输出人类可读的错误；统一用 `ConfirmDialog`。

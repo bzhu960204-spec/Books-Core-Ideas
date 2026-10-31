@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { bookApi, importApi } from '../api';
@@ -7,9 +7,11 @@ import { bookImport } from '../utils/jsonImport';
 import BookForm from '../components/BookForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
-import BookMigrationModal from '../components/BookMigrationModal';
 import ReadingStatusControl from '../components/ReadingStatusControl';
 import AddToCollectionModal from '../components/collections/AddToCollectionModal';
+
+// Opened rarely; kept out of the first screen's bundle (FE-04).
+const BookMigrationModal = lazy(() => import('../components/BookMigrationModal'));
 
 const BOOK_JSON_HINT = `// Single book (simple):
 {
@@ -393,11 +395,13 @@ export default function LibraryPage() {
       )}
 
       {showMigration && (
-        <BookMigrationModal
-          books={books}
-          onClose={() => setShowMigration(false)}
-          onImported={refresh}
-        />
+        <Suspense fallback={null}>
+          <BookMigrationModal
+            books={books}
+            onClose={() => setShowMigration(false)}
+            onImported={refresh}
+          />
+        </Suspense>
       )}
 
       {deleteTarget && (

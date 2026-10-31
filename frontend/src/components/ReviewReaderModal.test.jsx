@@ -19,13 +19,13 @@ function renderModal(props) {
 }
 
 describe('ReviewReaderModal keeps its draft in step with the review prop', () => {
-  it('opens in edit mode with the review loaded into the draft', () => {
+  it('opens in edit mode with the review loaded into the draft', async () => {
     renderModal({ review: reviewA, startInEdit: true });
     expect(screen.getByDisplayValue('First take')).toBeTruthy();
-    expect(screen.getByTestId('editor').value).toBe('<p>Draft one</p>');
+    expect((await screen.findByTestId('editor')).value).toBe('<p>Draft one</p>');
   });
 
-  it('returns to reading mode with the saved review when the parent passes it back', () => {
+  it('returns to reading mode with the saved review when the parent passes it back', async () => {
     const { rerender } = renderModal({ review: reviewA, startInEdit: true });
     fireEvent.change(screen.getByDisplayValue('First take'), { target: { value: 'Typed title' } });
 
@@ -38,13 +38,13 @@ describe('ReviewReaderModal keeps its draft in step with the review prop', () =>
 
     fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
     expect(screen.getByDisplayValue('Saved title')).toBeTruthy();
-    expect(screen.getByTestId('editor').value).toBe('<p>Saved body</p>');
+    expect((await screen.findByTestId('editor')).value).toBe('<p>Saved body</p>');
   });
 
-  it('keeps unsaved edits when the parent re-renders with the same review', () => {
+  it('keeps unsaved edits when the parent re-renders with the same review', async () => {
     const { rerender } = renderModal({ review: reviewA, startInEdit: true });
     fireEvent.change(screen.getByDisplayValue('First take'), { target: { value: 'Typed title' } });
-    fireEvent.change(screen.getByTestId('editor'), { target: { value: '<p>typed</p>' } });
+    fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>typed</p>' } });
 
     rerender({ review: reviewA, startInEdit: true, saving: true });
 
@@ -52,13 +52,13 @@ describe('ReviewReaderModal keeps its draft in step with the review prop', () =>
     expect(screen.getByTestId('editor').value).toBe('<p>typed</p>');
   });
 
-  it('loads a different review into the draft', () => {
+  it('loads a different review into the draft', async () => {
     const { rerender } = renderModal({ review: reviewA, startInEdit: true });
     fireEvent.change(screen.getByDisplayValue('First take'), { target: { value: 'Typed title' } });
 
     rerender({ review: { id: 2, title: 'Other', content: '<p>Other body</p>', bookTitle: 'B' }, startInEdit: true });
 
     expect(screen.getByDisplayValue('Other')).toBeTruthy();
-    expect(screen.getByTestId('editor').value).toBe('<p>Other body</p>');
+    expect((await screen.findByTestId('editor')).value).toBe('<p>Other body</p>');
   });
 });

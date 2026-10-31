@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Modal from './Modal';
-import RichTextEditor from './RichTextEditor';
+import LazyRichTextEditor from './LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
 import ExplanationHtml from './explanation/ExplanationHtml';
 import ExplanationFooter from './explanation/ExplanationFooter';
@@ -135,7 +135,7 @@ export default function ChapterExplanationModal({
         className={`review-reader-body ${editing ? 'is-editing' : ''}`}
       >
         {editing ? (
-          <RichTextEditor
+          <LazyRichTextEditor
             value={draft}
             onChange={setDraft}
             placeholder="Paste or write the chapter explanation… Markdown paste supported."

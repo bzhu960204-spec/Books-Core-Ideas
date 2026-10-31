@@ -4,6 +4,9 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.jsx'
 import { createQueryClient } from './queries'
+import { installChunkReload } from './chunkReload'
+
+installChunkReload()
 
 const queryClient = createQueryClient()
 

@@ -37,6 +37,7 @@
 - **修复缺陷**：附回归测试，并**先证明不带修复时测试会失败**。做法：先写测试并运行，或临时撤掉修复再运行。
 - **行为不变的重构**：写特征测试，要求**改动前后都通过**。
 - **查询次数类问题**（N+1、多余加载）：用 Hibernate statistics 断言，测试 profile 已开启 `generate_statistics`。参见 `ChapterApiTest`、`ChapterExplanationLoadingTest`。
+- **懒加载的组件和页面**（FE-04）：首次出现时是异步的，测试中用 `findBy…`，不要用 `getBy…`；否则测试会依赖"前面的测试已加载过这个模块"。整页的首次加载给 5 秒左右的超时。可以用 `npx.cmd vitest run --sequence.shuffle` 检查测试之间是否有顺序依赖。
 - 命令：
   - 后端：`cd backend; mvn test`
   - 前端：`cd frontend; npm.cmd test; npm.cmd run lint; npm.cmd run build`（lint 有任何警告都会失败，CI 中会阻断）

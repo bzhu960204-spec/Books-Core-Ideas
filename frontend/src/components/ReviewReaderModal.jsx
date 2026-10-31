@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
-import RichTextEditor from './RichTextEditor';
+import LazyRichTextEditor from './LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
 
 export default function ReviewReaderModal({
@@ -85,7 +85,7 @@ export default function ReviewReaderModal({
 
       <div className={`review-reader-body ${editing ? 'is-editing' : ''}`}>
         {editing ? (
-          <RichTextEditor
+          <LazyRichTextEditor
             value={draft}
             onChange={setDraft}
             fill

@@ -4,7 +4,7 @@ import { reviewApi } from '../api';
 import { useBooks, useRefresh, useReviews } from '../queries';
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
-import RichTextEditor from '../components/RichTextEditor';
+import LazyRichTextEditor from '../components/LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
 import ReviewReaderModal from '../components/ReviewReaderModal';
 
@@ -147,7 +147,7 @@ export default function ReviewBankPage() {
             value={newTitle}
             onChange={e => setNewTitle(e.target.value)}
           />
-          <RichTextEditor
+          <LazyRichTextEditor
             value={newDraft}
             onChange={setNewDraft}
             placeholder="Write your reading review…"

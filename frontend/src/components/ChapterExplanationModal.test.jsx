@@ -29,24 +29,24 @@ function renderModal(props) {
 }
 
 describe('ChapterExplanationModal keeps its draft in step with the explanation prop', () => {
-  it('starts in edit mode with an empty draft when there is no explanation yet', () => {
+  it('starts in edit mode with an empty draft when there is no explanation yet', async () => {
     renderModal({ explanation: null });
-    expect(screen.getByTestId('editor').value).toBe('');
+    expect((await screen.findByTestId('editor')).value).toBe('');
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
   });
 
-  it('opens an existing explanation for reading with the draft preloaded', () => {
+  it('opens an existing explanation for reading with the draft preloaded', async () => {
     renderModal({ explanation: { content: '<p>Existing</p>' } });
     expect(screen.queryByTestId('editor')).toBeNull();
     expect(screen.getByText('Existing')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
-    expect(screen.getByTestId('editor').value).toBe('<p>Existing</p>');
+    expect((await screen.findByTestId('editor')).value).toBe('<p>Existing</p>');
   });
 
-  it('shows the saved explanation in reading mode once the parent passes it back', () => {
+  it('shows the saved explanation in reading mode once the parent passes it back', async () => {
     const { rerender } = renderModal({ explanation: null });
-    fireEvent.change(screen.getByTestId('editor'), { target: { value: '<p>Typed</p>' } });
+    fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>Typed</p>' } });
 
     rerender({ explanation: { content: '<p>Saved</p>' } });
 
@@ -54,10 +54,10 @@ describe('ChapterExplanationModal keeps its draft in step with the explanation p
     expect(screen.getByText('Saved')).toBeTruthy();
   });
 
-  it('keeps unsaved edits when the parent re-renders with the same explanation', () => {
+  it('keeps unsaved edits when the parent re-renders with the same explanation', async () => {
     const explanation = { content: '<p>Existing</p>' };
     const { rerender } = renderModal({ explanation, startInEdit: true });
-    fireEvent.change(screen.getByTestId('editor'), { target: { value: '<p>Typed</p>' } });
+    fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>Typed</p>' } });
 
     rerender({ explanation, startInEdit: true, saving: true });
 
@@ -199,12 +199,12 @@ describe('ChapterExplanationModal reading controls', () => {
     renderModal({ explanation: { content: '<p>Existing</p>' }, onSave });
 
     fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
-    fireEvent.change(screen.getByTestId('editor'), { target: { value: '<p>Typed</p>' } });
+    fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>Typed</p>' } });
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByText('Existing')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
-    expect(screen.getByTestId('editor').value).toBe('<p>Typed</p>');
+    expect((await screen.findByTestId('editor')).value).toBe('<p>Typed</p>');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({ content: '<p>Typed</p>' });
     await waitFor(() => expect(screen.queryByTestId('editor')).toBeNull());
@@ -291,7 +291,7 @@ describe('ChapterExplanationModal saved passages', () => {
 
   it('offers nothing while editing', async () => {
     renderModal({ explanation: { content: TEXT }, startInEdit: true });
-    expect(screen.getByTestId('editor')).toBeTruthy();
+    expect(await screen.findByTestId('editor')).toBeTruthy();
     document.dispatchEvent(new Event('selectionchange'));
     await new Promise(resolve => setTimeout(resolve, 200));
     expect(screen.queryByRole('button', { name: '📑 Save passage' })).toBeNull();

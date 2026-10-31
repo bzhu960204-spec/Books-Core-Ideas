@@ -342,6 +342,7 @@ describe('parts', () => {
     renderBook(partsBookDetail(1, 'Book One'));
 
     fireEvent.click(await screen.findByRole('button', { name: '📄 Export Explanations' }));
+    await screen.findByRole('heading', { name: 'Export Explanations' }, { timeout: 5000 }); // lazily loaded (FE-04)
     const items = within(dialog('Export Explanations')).getAllByRole('listitem').map(li => li.textContent);
     expect(items).toEqual([
       'Part 1 · Part One1.Book One chapter 1',

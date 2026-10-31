@@ -74,7 +74,7 @@
 | 3.1 | SEC-01 | ✅ DOMPurify 清洗富文本 |
 | 3.2 | FE-03 / FE-08 / BUG-06 | ✅ 聚合接口 + 数据层（TanStack Query）+ 后端 JSON 导入（顺带修复新发现的 BUG-14） |
 | 3.3 | FE-01 | ✅ 拆分 BookDetailPage / RichTextEditor / ChapterExplanationModal / index.css（行为不变；顺带发现 BUG-15、BUG-16） |
-| 3.4 | FE-04 | 路由与重组件懒加载 |
+| 3.4 | FE-04 | ✅ 路由与重组件懒加载（首屏 JS 1,249→311 KB；顺带修复懒加载后编辑器被提前销毁的问题） |
 | 3.5 | FE-05 | Toast、ErrorBoundary、404 |
 
 ### 阶段 4 · 加固与收尾
@@ -121,7 +121,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | FE-01 | P1 | 拆分超大组件/样式 | 3 | ✅ | 3 个组件拆成 hook + 子组件（1049→483、1029→144、531→175 行），index.css 按原顺序切成 22 个文件；特征测试先行（前端 52→119）；构建 CSS 逐字节相同；5 主题 × 18 场景新旧版本 DOM 与截图逐像素相同 |
 | FE-02 | P1 | ESLint 清零 | 1 | ✅ | 0 error / 0 warning，CI 阻断；9 处加载 effect 的 disable 已随 FE-03 删除 |
 | FE-03 | P1 | 数据获取 N+1 / 缓存 | 3 | ✅ | 聚合接口 `GET /books/{id}/detail`（语句数固定）+ TanStack Query（共享缓存、写后全部失效、请求取消）；详情页 70+ 请求 → 1；9 处 eslint-disable 已删除 |
-| FE-04 | P2 | 代码分割 | 3 | ⬜ | |
+| FE-04 | P2 | 代码分割 | 3 | ✅ | 6 个页面 + 编辑器 + 导出/迁移弹窗懒加载；首屏 JS 1,249→311 KB（gzip 380→97），CSS 不变；旧 chunk 失效时自动刷新一次；TipTap 改为挂载后创建（懒加载后会被提前销毁）；开发模式新旧对比 122 屏相同 |
 | FE-05 | P2 | 错误处理与反馈 | 3 | ⬜ | |
 | FE-06 | P1 | jszip 依赖归位 | 0 | ✅ | |
 | FE-07 | P3 | api.js 样板 / 类型 | 4 | ⬜ | |
@@ -131,7 +131,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 165 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 126 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 165 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 130 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

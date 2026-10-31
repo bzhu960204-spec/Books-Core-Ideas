@@ -43,6 +43,10 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
   }, [pasteMode]);
 
   const editor = useEditor({
+    // Create the editor when the component mounts, not while rendering: TipTap
+    // destroys an editor that is not mounted within 1 ms of being created, and
+    // React may commit a lazily loaded component later than that (FE-04).
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { bookApi, chapterApi, partApi, ideaApi, excerptApi, explanationApi } from '../api';
 import { useRefresh } from '../queries';
@@ -11,7 +11,6 @@ import ChapterImageViewer from '../components/ChapterImageViewer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ChapterExplanationModal from '../components/ChapterExplanationModal';
 import ExplanationMarksPanel from '../components/ExplanationMarksPanel';
-import ExplanationExportModal from '../components/ExplanationExportModal';
 import BookHeader from './bookDetail/BookHeader';
 import ChapterCard from './bookDetail/ChapterCard';
 import PartList from './bookDetail/PartList';
@@ -20,6 +19,9 @@ import { explanationExportChapters } from './bookDetail/explanationExport';
 import { useBookDetailData } from './bookDetail/useBookDetailData';
 import { useChapterDrag } from './bookDetail/useChapterDrag';
 import { useExplanationReader } from './bookDetail/useExplanationReader';
+
+// Bundles jszip; loaded when "Export Explanations" is first opened (FE-04).
+const ExplanationExportModal = lazy(() => import('../components/ExplanationExportModal'));
 
 // The book page: header, the book's parts / chapters / ideas, and every dialog
 // opened from them. The page owns which dialog is open and the writes; the
@@ -462,13 +464,15 @@ export default function BookDetailPage() {
       )}
 
       {showExplanationExport && (
-        <ExplanationExportModal
-          chapters={explanationExportChapters(chapters, parts, isParts)}
-          totalChapters={chapters.length}
-          bookTitle={book.title}
-          fetchContent={(chapterId) => explanationApi.get(chapterId)}
-          onClose={() => setShowExplanationExport(false)}
-        />
+        <Suspense fallback={null}>
+          <ExplanationExportModal
+            chapters={explanationExportChapters(chapters, parts, isParts)}
+            totalChapters={chapters.length}
+            bookTitle={book.title}
+            fetchContent={(chapterId) => explanationApi.get(chapterId)}
+            onClose={() => setShowExplanationExport(false)}
+          />
+        </Suspense>
       )}
 
       {deleteTarget && (
