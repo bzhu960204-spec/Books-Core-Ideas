@@ -52,7 +52,15 @@ export default function ChapterExplanationModal({
 }) {
   const hasContent = !!(explanation && explanation.content && explanation.content.trim());
   const [editing, setEditing] = useState(startInEdit || !hasContent);
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(() => normalizeReviewContent(explanation?.content));
+  // Reset the draft and mode whenever the parent passes a new explanation (e.g.
+  // the saved one) or entry mode, adjusting state during render rather than in an effect.
+  const [syncedProps, setSyncedProps] = useState({ explanation, startInEdit });
+  if (syncedProps.explanation !== explanation || syncedProps.startInEdit !== startInEdit) {
+    setSyncedProps({ explanation, startInEdit });
+    setDraft(normalizeReviewContent(explanation?.content));
+    setEditing(startInEdit || !hasContent);
+  }
   const [fullscreen, setFullscreen] = useState(false);
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
   const [selection, setSelection] = useState(null); // { anchor, range }
@@ -80,12 +88,6 @@ export default function ChapterExplanationModal({
     () => normalizeReviewContent(explanation?.content),
     [explanation?.content],
   );
-
-  useEffect(() => {
-    setDraft(normalizeReviewContent(explanation?.content));
-    setEditing(startInEdit || !hasContent);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [explanation, startInEdit]);
 
   useEffect(() => {
     try { localStorage.setItem(FONT_KEY, String(fontScale)); } catch { /* ignore */ }

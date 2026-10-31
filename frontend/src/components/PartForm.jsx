@@ -1,22 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Modal from './Modal';
 
+// The parent mounts a fresh form per part (keyed by id), so props only seed state.
 export default function PartForm({ part, onSave, onClose }) {
-  const [form, setForm] = useState({
-    title: '',
-    orderIndex: 1,
-    summary: '',
-  });
-
-  useEffect(() => {
-    if (part) {
-      setForm({
-        title: part.title || '',
-        orderIndex: part.orderIndex || 1,
-        summary: part.summary || '',
-      });
-    }
-  }, [part]);
+  const [form, setForm] = useState(() => ({
+    title: part?.title || '',
+    orderIndex: part?.orderIndex || 1,
+    summary: part?.summary || '',
+  }));
 
   const handleSubmit = (e) => {
     e.preventDefault();

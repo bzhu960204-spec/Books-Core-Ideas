@@ -424,6 +424,7 @@ export default function LibraryPage() {
 
       {showForm && (
         <BookForm
+          key={editBook?.id ?? 'new'}
           book={editBook}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditBook(null); }}

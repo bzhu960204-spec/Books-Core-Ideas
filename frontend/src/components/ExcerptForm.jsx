@@ -1,24 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Modal from './Modal';
 
+// The parent mounts a fresh form per excerpt (keyed by id), so props only seed state.
 export default function ExcerptForm({ excerpt, onSave, onClose }) {
-  const [form, setForm] = useState({
-    content: '',
-    note: '',
-    source: '',
-    orderIndex: 1,
-  });
-
-  useEffect(() => {
-    if (excerpt) {
-      setForm({
-        content: excerpt.content || '',
-        note: excerpt.note || '',
-        source: excerpt.source || '',
-        orderIndex: excerpt.orderIndex || 1,
-      });
-    }
-  }, [excerpt]);
+  const [form, setForm] = useState(() => ({
+    content: excerpt?.content || '',
+    note: excerpt?.note || '',
+    source: excerpt?.source || '',
+    orderIndex: excerpt?.orderIndex || 1,
+  }));
 
   const handleSubmit = (e) => {
     e.preventDefault();

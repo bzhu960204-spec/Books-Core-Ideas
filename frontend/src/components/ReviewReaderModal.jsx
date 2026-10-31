@@ -13,16 +13,21 @@ export default function ReviewReaderModal({
   saving = false,
 }) {
   const [editing, setEditing] = useState(startInEdit);
-  const [draft, setDraft] = useState('');
-  const [draftTitle, setDraftTitle] = useState('');
+  const [draft, setDraft] = useState(() => normalizeReviewContent(review?.content));
+  const [draftTitle, setDraftTitle] = useState(review?.title || '');
   const [fullscreen, setFullscreen] = useState(false);
 
-  useEffect(() => {
-    if (!review) return;
-    setDraft(normalizeReviewContent(review.content));
-    setDraftTitle(review.title || '');
-    setEditing(startInEdit);
-  }, [review, startInEdit]);
+  // Reset the draft and mode whenever the parent passes a new review (e.g. the
+  // saved one) or entry mode, adjusting state during render rather than in an effect.
+  const [syncedProps, setSyncedProps] = useState({ review, startInEdit });
+  if (syncedProps.review !== review || syncedProps.startInEdit !== startInEdit) {
+    setSyncedProps({ review, startInEdit });
+    if (review) {
+      setDraft(normalizeReviewContent(review.content));
+      setDraftTitle(review.title || '');
+      setEditing(startInEdit);
+    }
+  }
 
   // While in fullscreen, intercept Esc so it exits fullscreen first instead
   // of closing the modal entirely.

@@ -2,18 +2,25 @@ import { useState, useEffect } from 'react';
 import { bookApi } from '../api';
 import Modal from './Modal';
 
+function formFromBook(book) {
+  return {
+    title: book?.title || '',
+    author: book?.author || '',
+    isbn: book?.isbn || '',
+    description: book?.description || '',
+    coverUrl: book?.coverUrl || '',
+    categories: book?.category
+      ? book.category.split(';').map(c => c.trim()).filter(c => c)
+      : [],
+    readingStatus: book?.readingStatus || '',
+    chapterImagesEnabled: book?.chapterImagesEnabled || false,
+    structureType: book?.structureType || 'CHAPTERS',
+  };
+}
+
+// The parent mounts a fresh form per book (keyed by id), so props only seed state.
 export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
-  const [form, setForm] = useState({
-    title: '',
-    author: '',
-    isbn: '',
-    description: '',
-    coverUrl: '',
-    categories: [],
-    readingStatus: '',
-    chapterImagesEnabled: false,
-    structureType: 'CHAPTERS',
-  });
+  const [form, setForm] = useState(() => formFromBook(book));
   const [categoryInput, setCategoryInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [fetchingCover, setFetchingCover] = useState(false);
@@ -24,25 +31,6 @@ export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
   useEffect(() => {
     bookApi.getCategories().then(setAllCategories).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (book) {
-      const categories = book.category 
-        ? book.category.split(';').map(c => c.trim()).filter(c => c)
-        : [];
-      setForm({
-        title: book.title || '',
-        author: book.author || '',
-        isbn: book.isbn || '',
-        description: book.description || '',
-        coverUrl: book.coverUrl || '',
-        categories: categories,
-        readingStatus: book.readingStatus || '',
-        chapterImagesEnabled: book.chapterImagesEnabled || false,
-        structureType: book.structureType || 'CHAPTERS',
-      });
-    }
-  }, [book]);
 
   const handleCategoryInputChange = (value) => {
     setCategoryInput(value);

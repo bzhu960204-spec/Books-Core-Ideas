@@ -37,7 +37,11 @@ export default function ExcerptReader({ excerpts, startIndex = 0, chapterTitle, 
   }, [onClose, goPrev, goNext]);
 
   // Reset menu when switching excerpts
-  useEffect(() => { setShowMenu(false); }, [idx]);
+  const [menuIdx, setMenuIdx] = useState(idx);
+  if (menuIdx !== idx) {
+    setMenuIdx(idx);
+    setShowMenu(false);
+  }
 
   if (!ex) return null;
 

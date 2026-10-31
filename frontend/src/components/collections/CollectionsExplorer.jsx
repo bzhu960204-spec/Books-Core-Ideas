@@ -91,7 +91,12 @@ export default function CollectionsExplorer() {
     };
   }, [breadcrumb]);
 
-  useEffect(() => { setCrumbMenuOpen(false); }, [selectedId]);
+  // Close the breadcrumb overflow menu whenever the selected folder changes.
+  const [crumbMenuFor, setCrumbMenuFor] = useState(selectedId);
+  if (crumbMenuFor !== selectedId) {
+    setCrumbMenuFor(selectedId);
+    setCrumbMenuOpen(false);
+  }
 
   const toggleExpand = (id) =>
     setExpanded(prev => {

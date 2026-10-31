@@ -1,24 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Modal from './Modal';
 
+// The parent mounts a fresh form per idea (keyed by id), so props only seed state.
 export default function IdeaForm({ idea, onSave, onClose }) {
-  const [form, setForm] = useState({
-    content: '',
-    example: '',
-    tags: '',
-    orderIndex: 1,
-  });
-
-  useEffect(() => {
-    if (idea) {
-      setForm({
-        content: idea.content || '',
-        example: idea.example || '',
-        tags: idea.tags || '',
-        orderIndex: idea.orderIndex || 1,
-      });
-    }
-  }, [idea]);
+  const [form, setForm] = useState(() => ({
+    content: idea?.content || '',
+    example: idea?.example || '',
+    tags: idea?.tags || '',
+    orderIndex: idea?.orderIndex || 1,
+  }));
 
   const handleSubmit = (e) => {
     e.preventDefault();

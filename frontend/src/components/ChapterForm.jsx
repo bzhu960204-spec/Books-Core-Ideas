@@ -1,22 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Modal from './Modal';
 
+// The parent mounts a fresh form per chapter (keyed by id), so props only seed state.
 export default function ChapterForm({ chapter, onSave, onClose }) {
-  const [form, setForm] = useState({
-    title: '',
-    orderIndex: 1,
-    summary: '',
-  });
-
-  useEffect(() => {
-    if (chapter) {
-      setForm({
-        title: chapter.title || '',
-        orderIndex: chapter.orderIndex || 1,
-        summary: chapter.summary || '',
-      });
-    }
-  }, [chapter]);
+  const [form, setForm] = useState(() => ({
+    title: chapter?.title || '',
+    orderIndex: chapter?.orderIndex || 1,
+    summary: chapter?.summary || '',
+  }));
 
   const handleSubmit = (e) => {
     e.preventDefault();

@@ -1138,6 +1138,7 @@ export default function BookDetailPage() {
 
       {(showExcerptForm || editExcerpt) && (
         <ExcerptForm
+          key={editExcerpt?.id ?? 'new'}
           excerpt={editExcerpt}
           onSave={handleSaveExcerpt}
           onClose={() => { setShowExcerptForm(null); setEditExcerpt(null); }}
@@ -1183,6 +1184,7 @@ export default function BookDetailPage() {
 
       {showChapterForm && (
         <ChapterForm
+          key={editChapter?.id ?? 'new'}
           chapter={editChapter}
           onSave={handleSaveChapter}
           onClose={() => { setShowChapterForm(false); setEditChapter(null); setAddChapterPartId(null); }}
@@ -1191,6 +1193,7 @@ export default function BookDetailPage() {
 
       {showPartForm && (
         <PartForm
+          key={editPart?.id ?? 'new'}
           part={editPart}
           onSave={handleSavePart}
           onClose={() => { setShowPartForm(false); setEditPart(null); }}
@@ -1199,6 +1202,7 @@ export default function BookDetailPage() {
 
       {(showIdeaForm || editIdea) && (
         <IdeaForm
+          key={editIdea?.id ?? 'new'}
           idea={editIdea}
           onSave={handleSaveIdea}
           onClose={() => { setShowIdeaForm(null); setEditIdea(null); }}
