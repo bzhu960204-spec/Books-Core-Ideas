@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { chapterImageApi } from '../api';
 import { useChapterImages, useRefresh } from '../queries';
+import ConfirmDialog from './ConfirmDialog';
+import { attempt, reportError } from './feedback/toast';
 
 const NO_IMAGES = [];
 
@@ -23,6 +25,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
   const [storedIdx, setIdx] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null); // the image to delete
   const fileInputRef = useRef(null);
 
   // Clamp against the current list (e.g. after deleting the last image).
@@ -38,15 +41,17 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
       await refresh();
       // Switch to browse mode after upload
       setMode('browse');
-    } catch (e) {
-      console.error('Upload failed', e);
+    } catch (err) {
+      reportError('Could not upload the images', err);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDelete = async (imageId) => {
-    await chapterImageApi.delete(chapterId, imageId);
+  const handleDelete = async () => {
+    const imageId = confirmDelete.id;
+    if (!await attempt('Could not delete the image', () => chapterImageApi.delete(chapterId, imageId))) return;
+    setConfirmDelete(null);
     await refresh();
   };
 
@@ -70,6 +75,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
   const goNext = useCallback(() => { if (idx < images.length - 1) setIdx(i => i + 1); }, [idx, images.length]);
 
   useEffect(() => {
+    if (confirmDelete) return undefined; // keys belong to the confirmation
     const handler = (e) => {
       if (e.key === 'Escape') onClose();
       if (mode === 'browse') {
@@ -79,7 +85,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose, goPrev, goNext, mode]);
+  }, [onClose, goPrev, goNext, mode, confirmDelete]);
 
   const currentImage = images[idx];
 
@@ -166,7 +172,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
                     <button
                       className="btn-icon"
                       title="Delete image"
-                      onClick={() => handleDelete(currentImage.id)}
+                      onClick={() => setConfirmDelete(currentImage)}
                       style={{ color: 'var(--danger)', fontSize: '0.9rem' }}
                     >🗑️</button>
                   </div>
@@ -191,6 +197,14 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
               disabled={!hasNext}
             >Next →</button>
           </div>
+        )}
+
+        {confirmDelete && (
+          <ConfirmDialog
+            message={`Delete the image "${confirmDelete.originalName}"? This cannot be undone.`}
+            onConfirm={handleDelete}
+            onClose={() => setConfirmDelete(null)}
+          />
         )}
       </div>
     </div>,

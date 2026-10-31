@@ -13,8 +13,10 @@ const notFound = (path) =>
  * responses: the detail endpoint and every fine-grained endpoint it replaces, so the
  * same test runs against code that uses either. Records every request as "METHOD path"
  * and the bodies of writes. `delay(path)` may return a promise to hold a response back.
+ * `fail(method, path)` may return a status to answer with a ProblemDetail error instead,
+ * or 'network' to fail as fetch does when the server is down.
  */
-export function installFakeBackend({ details = [], ideas = [], delay = () => null } = {}) {
+export function installFakeBackend({ details = [], ideas = [], delay = () => null, fail = () => null } = {}) {
   const requests = [];
   const writes = []; // { method, path, body } of every non-GET request
   let nextId = 9000;
@@ -84,6 +86,13 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
     if (method !== 'GET') writes.push({ method, path: parsed.pathname, body });
     const hold = delay(parsed.pathname);
     if (hold) await hold;
+    const failure = fail(method, parsed.pathname);
+    if (failure === 'network') throw new TypeError('Failed to fetch');
+    if (failure) {
+      return new Response(JSON.stringify({ status: failure, detail: `Failed: ${method} ${parsed.pathname}` }), {
+        status: failure, headers: { 'Content-Type': 'application/problem+json' },
+      });
+    }
     return route(method, parsed.pathname, parsed.searchParams, body);
   });
   vi.stubGlobal('fetch', fetchMock);

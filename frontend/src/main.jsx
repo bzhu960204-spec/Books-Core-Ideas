@@ -5,8 +5,10 @@ import './index.css'
 import App from './App.jsx'
 import { createQueryClient } from './queries'
 import { installChunkReload } from './chunkReload'
+import { reportUnhandledRejections } from './components/feedback/toast'
 
 installChunkReload()
+reportUnhandledRejections()
 
 const queryClient = createQueryClient()
 

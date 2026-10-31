@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { bookCollectionApi } from '../../api';
 import { useBooks } from '../../queries';
+import { reportError } from '../feedback/toast';
 
 /** Sentinel key for books that have no author. */
 const UNASSIGNED = '\u0000unassigned';
@@ -71,8 +72,7 @@ export default function PickBooksModal({ folderId, existingIds, onClose, onAdded
       onAdded();
       onClose();
     } catch (err) {
-      console.error('Failed to add books:', err);
-      alert('Operation failed, please try again.');
+      reportError('Could not add the books', err);
     } finally {
       setSaving(false);
     }

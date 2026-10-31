@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { bookmarkApi, explanationApi, markApi } from '../../api';
+import { attempt, reportError } from '../../components/feedback/toast';
 
 // State of the explanation reader for a loaded explanation (null = none yet).
 function readerState(chapterId, data, startInEdit = false, initialScrollRatio = null, initialAnchor = null) {
@@ -37,6 +38,8 @@ export function useExplanationReader({ updateDetail, updateChapter, refresh, dee
       .then(data => setModal(readerState(deepLink.chapterId, data, false, deepLink.scrollRatio ?? 0)));
   }, [bookLoaded, deepLink]);
 
+  // Save and bookmark failures are reported here and rethrown, so the reader
+  // stays in edit mode / doesn't show "✓ Saved".
   const save = async ({ content }) => {
     if (!modal) return;
     const chapterId = modal.chapterId;
@@ -47,6 +50,9 @@ export function useExplanationReader({ updateDetail, updateChapter, refresh, dee
       // Clear startInEdit so the reader switches to view mode after the first save.
       setModal(m => (m ? { ...m, data: saved, startInEdit: false } : m));
       refresh();
+    } catch (err) {
+      reportError('Could not save the explanation', err);
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -55,7 +61,7 @@ export function useExplanationReader({ updateDetail, updateChapter, refresh, dee
   const remove = async () => {
     if (!modal) return;
     const chapterId = modal.chapterId;
-    await explanationApi.delete(chapterId);
+    if (!await attempt('Could not delete the explanation', () => explanationApi.delete(chapterId))) return;
     updateDetail(d => ({ ...d, marks: d.marks.filter(m => m.chapterId !== chapterId) }));
     updateChapter(chapterId, c => ({ ...c, hasExplanation: false }));
     setModal(null);
@@ -71,6 +77,9 @@ export function useExplanationReader({ updateDetail, updateChapter, refresh, dee
       const saved = await bookmarkApi.create(chapterId, { scrollRatio });
       updateDetail(d => ({ ...d, bookmarks: [saved, ...d.bookmarks] }));
       refresh();
+    } catch (err) {
+      reportError('Could not save the bookmark', err);
+      throw err;
     } finally {
       setBookmarking(false);
     }

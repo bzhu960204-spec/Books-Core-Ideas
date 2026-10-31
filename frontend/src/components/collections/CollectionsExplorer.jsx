@@ -6,6 +6,8 @@ import { queryKeys, useCollectionBooks, useCollections, useRefresh } from '../..
 import CollectionTree, { BOOK_DND_TYPE, BOOK_SOURCE_DND_TYPE } from './CollectionTree';
 import { buildFolderTree } from './folderTree';
 import PickBooksModal from './PickBooksModal';
+import ConfirmDialog from '../ConfirmDialog';
+import { attempt, reportError } from '../feedback/toast';
 
 const NONE = [];
 
@@ -23,6 +25,7 @@ export default function CollectionsExplorer() {
   const books = (selectedId != null && booksQuery.data) || NONE;
   const loadingBooks = selectedId != null && booksQuery.isPending;
   const [dialog, setDialog] = useState(null); // { mode, parentId, targetId, value }
+  const [confirmDeleteFolder, setConfirmDeleteFolder] = useState(null);
   const [showPicker, setShowPicker] = useState(false);
   const [brokenCovers, setBrokenCovers] = useState(() => new Set());
   const [crumbMenuOpen, setCrumbMenuOpen] = useState(false);
@@ -91,8 +94,9 @@ export default function CollectionsExplorer() {
     if (!dialog) return;
     const name = dialog.value.trim();
     if (!name) return;
+    const rename = dialog.mode === 'rename' && dialog.targetId != null;
     try {
-      if (dialog.mode === 'rename' && dialog.targetId != null) {
+      if (rename) {
         await bookCollectionApi.rename(dialog.targetId, name);
       } else {
         const created = await bookCollectionApi.create(name, dialog.parentId);
@@ -104,21 +108,16 @@ export default function CollectionsExplorer() {
       setDialog(null);
       await refresh();
     } catch (err) {
-      console.error('Folder operation failed:', err);
-      alert('Operation failed, please try again.');
+      reportError(rename ? 'Could not rename the collection' : 'Could not create the collection', err);
     }
   };
 
-  const deleteFolder = async (folder) => {
-    if (!window.confirm(`Delete collection “${folder.name}” and all its sub-folders?\n(Books are not deleted, only un-filed.)`)) return;
-    try {
-      await bookCollectionApi.remove(folder.id);
-      if (selectedId === folder.id) setSelectedId(null);
-      await refresh();
-    } catch (err) {
-      console.error('Failed to delete folder:', err);
-      alert('Delete failed, please try again.');
-    }
+  const deleteFolder = async () => {
+    const folder = confirmDeleteFolder;
+    if (!await attempt('Could not delete the collection', () => bookCollectionApi.remove(folder.id))) return;
+    setConfirmDeleteFolder(null);
+    if (selectedId === folder.id) setSelectedId(null);
+    await refresh();
   };
 
   const dropBookIntoFolder = async (bookId, folderId, sourceFolderId) => {
@@ -129,10 +128,10 @@ export default function CollectionsExplorer() {
       if (sourceFolderId != null && sourceFolderId !== folderId) {
         await bookCollectionApi.removeBook(sourceFolderId, bookId);
       }
-      await refresh();
     } catch (err) {
-      console.error('Failed to move book to folder:', err);
+      reportError('Could not move the book to the collection', err);
     }
+    await refresh(); // also after a failure: a move may have half happened
   };
 
   const removeBookFromFolder = async (bookId) => {
@@ -143,7 +142,7 @@ export default function CollectionsExplorer() {
         list => list?.filter(b => b.id !== bookId));
       refresh();
     } catch (err) {
-      console.error('Failed to remove book:', err);
+      reportError('Could not remove the book from the collection', err);
     }
   };
 
@@ -154,8 +153,7 @@ export default function CollectionsExplorer() {
       if (targetId != null) setExpanded(prev => new Set(prev).add(targetId));
       await refresh();
     } catch (err) {
-      console.error('Failed to move folder:', err);
-      alert('Operation failed, please try again.');
+      reportError('Could not move the collection', err);
     }
   };
 
@@ -192,7 +190,7 @@ export default function CollectionsExplorer() {
               onToggleExpand={toggleExpand}
               onAddChild={parentId => setDialog({ mode: 'create-child', parentId, targetId: null, value: '' })}
               onRename={folder => setDialog({ mode: 'rename', parentId: null, targetId: folder.id, value: folder.name })}
-              onDelete={deleteFolder}
+              onDelete={setConfirmDeleteFolder}
               onDropBook={dropBookIntoFolder}
               onDropFolder={dropFolderIntoFolder}
             />
@@ -367,6 +365,14 @@ export default function CollectionsExplorer() {
           existingIds={new Set(books.map(b => b.id))}
           onClose={() => setShowPicker(false)}
           onAdded={refresh}
+        />
+      )}
+
+      {confirmDeleteFolder && (
+        <ConfirmDialog
+          message={`Delete collection “${confirmDeleteFolder.name}” and all its sub-folders? Books are not deleted, only un-filed.`}
+          onConfirm={deleteFolder}
+          onClose={() => setConfirmDeleteFolder(null)}
         />
       )}
     </div>

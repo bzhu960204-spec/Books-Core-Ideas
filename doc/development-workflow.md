@@ -37,7 +37,8 @@
 - **修复缺陷**：附回归测试，并**先证明不带修复时测试会失败**。做法：先写测试并运行，或临时撤掉修复再运行。
 - **行为不变的重构**：写特征测试，要求**改动前后都通过**。
 - **查询次数类问题**（N+1、多余加载）：用 Hibernate statistics 断言，测试 profile 已开启 `generate_statistics`。参见 `ChapterApiTest`、`ChapterExplanationLoadingTest`。
-- **懒加载的组件和页面**（FE-04）：首次出现时是异步的，测试中用 `findBy…`，不要用 `getBy…`；否则测试会依赖"前面的测试已加载过这个模块"。整页的首次加载给 5 秒左右的超时。可以用 `npx.cmd vitest run --sequence.shuffle` 检查测试之间是否有顺序依赖。
+- **懒加载的组件和页面**（FE-04）：首次出现时是异步的，测试中用 `findBy…`，不要用 `getBy…`；否则测试会依赖"前面的测试已加载过这个模块"。整页的首次加载给 5 秒左右的超时，但它不能超过测试本身的超时（默认也是 5 秒）：需要更长时（如 `App.test.jsx` 中 10 秒），用 `vi.setConfig({ testTimeout })` 一并放宽。可以用 `npx.cmd vitest run --sequence.shuffle` 检查测试之间是否有顺序依赖。
+- **失败场景**（FE-05）：`installFakeBackend({ fail: (method, path) => 500 | 'network' | null })` 让指定请求返回 ProblemDetail 错误或网络失败。要断言 toast，就在被测组件旁一起渲染 `<Toaster />`（toast 用 `role="alert"`），并在 `afterEach` 中调用 `clearToasts()`：toast 存储是模块级状态。
 - 命令：
   - 后端：`cd backend; mvn test`
   - 前端：`cd frontend; npm.cmd test; npm.cmd run lint; npm.cmd run build`（lint 有任何警告都会失败，CI 中会阻断）

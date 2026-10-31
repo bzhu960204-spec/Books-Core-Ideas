@@ -2,6 +2,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import RichTextEditor from './RichTextEditor';
+import Toaster from './feedback/Toaster';
+import { clearToasts, getToasts } from './feedback/toast';
 
 // ProseMirror measures layout when scrolling the selection into view; jsdom has none.
 beforeAll(() => {
@@ -14,6 +16,7 @@ beforeAll(() => {
 
 afterEach(() => {
   cleanup();
+  clearToasts();
   vi.unstubAllGlobals();
 });
 
@@ -158,25 +161,22 @@ describe('RichTextEditor images', () => {
   const file = (name, bytes) => new File([new Uint8Array(bytes)], name, { type: 'image/png' });
 
   it('drops pasted images over 5 MB and says so', async () => {
-    const alert = vi.fn();
-    vi.stubGlobal('alert', alert);
+    render(<Toaster />);
     const { pm } = await renderEditor();
     paste(pm, { html: `<p>x</p><img src="data:image/png;base64,${'A'.repeat(7_000_004)}"><p>y</p>`, text: 'x\ny' });
 
-    expect(alert).toHaveBeenCalledWith('Image is larger than 5 MB and was skipped.');
+    expect(screen.getByRole('status').textContent).toContain('An image larger than 5 MB was skipped.');
     expect(pm.querySelector('img')).toBeNull();
     expect(pm.textContent).toContain('y');
   });
 
   it('inserts pasted image files, skipping those over 5 MB', async () => {
-    const alert = vi.fn();
-    vi.stubGlobal('alert', alert);
     const { pm } = await renderEditor();
     paste(pm, { files: [file('small.png', 8), file('big.png', 5 * 1024 * 1024 + 1)] });
 
     await waitFor(() => expect(pm.querySelectorAll('img')).toHaveLength(1));
     expect(pm.querySelector('img').getAttribute('src')).toMatch(/^data:image\/png;base64,/);
-    expect(alert).toHaveBeenCalledTimes(1);
+    expect(getToasts().map(t => t.message)).toEqual(['An image larger than 5 MB was skipped.']);
   });
 
   it('inserts an image chosen from the toolbar', async () => {

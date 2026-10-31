@@ -1,6 +1,7 @@
 // Transforms of pasted clipboard content (HTML strings, image files). Pure
 // apart from the size notice; used by pasteHandlers and useCodeBlockRepairs.
 import { repairEscapedCodeLines } from './codeRepairs';
+import { showToast } from '../feedback/toast';
 
 // Pasted text keeps its formatting (bold, italic, … also when written as inline
 // styles) but not the source's colour, font size or font: those belong to the
@@ -85,7 +86,7 @@ export function transformCopilotCodeBlocks(html) {
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 function tooLargeNotice() {
-  window.alert('Image is larger than 5 MB and was skipped.');
+  showToast('An image larger than 5 MB was skipped.', 'info');
 }
 
 // Remove inline base64 images over the size limit from pasted HTML.

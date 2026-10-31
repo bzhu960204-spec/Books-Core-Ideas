@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import ChapterImageViewer from './ChapterImageViewer';
+import Toaster from './feedback/Toaster';
+import { clearToasts } from './feedback/toast';
 import { chapterImageApi } from '../api';
 import { createQueryClient } from '../queries';
 
@@ -16,6 +18,7 @@ vi.mock('../api', () => ({
 
 afterEach(() => {
   cleanup();
+  clearToasts();
   vi.clearAllMocks();
 });
 
@@ -24,8 +27,14 @@ const img = (id) => ({ id, originalName: `image-${id}.png` });
 const renderViewer = () => render(
   <QueryClientProvider client={createQueryClient()}>
     <ChapterImageViewer chapterId={7} chapterTitle="Ch" onClose={() => {}} />
+    <Toaster />
   </QueryClientProvider>,
 );
+
+const deleteCurrent = () => {
+  fireEvent.click(screen.getByTitle('Delete image'));
+  fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+};
 
 describe('ChapterImageViewer', () => {
   it('moves back to the new last image after deleting the last one', async () => {
@@ -39,7 +48,7 @@ describe('ChapterImageViewer', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next/ }));
     expect(screen.getByText('3 / 3')).toBeTruthy();
 
-    fireEvent.click(screen.getByTitle('Delete image'));
+    deleteCurrent();
 
     expect(await screen.findByText('image-2.png')).toBeTruthy();
     expect(screen.getByText('2 / 2')).toBeTruthy();
@@ -53,9 +62,47 @@ describe('ChapterImageViewer', () => {
     renderViewer();
 
     await screen.findByText('image-1.png');
-    fireEvent.click(screen.getByTitle('Delete image'));
+    deleteCurrent();
 
     expect(await screen.findByText('image-2.png')).toBeTruthy();
     expect(screen.getByText('1 / 2')).toBeTruthy();
+  });
+
+  // FE-05: deleting asks first, and a failure is reported.
+  it('asks before deleting an image', async () => {
+    chapterImageApi.getAll.mockResolvedValue([img(1)]);
+    renderViewer();
+
+    await screen.findByText('image-1.png');
+    fireEvent.click(screen.getByTitle('Delete image'));
+    expect(screen.getByText('Delete the image "image-1.png"? This cannot be undone.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText(/Delete the image/)).toBeNull();
+    expect(chapterImageApi.delete).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed delete and keeps the confirmation open', async () => {
+    chapterImageApi.getAll.mockResolvedValue([img(1)]);
+    chapterImageApi.delete.mockRejectedValueOnce(new Error('Image not found: 1'));
+    renderViewer();
+
+    await screen.findByText('image-1.png');
+    deleteCurrent();
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Could not delete the image — Image not found: 1');
+    expect(screen.getByText(/Delete the image/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' }).disabled).toBe(false));
+  });
+
+  it('reports a failed upload', async () => {
+    chapterImageApi.getAll.mockResolvedValue([]);
+    chapterImageApi.upload.mockRejectedValueOnce(new Error('Maximum upload size exceeded'));
+    renderViewer();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload Images' }));
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [new File(['x'], 'a.png')] } });
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Could not upload the images — Maximum upload size exceeded');
   });
 });

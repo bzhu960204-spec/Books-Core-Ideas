@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Modal from './Modal';
+import ConfirmDialog from './ConfirmDialog';
 import LazyRichTextEditor from './LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
 import ExplanationHtml from './explanation/ExplanationHtml';
@@ -46,6 +47,7 @@ export default function ChapterExplanationModal({
   }
   const [fullscreen, setFullscreen] = useState(false);
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const bodyRef = useRef(null);
   const contentRef = useRef(null);
   const menuRef = useRef(null);
@@ -85,7 +87,11 @@ export default function ChapterExplanationModal({
   });
 
   const handleSave = async () => {
-    await onSave?.({ content: draft });
+    try {
+      await onSave?.({ content: draft });
+    } catch {
+      return; // reported by the page; keep the draft in the editor
+    }
     setEditing(false);
     setFullscreen(false);
   };
@@ -98,7 +104,11 @@ export default function ChapterExplanationModal({
       const max = el.scrollHeight - el.clientHeight;
       scrollRatio = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0;
     }
-    await onBookmark?.({ scrollRatio });
+    try {
+      await onBookmark?.({ scrollRatio });
+    } catch {
+      return; // reported by the page
+    }
     setBookmarkSaved(true);
     setTimeout(() => setBookmarkSaved(false), 1800);
   };
@@ -166,10 +176,18 @@ export default function ChapterExplanationModal({
         bookmarking={bookmarking}
         bookmarkSaved={bookmarkSaved}
         onBookmark={handleBookmark}
-        onDelete={onDelete}
+        onDelete={() => setConfirmingDelete(true)}
         onClose={onClose}
         onEdit={() => { passages.reset(); setEditing(true); }}
       />
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          message={`Delete the explanation of "${chapterTitle || 'this chapter'}"? Its saved passages are deleted too. This cannot be undone.`}
+          onConfirm={onDelete}
+          onClose={() => setConfirmingDelete(false)}
+        />
+      )}
     </Modal>
   );
 }

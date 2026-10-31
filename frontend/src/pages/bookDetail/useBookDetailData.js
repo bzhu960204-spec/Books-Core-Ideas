@@ -23,6 +23,8 @@ export function useBookDetailData(id) {
 
   return {
     isPending: detailQuery.isPending,
+    error: detailQuery.error,
+    refetch: detailQuery.refetch,
     book,
     chapters,
     parts: book?.structureType === 'PARTS' ? detail.parts : NONE,

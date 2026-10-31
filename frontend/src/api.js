@@ -2,6 +2,8 @@
 // (see vite.config.js). VITE_API_BASE can still point at an absolute URL.
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
+const SERVER_UNREACHABLE = 'Cannot reach the server. Is the backend running?';
+
 // Builds a readable message from an error response: the backend returns RFC 7807
 // problem JSON ({ title, status, detail }); some endpoints return plain text.
 async function errorMessage(res, fallback) {
@@ -12,11 +14,23 @@ async function errorMessage(res, fallback) {
   } catch {
     // not JSON — use the raw text
   }
+  // The dev server's proxy answers an empty 502 when the backend is down.
+  if (!text && res.status >= 502 && res.status <= 504) return SERVER_UNREACHABLE;
   return text || fallback || `Request failed: ${res.status}`;
 }
 
+// fetch() rejects with a bare TypeError ("Failed to fetch") when the server is unreachable.
+async function send(url, options) {
+  try {
+    return await fetch(url, options);
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    throw new Error(SERVER_UNREACHABLE, { cause: err });
+  }
+}
+
 async function apiFetch(url, options) {
-  const res = await fetch(url, options);
+  const res = await send(url, options);
   if (!res.ok) {
     const error = new Error(await errorMessage(res));
     error.status = res.status;
@@ -204,7 +218,7 @@ export const importApi = {
 export const migrationApi = {
   // Export selected books (or all when bookIds is empty) as a ZIP archive blob.
   exportBooks: async (bookIds) => {
-    const res = await fetch(`${API_BASE}/migration/export`, {
+    const res = await send(`${API_BASE}/migration/export`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookIds: bookIds || [] }),

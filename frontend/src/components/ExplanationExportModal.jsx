@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import JSZip from 'jszip';
 import Modal from './Modal';
+import { reportError, showToast } from './feedback/toast';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 // Export chapter explanations. Unlike a combined document, each selected chapter
@@ -65,7 +66,7 @@ export default function ExplanationExportModal({ chapters, bookTitle, totalChapt
         if (format === 'pdf') {
           const win = window.open('', '_blank', 'width=900,height=700');
           if (!win) {
-            alert('Please allow pop-ups to export as PDF.');
+            showToast('Allow pop-ups for this site to export as PDF.');
             break;
           }
           win.document.write(html);
@@ -76,8 +77,7 @@ export default function ExplanationExportModal({ chapters, bookTitle, totalChapt
       }
       onClose();
     } catch (err) {
-      console.error('Explanation export failed:', err);
-      alert('Failed to export explanations.');
+      reportError('Could not export the explanations', err);
     } finally {
       setExporting(false);
     }

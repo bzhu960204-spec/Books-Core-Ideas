@@ -9,6 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
 import ReadingStatusControl from '../components/ReadingStatusControl';
 import AddToCollectionModal from '../components/collections/AddToCollectionModal';
+import { attempt } from '../components/feedback/toast';
 
 // Opened rarely; kept out of the first screen's bundle (FE-04).
 const BookMigrationModal = lazy(() => import('../components/BookMigrationModal'));
@@ -85,39 +86,34 @@ export default function LibraryPage() {
     queryClient.setQueryData(queryKeys.books, list => list?.map(b => (b.id === bookId ? { ...b, ...change } : b)));
 
   const handleSave = async (form) => {
-    if (editBook) {
-      await bookApi.update(editBook.id, form);
-    } else {
-      await bookApi.create(form);
-    }
+    const saved = await attempt('Could not save the book', () => (editBook
+      ? bookApi.update(editBook.id, form)
+      : bookApi.create(form)));
+    if (!saved) return;
     setShowForm(false);
     setEditBook(null);
     refresh();
   };
 
   const handleDelete = async () => {
-    if (deleteTarget) {
-      await bookApi.delete(deleteTarget.id);
-      setDeleteTarget(null);
-      refresh();
-    }
+    if (!deleteTarget) return;
+    if (!await attempt('Could not delete the book', () => bookApi.delete(deleteTarget.id))) return;
+    setDeleteTarget(null);
+    refresh();
   };
 
   const handleRateBook = async (book, star) => {
     const newRating = book.rating === star ? null : star;
     updateBook(book.id, { rating: newRating });
-    try {
-      await bookApi.update(book.id, { ...book, rating: newRating });
-    } catch { /* refresh() restores the stored rating */ }
+    // On failure refresh() restores the stored rating.
+    await attempt('Could not change the rating', () => bookApi.update(book.id, { ...book, rating: newRating }));
     refresh();
   };
 
   const handleStatusChange = async (book, status) => {
     const newStatus = status || null;
     updateBook(book.id, { readingStatus: newStatus });
-    try {
-      await bookApi.update(book.id, { ...book, readingStatus: newStatus });
-    } catch { /* refresh() restores the stored status */ }
+    await attempt('Could not change the reading status', () => bookApi.update(book.id, { ...book, readingStatus: newStatus }));
     refresh();
   };
 

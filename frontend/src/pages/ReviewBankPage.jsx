@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import LazyRichTextEditor from '../components/LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
 import ReviewReaderModal from '../components/ReviewReaderModal';
+import { attempt, reportError } from '../components/feedback/toast';
 
 const NONE = [];
 
@@ -69,7 +70,9 @@ export default function ReviewBankPage() {
     try {
       await reviewApi.update(review.bookId, review.id, { title, content });
       await refresh();
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      reportError('Could not save the review', err);
+    } finally {
       setSaving(false);
     }
   };
@@ -87,19 +90,19 @@ export default function ReviewBankPage() {
       setNewTitle('');
       setNewDraft('');
       refresh();
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      reportError('Could not save the review', err);
+    } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    try {
-      await reviewApi.delete(confirmDelete.bookId, confirmDelete.id);
-      if (openId === confirmDelete.id) setOpenId(null);
-      setConfirmDelete(null);
-      refresh();
-    } catch { /* ignore */ }
+    if (!await attempt('Could not delete the review', () => reviewApi.delete(confirmDelete.bookId, confirmDelete.id))) return;
+    if (openId === confirmDelete.id) setOpenId(null);
+    setConfirmDelete(null);
+    refresh();
   };
 
   const filteredReviews = filterBookId

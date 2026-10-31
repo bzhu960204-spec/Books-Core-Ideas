@@ -1,0 +1,114 @@
+/* Errors and notifications (FE-05): toasts, the error / not-found screens, failed loads.
+   Only new class names, so its place at the end of index.css doesn't override anything. */
+
+/* ===== TOASTS ===== */
+/* Above every overlay, including the 9999 full-screen viewers. */
+.toast-region {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: min(440px, calc(100vw - 2.5rem));
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--card-radius);
+  box-shadow: 0 6px 20px var(--shadow);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  pointer-events: auto;
+  animation: slideUp 0.2s ease;
+}
+
+.toast--error { border-left-color: var(--danger); }
+
+.toast-message {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+.toast-close:hover { color: var(--text-primary); }
+
+/* ===== ERROR / NOT FOUND SCREEN ===== */
+.error-screen {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--text-secondary);
+}
+
+.error-screen--root {
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+.error-screen-title {
+  font-size: 1.6rem;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.error-screen-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.error-screen-actions .btn { text-decoration: none; }
+
+.error-screen-details {
+  max-width: 720px;
+  margin: 2rem auto 0;
+  text-align: left;
+  font-size: 0.8rem;
+}
+
+.error-screen-details summary { cursor: pointer; }
+
+.error-screen-details pre {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  background: var(--bg-secondary);
+  border-radius: var(--card-radius);
+}
+
+/* ===== FAILED LOAD ===== */
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--card-radius);
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.load-error-text { overflow-wrap: anywhere; }

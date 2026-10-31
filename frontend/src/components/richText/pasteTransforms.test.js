@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { dropOversizeImages, stripPastedTextStyles, tagMarkdownCards, transformCopilotCodeBlocks } from './pasteTransforms';
 import { repairEscapedCodeLines } from './codeRepairs';
+import { clearToasts, getToasts } from '../feedback/toast';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => clearToasts());
 
 const PNG = 'data:image/png;base64,iVBORw0KGgo=';
 
@@ -70,11 +71,9 @@ describe('stripPastedTextStyles', () => {
 
 describe('dropOversizeImages', () => {
   it('removes inline images over 5 MB and tells the user once', () => {
-    const alert = vi.fn();
-    vi.stubGlobal('alert', alert);
     const big = `<img src="data:image/png;base64,${'A'.repeat(7_000_004)}">`;
     expect(dropOversizeImages(`<p>a</p>${big}<img src="${PNG}">${big}`)).toBe(`<p>a</p><img src="${PNG}">`);
-    expect(alert).toHaveBeenCalledTimes(1);
+    expect(getToasts().map(t => t.message)).toEqual(['An image larger than 5 MB was skipped.']);
   });
 
   it('keeps small and linked images', () => {

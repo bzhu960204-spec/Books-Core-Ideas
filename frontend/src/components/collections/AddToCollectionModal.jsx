@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { bookCollectionApi } from '../../api';
 import { buildFolderTree } from './folderTree';
+import { reportError } from '../feedback/toast';
 
 /** Flatten the folder tree into rows carrying their depth for indentation. */
 function flatten(nodes, depth = 0) {
@@ -52,7 +53,7 @@ export default function AddToCollectionModal({ bookId, bookTitle, onClose, onCha
       }
       onChanged?.();
     } catch (err) {
-      console.error('Failed to toggle membership:', err);
+      reportError(memberIds.has(col.id) ? 'Could not remove the book from the collection' : 'Could not add the book to the collection', err);
     } finally {
       setBusyId(null);
     }
@@ -69,7 +70,7 @@ export default function AddToCollectionModal({ bookId, bookTitle, onClose, onCha
       await reload();
       onChanged?.();
     } catch (err) {
-      console.error('Failed to create folder:', err);
+      reportError('Could not create the collection', err);
     } finally {
       setCreating(false);
     }

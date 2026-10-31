@@ -11,6 +11,9 @@ import ChapterImageViewer from '../components/ChapterImageViewer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ChapterExplanationModal from '../components/ChapterExplanationModal';
 import ExplanationMarksPanel from '../components/ExplanationMarksPanel';
+import LoadError from '../components/feedback/LoadError';
+import { attempt, reportError } from '../components/feedback/toast';
+import NotFoundPage from './NotFoundPage';
 import BookHeader from './bookDetail/BookHeader';
 import ChapterCard from './bookDetail/ChapterCard';
 import PartList from './bookDetail/PartList';
@@ -38,7 +41,7 @@ export default function BookDetailPage() {
   const backLabel = fromCollections ? '← Back to Collection' : '← Back to Library';
 
   const {
-    isPending, book, chapters, parts, marks, latestBookmark, bookmarkedChapterIds, chapterById,
+    isPending, error, refetch, book, chapters, parts, marks, latestBookmark, bookmarkedChapterIds, chapterById,
     updateDetail, updateChapter,
   } = useBookDetailData(id);
 
@@ -90,8 +93,9 @@ export default function BookDetailPage() {
         summary: chapter.summary,
         partId: newPartId,
       });
-    } catch {
+    } catch (err) {
       updateChapter(chapterId, c => ({ ...c, partId: currentPartId }));
+      reportError('Could not move the chapter', err);
     }
     refresh();
   };
@@ -102,7 +106,9 @@ export default function BookDetailPage() {
     updateDetail(d => ({ ...d, book: { ...d.book, readingStatus: newStatus } }));
     try {
       await bookApi.update(book.id, { ...book, readingStatus: newStatus });
-    } catch { /* refresh() puts the stored status back */ }
+    } catch (err) {
+      reportError('Could not change the reading status', err); // refresh() puts the stored status back
+    }
     refresh();
   };
 
@@ -116,7 +122,9 @@ export default function BookDetailPage() {
       a.download = `${book?.title || 'book'}.json`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch { /* ignore */ }
+    } catch (err) {
+      reportError('Could not export the book', err);
+    }
   };
 
   useEffect(() => {
@@ -152,11 +160,10 @@ export default function BookDetailPage() {
   };
 
   const handleSaveChapter = async (form) => {
-    if (editChapter) {
-      await chapterApi.update(id, editChapter.id, { ...form, partId: editChapter.partId ?? null });
-    } else {
-      await chapterApi.create(id, { ...form, partId: addChapterPartId ?? null });
-    }
+    const saved = await attempt('Could not save the chapter', () => (editChapter
+      ? chapterApi.update(id, editChapter.id, { ...form, partId: editChapter.partId ?? null })
+      : chapterApi.create(id, { ...form, partId: addChapterPartId ?? null })));
+    if (!saved) return;
     setShowChapterForm(false);
     setEditChapter(null);
     setAddChapterPartId(null);
@@ -165,11 +172,10 @@ export default function BookDetailPage() {
 
   // Part CRUD
   const handleSavePart = async (form) => {
-    if (editPart) {
-      await partApi.update(id, editPart.id, form);
-    } else {
-      await partApi.create(id, form);
-    }
+    const saved = await attempt('Could not save the part', () => (editPart
+      ? partApi.update(id, editPart.id, form)
+      : partApi.create(id, form)));
+    if (!saved) return;
     setShowPartForm(false);
     setEditPart(null);
     refresh();
@@ -178,50 +184,55 @@ export default function BookDetailPage() {
   // Idea CRUD
   const handleSaveIdea = async (form) => {
     const chapterId = editIdea ? editIdea.chapterId : showIdeaForm;
-    if (editIdea) {
-      await ideaApi.update(chapterId, editIdea.id, form);
-    } else {
-      await ideaApi.create(chapterId, form);
-    }
+    const saved = await attempt('Could not save the idea', () => (editIdea
+      ? ideaApi.update(chapterId, editIdea.id, form)
+      : ideaApi.create(chapterId, form)));
+    if (!saved) return;
     setShowIdeaForm(null);
     setEditIdea(null);
     refresh();
   };
 
   const handleToggleHighlight = async (idea, chapterId) => {
-    await ideaApi.update(chapterId, idea.id, { ...idea, highlighted: !idea.highlighted });
+    await attempt('Could not change the highlight', () =>
+      ideaApi.update(chapterId, idea.id, { ...idea, highlighted: !idea.highlighted }));
     refresh();
   };
 
   const handleToggleExcerptHighlight = async (excerpt) => {
-    await excerptApi.update(excerpt.chapterId || excerptReader?.chapterId, excerpt.id, { ...excerpt, highlighted: !excerpt.highlighted });
+    await attempt('Could not change the highlight', () =>
+      excerptApi.update(excerpt.chapterId || excerptReader?.chapterId, excerpt.id, { ...excerpt, highlighted: !excerpt.highlighted }));
     refresh();
   };
 
   // Excerpt CRUD
   const handleSaveExcerpt = async (form) => {
     const chapterId = editExcerpt ? editExcerpt.chapterId : showExcerptForm;
-    if (editExcerpt) {
-      await excerptApi.update(chapterId, editExcerpt.id, form);
-    } else {
-      await excerptApi.create(chapterId, form);
-    }
+    const saved = await attempt('Could not save the excerpt', () => (editExcerpt
+      ? excerptApi.update(chapterId, editExcerpt.id, form)
+      : excerptApi.create(chapterId, form)));
+    if (!saved) return;
     setShowExcerptForm(null);
     setEditExcerpt(null);
     refresh();
   };
 
   // Delete
+  const deleteRequest = (target) => {
+    switch (target.type) {
+      case 'chapter': return chapterApi.delete(id, target.id);
+      case 'part': return partApi.delete(id, target.id);
+      case 'idea': return ideaApi.delete(target.chapterId, target.id);
+      case 'excerpt': return excerptApi.delete(target.chapterId, target.id);
+      default: return Promise.resolve();
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (deleteTarget.type === 'chapter') {
-      await chapterApi.delete(id, deleteTarget.id);
-    } else if (deleteTarget.type === 'part') {
-      await partApi.delete(id, deleteTarget.id);
-    } else if (deleteTarget.type === 'idea') {
-      await ideaApi.delete(deleteTarget.chapterId, deleteTarget.id);
-    } else if (deleteTarget.type === 'excerpt') {
-      await excerptApi.delete(deleteTarget.chapterId, deleteTarget.id);
+    const deleted = await attempt(`Could not delete the ${deleteTarget.type}`, () => deleteRequest(deleteTarget));
+    if (!deleted) return;
+    if (deleteTarget.type === 'excerpt') {
       const remaining = (chapterById(deleteTarget.chapterId)?.excerpts ?? []).filter(e => e.id !== deleteTarget.id);
       updateChapter(deleteTarget.chapterId, c => ({ ...c, excerpts: remaining }));
       if (remaining.length > 0) {
@@ -234,7 +245,17 @@ export default function BookDetailPage() {
   };
 
   if (isPending) return <div className="loading">Loading book</div>;
-  if (!book) return <div className="empty-state"><p>Book not found</p></div>;
+  if (error?.status === 404) {
+    return <NotFoundPage title="Book not found" message="This book does not exist. It may have been deleted." />;
+  }
+  if (!book) {
+    return (
+      <div>
+        <Link to={backTo} state={backState} className="back-link">{backLabel}</Link>
+        <LoadError what="the book" error={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   const isParts = book.structureType === 'PARTS';
 

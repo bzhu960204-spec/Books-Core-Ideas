@@ -32,7 +32,8 @@
 
 - 服务层抛 `NotFoundException` → 404；抛 `IllegalArgumentException` → 400。
 - 控制器用 [Responses](../backend/src/main/java/com/bookscoreideas/web/Responses.java) 的 `ok` / `created` / `deleted` 生成成功响应；"不存在"由它们抛出，不再返回空体的 404。
-- 前端的 `api.js` 中，`errorMessage()` 优先显示 `detail`。
+- 前端的 `api.js` 中，`errorMessage()` 优先显示 `detail`；连不上后端（`fetch` 失败，或开发代理返回空的 502/503/504）时统一为 `Cannot reach the server. Is the backend running?`。
+- 前端写操作失败时显示"做什么失败 — detail"的 toast，表单或确认框保持打开（FE-05，`components/feedback/toast.js` 的 `attempt` / `reportError`）。所以 `detail` 要写成用户能看懂的一句话。
 
 ## 请求体
 

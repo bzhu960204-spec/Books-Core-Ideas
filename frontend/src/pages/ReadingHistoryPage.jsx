@@ -4,6 +4,7 @@ import { bookmarkApi } from '../api';
 import { useBookmarks, useBooks, useRefresh } from '../queries';
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { attempt } from '../components/feedback/toast';
 
 const NONE = [];
 
@@ -44,11 +45,9 @@ export default function ReadingHistoryPage() {
 
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    try {
-      await bookmarkApi.delete(confirmDelete.id);
-      setConfirmDelete(null);
-      refresh();
-    } catch { /* ignore */ }
+    if (!await attempt('Could not delete the bookmark', () => bookmarkApi.delete(confirmDelete.id))) return;
+    setConfirmDelete(null);
+    refresh();
   };
 
   const filtered = filterBookId

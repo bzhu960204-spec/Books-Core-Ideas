@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { bookApi } from '../api';
 import { useCategories } from '../queries';
 import Modal from './Modal';
+import { attempt } from './feedback/toast';
 
 function formFromBook(book) {
   return {
@@ -42,28 +43,27 @@ export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
     }
   };
 
+  // For an existing book a category change is saved at once; a failure puts the previous list back.
+  const saveCategories = async (newCategories) => {
+    const previous = form.categories;
+    setForm(prev => ({ ...prev, categories: newCategories }));
+    if (!book?.id) return;
+    const saved = await attempt('Could not save the categories', () =>
+      bookApi.update(book.id, { ...book, category: newCategories.join(';') }));
+    if (saved) onCategoryChange?.();
+    else setForm(prev => ({ ...prev, categories: previous }));
+  };
+
   const addCategory = async (category) => {
     const trimmed = category.trim();
     if (trimmed && !form.categories.includes(trimmed)) {
-      const newCategories = [...form.categories, trimmed];
-      setForm(prev => ({ ...prev, categories: newCategories }));
       setCategoryInput('');
       setSuggestions([]);
-      if (book?.id) {
-        await bookApi.update(book.id, { ...book, category: newCategories.join(';') });
-        onCategoryChange?.();
-      }
+      await saveCategories([...form.categories, trimmed]);
     }
   };
 
-  const removeCategory = async (category) => {
-    const newCategories = form.categories.filter(c => c !== category);
-    setForm(prev => ({ ...prev, categories: newCategories }));
-    if (book?.id) {
-      await bookApi.update(book.id, { ...book, category: newCategories.join(';') });
-      onCategoryChange?.();
-    }
-  };
+  const removeCategory = (category) => saveCategories(form.categories.filter(c => c !== category));
 
   const handleCategoryKeyDown = (e) => {
     if (e.key === 'Enter') {

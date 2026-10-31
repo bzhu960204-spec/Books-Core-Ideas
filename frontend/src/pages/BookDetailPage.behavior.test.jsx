@@ -381,6 +381,7 @@ describe('explanations, bookmarks and saved passages', () => {
     expect(requests).toContain('GET /api/chapters/101/explanation');
 
     fireEvent.click(screen.getByRole('button', { name: '🗑️ Delete' }));
+    fireEvent.click(within(dialog('Confirm')).getByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(screen.queryByText('Explanation of Book One chapter 1')).toBeNull());
     expect(writes).toEqual([{ method: 'DELETE', path: '/api/chapters/101/explanation', body: undefined }]);
   });

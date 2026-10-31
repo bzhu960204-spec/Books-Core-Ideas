@@ -213,6 +213,48 @@
 <a id="fe-05"></a>
 ## FE-05 · 错误处理与交互反馈不一致 🟡
 
+> **✅ 已完成（2026-11-01）**：写操作失败一律提示，并保留用户的输入；页面渲染出错不再白屏；未知地址和不存在的书有 404 页面；确认统一使用应用自己的对话框。
+>
+> 开工前的盘点（FE-03 之后，原先的 6 处 `.catch(() => {})` 大多已随数据层消失，但吞错换了形式）：
+> - **约 20 个写操作的 `await` 没有 try/catch**（详情页的增删改、星标、书库删除和评分、表单保存、`BookForm` 的分类、图片删除、讲解的保存/删除/书签）：失败时只有一条未处理的 Promise 拒绝，用户看不到任何提示，表单或确认框停在原处，没有任何说明。
+> - **`catch { /* ignore */ }` 或只有 `console.error`**：书评库保存/新建/删除、阅读历史删除、详情页导出 JSON、书单拖放和移出、加入书单弹窗、图片上传。
+> - **原生对话框**：7 处 `alert`（书单 ×3、选书、讲解导出 ×2、编辑器 5 MB 提示；书单和选书用的是"Operation failed, please try again."这类不说明原因的文字），1 处 `window.confirm`（删除书单）。
+> - **没有确认就删除**：讲解阅读器的"🗑️ Delete"一点就删除整篇讲解及其保存的段落；图片查看器的删除按钮同样。其他删除都有 `ConfirmDialog`。
+> - 另外发现 3 个超出"没有提示"的缺陷，各自单独修复（见 [01-verified-bugs.md](01-verified-bugs.md)）：BUG-17（书评保存失败后像已保存一样退出编辑）、BUG-18（讲解打开失败时以空白编辑器打开，保存会覆盖原讲解）、BUG-19（加载失败显示成空状态，如书库显示"Your library is empty"）。
+>
+> 设计选择（按最佳判断）：
+> - **Toast 自己写，不引入库**（[components/feedback/toast.js](../../frontend/src/components/feedback/toast.js) + [Toaster.jsx](../../frontend/src/components/feedback/Toaster.jsx)，共约 90 行）。只需要"错误"和"提示"两种，库（sonner、react-hot-toast）的大部分功能用不上，还要单独配主题；自己写的直接用主题的 CSS 变量，不增加依赖。存储放在 React 之外（`useSyncExternalStore` 订阅），因为编辑器的粘贴处理、全局 `unhandledrejection` 监听都不在组件里。相同的消息不叠加（重新计时），最多显示 4 条；错误 8 秒、提示 4 秒，可手动关闭。`z-index: 10000`，高于图片查看器等全屏层（9999）。没有 toast 时 `<Toaster>` 不渲染任何元素，所以页面 DOM 不变。
+> - **统一的写操作约定**：失败时显示"做什么失败 — 原因"（如 `Could not delete the chapter — Chapter not found: 5`，原因来自后端 ProblemDetail 的 `detail`），**表单或确认框保持打开、输入保留**，可以直接重试。成功后才关闭。实现为 `attempt(action, write)`：成功返回 true，失败时报告并返回 false。需要让调用方知道失败的（讲解保存、书签），报告后再抛出，由弹窗留在编辑状态 / 不显示"✓ Saved"。已有的就地错误提示（JSON 导入、迁移、保存段落、封面查询）不改，它们已经清楚。
+> - **兜底**：`main.jsx` 注册 `unhandledrejection` 监听，任何漏掉的失败显示"Something went wrong — 原因"（忽略请求取消 `AbortError`）。
+> - **网络错误可读**：[api.js](../../frontend/src/api.js) 把 `fetch` 本身的失败（浏览器只给 "Failed to fetch"）和开发代理在后端停止时返回的空 502/503/504 都变成 `Cannot reach the server. Is the backend running?`。各列表页的加载错误因此也从"Request failed: 502"变成这句话。
+> - **ErrorBoundary 两层**（[ErrorBoundary.jsx](../../frontend/src/components/feedback/ErrorBoundary.jsx)）：
+>   - **页面级**，在 `<main>` 内包住 Suspense 和路由：出错时只替换主区域，侧边栏仍可用；
+>   - 离开该页面即清除错误。实现是比较 `pathname`（`resetKey`），**不用 `key`**：用 key 会在每次导航时重建 Suspense，懒加载页面就会先闪出"Loading"，而不是像现在这样在过渡期间保留旧页面；
+>   - **根级**包住整个应用，作为最后一道防线（侧边栏本身出错时）；
+>   - 不在组件内再加边界：草稿状态都在编辑器之外（父组件），而 chunk 加载失败时自动刷新会丢掉页面状态，组件级边界也保不住。
+> - **chunk 加载失败**（FE-04 遗留）：识别浏览器的几种报错文字（`dynamically imported module` / `Importing a module script failed` / Vite 的 `Unable to preload CSS`），显示"This page could not be loaded … Reload"，不提供 Try again（`React.lazy` 会缓存失败的 import，只有刷新才能重新获取）。[chunkReload.js](../../frontend/src/chunkReload.js) 已开始自动刷新时（`isReloadingForChunk()`），边界只显示"Reloading"，FE-04 中记录的那次短暂报错不再闪出错误界面。其他错误显示"Something went wrong"、Try again / Reload / Back to Library，以及可展开的错误详情。
+> - **404**：`<Route path="*">` 显示 [NotFoundPage](../../frontend/src/pages/NotFoundPage.jsx)（不懒加载，chunk 出问题时也能显示）；`/book/abc` 这种非数字 id 直接显示"Book not found"，不发请求；`/book/999` 由详情接口的 404 判断。详情加载的其他失败（500、网络）不再也显示成"Book not found"，而是显示原因和 Retry（[LoadError](../../frontend/src/components/feedback/LoadError.jsx)）。
+> - **确认框统一**：[ConfirmDialog](../../frontend/src/components/ConfirmDialog.jsx) 增加执行中状态（两个按钮禁用，慢的删除不会发两次）、可选的标题和按钮文字；Esc 在捕获阶段处理并停止传播，只关闭确认框，不再连带关闭下面的阅读器或面板。删除书单改用它；讲解删除、图片删除新增确认。
+> - **不改 `window.prompt`**（编辑器的链接地址输入）：它是输入框而不是提示或确认，换掉需要做一个链接编辑浮层，属于编辑器功能，不在本项范围内。
+>
+> 测试（130 → 169）：
+> - 新增：[toast.test.js](../../frontend/src/components/feedback/toast.test.js)（计时、去重、上限、`attempt`、兜底忽略取消）、[api.test.js](../../frontend/src/api.test.js)（detail、网络失败、空 502、取消）、[ErrorBoundary.test.jsx](../../frontend/src/components/feedback/ErrorBoundary.test.jsx)（Try again、换页清除、chunk 失败、刷新中）、[ConfirmDialog.test.jsx](../../frontend/src/components/ConfirmDialog.test.jsx)（执行中禁用、Esc 不传到下层）、[BookDetailPage.failures.test.jsx](../../frontend/src/pages/BookDetailPage.failures.test.jsx)（表单保留输入、确认框保留并可重试、服务器不可达、导出、讲解保存/删除失败）、[CollectionsExplorer.test.jsx](../../frontend/src/components/collections/CollectionsExplorer.test.jsx)（不再调用 `window.confirm` / `alert`）；[App.test.jsx](../../frontend/src/App.test.jsx) 加 404 的三种情况、加载失败与 Retry、页面抛错时侧边栏可用且换页恢复；书库、图片查看器、讲解弹窗各加失败用例；
+> - [fakeBackend](../../frontend/src/test/fakeBackend.js) 增加 `fail(method, path)`：让指定请求返回 ProblemDetail 错误或网络失败；
+> - 行为有意改变而更新的测试：5 MB 提示从 `alert` 改为 toast（3 处）；讲解删除、图片删除多一步确认（4 处）。
+> - 用 2 个随机种子打乱顺序运行，均通过（toast 存储是模块级状态，测试在 `afterEach` 中 `clearToasts()`）。
+>
+> 验证（真实数据副本，后端 18084）：
+> - 改动前（a94dc8d，worktree + Vite 15174）与改动后（15173）用 [ui-compare.js](../../tools/rehearsal/ui-compare.js) 对比 5 个主题 × 18 个场景，305 屏的 DOM 签名和截图**全部相同**（正常状态下的界面不变）。
+> - 浏览器中逐项确认（开发模式，用 Playwright 拦截请求制造失败，不改动数据）：
+>   - 三种 404 页面；详情接口返回 500 时显示原因和 Retry，放行后 Retry 正常加载；
+>   - 讲解删除确认显示在阅读器之上，Esc 只关闭确认框；删除返回 500 时 toast 显示原因，确认框和阅读器都保留；
+>   - 图片删除确认显示在全屏查看器之上，确认期间方向键不翻页；删除失败的 toast 在最上层；
+>   - 删除书单出现应用的确认框，没有原生对话框；
+>   - **真的停掉后端**：开发代理返回 502，新建章节提示 `Could not save the chapter — Cannot reach the server. Is the backend running?`，表单中的输入还在；
+>   - 开发模式下让 ReadingHistoryPage 模块返回 404：主区域显示"This page could not be loaded"，侧边栏可用，切到其他页面后恢复。
+> - 生产构建（`vite preview`，输出到临时目录，不动 `frontend/dist`）：让 ReadingHistoryPage 的 chunk 返回 index.html（模拟 jar 的回退），记录到的界面依次为"Reloading" → 自动刷新一次 → "This page could not be loaded"，中间没有错误界面闪现；恢复后点 Reload，页面正常。
+> - 首屏 JS 311 → 316 KB（gzip 97 → 99）：多出的是 toast、ErrorBoundary、404 页和 LoadError。`toast.js` 同时被首屏和编辑器 chunk 引用，rolldown 因此把首屏的共享代码另分成 `queries`、`api` 两个 chunk（首屏共 5 个文件，由 index.html 预加载）。CSS 多了 [styles/feedback.css](../../frontend/src/styles/feedback.css)（放在 index.css 最后；只有新类名，不覆盖已有规则）。
+
 - 6 处 `.catch(() => {})` 静默吞错（如各页面加载书列表）；多处 `catch { console.error(...) }` 用户无感知。
 - 确认/提示混用：自有 `ConfirmDialog` 与 `window.confirm` / `window.alert`（`CollectionsExplorer`、`PickBooksModal`、`ExplanationExportModal`、`RichTextEditor`）。
 - 没有 React Error Boundary：任一组件抛错整页白屏。

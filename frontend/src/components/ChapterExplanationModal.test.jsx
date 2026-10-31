@@ -184,14 +184,51 @@ describe('ChapterExplanationModal reading controls', () => {
     expect(screen.getByRole('button', { name: 'Saving…' }).disabled).toBe(true);
   });
 
-  it('passes delete and close to the parent', () => {
-    const onDelete = vi.fn();
+  it('asks before deleting, then passes delete and close to the parent', async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
     const onClose = vi.fn();
     renderModal({ explanation: { content: TEXT }, onDelete, onClose });
+
     fireEvent.click(screen.getByRole('button', { name: '🗑️ Delete' }));
+    expect(screen.getByText('Delete the explanation of "Ch 1"? Its saved passages are deleted too. This cannot be undone.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText(/Delete the explanation of/)).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '🗑️ Delete' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByText('Close', { selector: 'button' }));
-    expect(onDelete).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes only the confirmation on Esc', () => {
+    const onClose = vi.fn();
+    renderModal({ explanation: { content: TEXT }, onClose });
+    fireEvent.click(screen.getByRole('button', { name: '🗑️ Delete' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText(/Delete the explanation of/)).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('stays in the editor with the draft when saving fails', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('down'));
+    renderModal({ explanation: { content: '<p>Existing</p>' }, onSave });
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>Typed</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(screen.getByTestId('editor').value).toBe('<p>Typed</p>');
+  });
+
+  it('does not show the bookmark as saved when saving it fails', async () => {
+    const onBookmark = vi.fn().mockRejectedValue(new Error('down'));
+    renderModal({ explanation: { content: TEXT }, onBookmark });
+    fireEvent.click(screen.getByRole('button', { name: '🔖 Mark read here' }));
+    await waitFor(() => expect(onBookmark).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: '✓ Saved' })).toBeNull();
   });
 
   it('keeps the draft across Cancel and saves it', async () => {
