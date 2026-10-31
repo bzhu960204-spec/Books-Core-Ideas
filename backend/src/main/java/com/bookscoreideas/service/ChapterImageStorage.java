@@ -8,6 +8,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,15 +35,38 @@ public class ChapterImageStorage {
         }
     }
 
-    public Path uploadDir() {
-        return uploadDir;
-    }
-
     /** Resolves a stored filename inside the upload directory; empty if invalid. */
     public Optional<Path> resolve(String filename) {
         if (filename == null || filename.isBlank()) return Optional.empty();
         Path path = uploadDir.resolve(filename).normalize();
         return path.startsWith(uploadDir) && !path.equals(uploadDir) ? Optional.of(path) : Optional.empty();
+    }
+
+    /** The file stored under this name, if the name is valid and the file exists. */
+    public Optional<Path> existing(String filename) {
+        return resolve(filename).filter(Files::isRegularFile);
+    }
+
+    /**
+     * Copies a new upload into the directory; fails if the file already exists.
+     * @return false if the name would escape the upload directory
+     */
+    public boolean store(String filename, InputStream content) throws IOException {
+        Optional<Path> target = resolve(filename);
+        if (target.isEmpty()) return false;
+        Files.copy(content, target.get());
+        return true;
+    }
+
+    /**
+     * Writes (or overwrites) a file, e.g. one restored from a migration archive.
+     * @return false if the name would escape the upload directory
+     */
+    public boolean write(String filename, byte[] bytes) throws IOException {
+        Optional<Path> target = resolve(filename);
+        if (target.isEmpty()) return false;
+        Files.write(target.get(), bytes);
+        return true;
     }
 
     /**

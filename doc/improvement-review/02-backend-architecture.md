@@ -33,6 +33,7 @@
 > - 发现并单独修复了 **BUG-13**（子资源新建时带 `id` 会覆盖并挪走已有数据）。
 > - ② 想法与摘录：`KeyIdeaService` / `ExcerptService`（同时负责想法库、摘录库的全局搜索），`ExcerptDto`。测试 [ContentApiTest](../../backend/src/test/java/com/bookscoreideas/books/ContentApiTest.java)（4 个，改动前后都通过）；真实数据对比 2,695 个响应零差异。
 > - ③ 阅读相关：`ExplanationService` / `ReviewService` / `BookmarkService` / `MarkService`，`ExplanationDto` / `ReviewDto` / `ReviewBankEntryDto` / `BookmarkDto` / `MarkDto` 取代手工拼装的 `Map`（空值兜底规则不变）。请求体的宽松解析（`Map` + `instanceof Number`）暂时保留在控制器里，留给 BE-05。书签列表和片段收藏列表原来每行都要单独加载章节（连带讲解）和书，现在改为一条投影查询；书评库用 `JOIN FETCH` 取书。讲解、书评、片段收藏的更新改用 `saveAndFlush`，确保响应里的 `updatedAt` 是新值：讲解和书评原本就是这样，挪进事务后要显式 flush 才能保持；片段收藏的 PATCH 原来返回旧值，现在也返回新值。测试 [ReadingApiTest](../../backend/src/test/java/com/bookscoreideas/books/ReadingApiTest.java)（5 个：4 个特征测试改动前后都通过，N+1 用例改动前失败；把 `saveAndFlush` 换回 `save` 会让 2 个用例失败）；真实数据对比 2,695 个响应零差异。
+> - ④ 章节图片 + BE-06 图片存储统一：`ChapterImageService`、`ChapterImageDto`。路径校验、写入、读取全部集中到 `ChapterImageStorage`（新增 `existing`/`store`/`write`），`MigrationService` 不再自己读取 `app.upload.dir`，改用它；配置项现在只在一处读取。上传行为保持原样（序号偏差和静默跳过 IO 异常属于 BUG-10，留到阶段 4）。唯一的细微差别：数据库中文件名非法时，原来返回 400，现在和"文件不存在"一样返回 404（文件名由服务端生成 UUID，正常情况下不会出现）。测试 [ImageApiTest](../../backend/src/test/java/com/bookscoreideas/books/ImageApiTest.java)（3 个，改动前后都通过），其中包括**迁移导出 → 删除 → 导入后图片字节一致**的往返测试（迁移功能此前没有任何测试）；真实数据对比 2,695 个响应零差异。
 > - 留给 DB-06：其他地方加载 `Chapter` 实体时仍会顺带加载讲解（大字段），可以考虑把这个反向一对一去掉，改由服务层负责级联删除。
 
 ---
@@ -111,6 +112,7 @@
 - **两套导出**：[BookExportController](../../backend/src/main/java/com/bookscoreideas/controller/BookExportController.java)（单书 JSON）与 [MigrationService.buildBookDto](../../backend/src/main/java/com/bookscoreideas/service/MigrationService.java)（ZIP 归档）遍历同一棵树、字段各自维护，已出现差异（JSON 导出不含 explanation/images 等）。
 - **两处 uploadDir 初始化**：`ChapterImageController` 与 `MigrationService` 各自 `@Value("${app.upload.dir}")` + `createDirectories`。建议抽 `@ConfigurationProperties("app")` + `ImageStorageService`（保存、读取、删除、路径穿越校验集中一处）。
   > 进展：随 BUG-03 新增了 `ChapterImageStorage`，`ChapterImageController` 已改用它；`MigrationService` / `MigrationImporter` 尚未迁移。
+  > **✅ 图片存储部分已完成（2026-10-31，随 BE-01 ④）**：`MigrationService` 也改用 `ChapterImageStorage`，`app.upload.dir` 只在一处读取。"两套导出"按决定推迟到 BE-08（迁移归档 v2）一起设计；"两套 JSON 导入"属于前端，随 FE-08 / BUG-06 处理。
 - **两套 JSON 导入**：前端 `LibraryPage` 与 `BookDetailPage` 各写一遍（导致 BUG-06）。
 
 ---

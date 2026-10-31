@@ -28,7 +28,6 @@ import com.bookscoreideas.repository.ExcerptRepository;
 import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -37,7 +36,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,6 +43,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -68,15 +67,14 @@ public class MigrationService {
     private final ChapterImageRepository imageRepository;
     private final MigrationImporter importer;
     private final ObjectMapper objectMapper;
-    private final Path uploadDir;
+    private final ChapterImageStorage imageStorage;
 
     public MigrationService(BookRepository bookRepository, PartRepository partRepository,
                             ChapterRepository chapterRepository, KeyIdeaRepository keyIdeaRepository,
                             ExcerptRepository excerptRepository,
                             ChapterExplanationRepository explanationRepository,
                             ChapterImageRepository imageRepository, MigrationImporter importer,
-                            ObjectMapper objectMapper,
-                            @Value("${app.upload.dir:./data/images}") String uploadPath) {
+                            ObjectMapper objectMapper, ChapterImageStorage imageStorage) {
         this.bookRepository = bookRepository;
         this.partRepository = partRepository;
         this.chapterRepository = chapterRepository;
@@ -86,12 +84,7 @@ public class MigrationService {
         this.imageRepository = imageRepository;
         this.importer = importer;
         this.objectMapper = objectMapper;
-        this.uploadDir = Paths.get(uploadPath).toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(this.uploadDir);
-        } catch (IOException e) {
-            throw new RuntimeException("Could not create upload directory", e);
-        }
+        this.imageStorage = imageStorage;
     }
 
     // ---------------------------------------------------------------- EXPORT
@@ -119,10 +112,10 @@ public class MigrationService {
                     if (chapter.images() == null) continue;
                     for (ImageArchiveDto img : chapter.images()) {
                         if (img.filename() == null) continue;
-                        Path src = uploadDir.resolve(img.filename()).normalize();
-                        if (!src.startsWith(uploadDir) || !Files.exists(src)) continue;
+                        Optional<Path> src = imageStorage.existing(img.filename());
+                        if (src.isEmpty()) continue;
                         zip.putNextEntry(new ZipEntry("books/" + slug + "/images/" + img.filename()));
-                        Files.copy(src, zip);
+                        Files.copy(src.get(), zip);
                         zip.closeEntry();
                         imageCount++;
                     }
@@ -328,9 +321,7 @@ public class MigrationService {
 
     private void writeImages(List<MigrationImporter.PendingImageWrite> writes) throws IOException {
         for (MigrationImporter.PendingImageWrite write : writes) {
-            Path target = uploadDir.resolve(write.filename()).normalize();
-            if (!target.startsWith(uploadDir)) continue;
-            Files.write(target, write.bytes());
+            imageStorage.write(write.filename(), write.bytes());
         }
     }
 
