@@ -21,11 +21,17 @@ export function useExplanationReader({ updateDetail, updateChapter, refresh, dee
   const [staleMarkIds, setStaleMarkIds] = useState({}); // { markId: true } when a jump could not find the text
   const openedFromState = useRef(false);
 
+  // GET answers 204 (null) for "no explanation yet": then the reader opens as an
+  // empty editor. A failed read is reported instead (BUG-18): an empty editor
+  // there would look like a missing explanation, and saving it would replace it.
   const open = async (chapterId, startInEdit = false, initialScrollRatio = null, initialAnchor = null) => {
-    let data = null;
+    let data;
     try {
       data = await explanationApi.get(chapterId);
-    } catch { /* none yet */ }
+    } catch (err) {
+      reportError('Could not open the explanation', err);
+      return;
+    }
     setModal(readerState(chapterId, data, startInEdit, initialScrollRatio, initialAnchor));
   };
 
@@ -33,9 +39,10 @@ export function useExplanationReader({ updateDetail, updateChapter, refresh, dee
   useEffect(() => {
     if (openedFromState.current || !bookLoaded || !deepLink?.chapterId) return;
     openedFromState.current = true;
-    explanationApi.get(deepLink.chapterId)
-      .catch(() => null)
-      .then(data => setModal(readerState(deepLink.chapterId, data, false, deepLink.scrollRatio ?? 0)));
+    explanationApi.get(deepLink.chapterId).then(
+      data => setModal(readerState(deepLink.chapterId, data, false, deepLink.scrollRatio ?? 0)),
+      err => reportError('Could not open the explanation', err),
+    );
   }, [bookLoaded, deepLink]);
 
   // Save and bookmark failures are reported here and rethrown, so the reader

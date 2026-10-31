@@ -29,11 +29,11 @@ afterEach(() => {
 });
 
 /** `failing` decides which requests fail: (method, path) => status | 'network' | null. */
-function renderBook(failing) {
+function renderBook(failing, state) {
   const backend = installFakeBackend({ details: [bookDetail(1, 'Book One', 2)], fail: failing });
   render(
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter initialEntries={['/book/1']}>
+      <MemoryRouter initialEntries={[{ pathname: '/book/1', state }]}>
         <Routes>
           <Route path="/book/:id" element={<BookDetailPage />} />
         </Routes>
@@ -110,5 +110,32 @@ describe('book page failures', () => {
 
     expect(await toast()).toContain('Could not delete the explanation');
     expect(screen.getByText('Explanation of Book One chapter 1')).toBeTruthy();
+  });
+
+  // Regression (BUG-18): a failed read was taken for "no explanation yet" and the
+  // reader opened as an empty editor; saving there replaced the real explanation.
+  const explanationRead = (method, path) => (method === 'GET' && path === '/api/chapters/101/explanation' ? 500 : null);
+  const readerHeading = () => screen.queryByRole('heading', { name: 'Book One chapter 1 — Explanation' });
+
+  it('reports a failed explanation read instead of opening an empty editor', async () => {
+    renderBook(explanationRead);
+    fireEvent.click(await screen.findByTitle('View / edit explanation'));
+
+    expect(await toast()).toContain('Could not open the explanation — Failed: GET /api/chapters/101/explanation');
+    expect(readerHeading()).toBeNull();
+  });
+
+  it('reports a failed read when opened from Reading History', async () => {
+    renderBook(explanationRead, { openExplanation: { chapterId: 101, scrollRatio: 0.4 } });
+
+    expect(await toast()).toContain('Could not open the explanation');
+    expect(readerHeading()).toBeNull();
+  });
+
+  it('still opens an empty editor for a chapter without an explanation (204)', async () => {
+    renderBook(() => null);
+    fireEvent.click(await screen.findByTitle('Add explanation'));
+    expect(await screen.findByTestId('editor')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Book One chapter 2 — Explanation' })).toBeTruthy();
   });
 });
