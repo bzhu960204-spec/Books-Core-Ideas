@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ReviewReaderModal from './ReviewReaderModal';
 
 vi.mock('./RichTextEditor', () => ({
@@ -60,5 +60,18 @@ describe('ReviewReaderModal keeps its draft in step with the review prop', () =>
 
     expect(screen.getByDisplayValue('Other')).toBeTruthy();
     expect((await screen.findByTestId('editor')).value).toBe('<p>Other body</p>');
+  });
+
+  // BUG-17: the page rethrows a failed save; the reader stays in edit mode and
+  // handles the rejection (unhandled, it would add a second "Something went wrong" toast).
+  it('stays in edit mode with the draft when the parent fails to save', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('down'));
+    renderModal({ review: reviewA, startInEdit: true, onSave });
+    fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>typed</p>' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(screen.getByTestId('editor').value).toBe('<p>typed</p>');
+    expect(screen.getByDisplayValue('First take')).toBeTruthy();
   });
 });

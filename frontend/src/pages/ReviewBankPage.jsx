@@ -72,6 +72,7 @@ export default function ReviewBankPage() {
       await refresh();
     } catch (err) {
       reportError('Could not save the review', err);
+      throw err; // the reader stays in edit mode with the draft
     } finally {
       setSaving(false);
     }

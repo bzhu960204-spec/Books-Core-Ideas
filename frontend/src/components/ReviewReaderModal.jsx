@@ -48,7 +48,11 @@ export default function ReviewReaderModal({
   const displayTitle = (editing ? draftTitle : review.title)?.trim() || 'Untitled review';
 
   const handleSave = async () => {
-    await onSave?.({ title: draftTitle.trim(), content: draft });
+    try {
+      await onSave?.({ title: draftTitle.trim(), content: draft });
+    } catch {
+      return; // reported by the page; keep the draft in the editor (BUG-17)
+    }
     setEditing(false);
     setFullscreen(false);
   };

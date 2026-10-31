@@ -21,7 +21,7 @@
 | BUG-14 | 🟠 P1 | PARTS 书中未分组的章节，在 JSON 导出和 ZIP 迁移归档中都会被丢掉（✅ 已修复） | ✅ 实测 |
 | BUG-15 | ⚪ P3 | 讲解阅读器中"撤销保存段落"失败时，错误提示不会显示（✅ 已修复） | 🔍 代码确认 + 组件测试 |
 | BUG-16 | 🟡 P2 | 编辑器的字体、字号、文字颜色控件无效并抛错；粘贴内容中的这些内联样式被丢弃（✅ 已修复：控件生效，粘贴行为不变） | ✅ 实测 |
-| BUG-17 | 🟡 P2 | 书评保存失败时，阅读弹窗照常退出编辑，像已保存一样；关掉弹窗后修改丢失 | 🔍 代码确认 |
+| BUG-17 | 🟡 P2 | 书评保存失败时，阅读弹窗照常退出编辑，像已保存一样；关掉弹窗后修改丢失（✅ 已修复） | 🔍 代码确认 + 页面测试 |
 | BUG-18 | 🟡 P2 | 打开讲解时请求失败，阅读器以空白编辑器打开；在里面保存会覆盖原讲解 | 🔍 代码确认 |
 | BUG-19 | 🟡 P2 | 加载失败显示成空状态：书库显示"Your library is empty"，书单、加入书单、章节图片同样 | ✅ 实测 |
 
@@ -321,7 +321,10 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 
 > 2026-11-01 做 FE-05 盘点吞错的位置时发现。
 
-**现象**：在书评库打开一篇书评、编辑后点 Save，如果请求失败（后端停止、校验失败等），弹窗照常回到阅读状态，显示的是**修改前**的内容，没有任何提示。用户以为保存了，关掉弹窗后修改就丢了。
+> **✅ 已修复（2026-11-01，FE-05 之后单独提交）**：保存失败时 toast 说明原因，阅读弹窗留在编辑状态，标题和正文草稿都在，可以再点 Save。
+> - 做法：[ReviewBankPage](../../frontend/src/pages/ReviewBankPage.jsx) 报告错误后再抛出；[ReviewReaderModal](../../frontend/src/components/ReviewReaderModal.jsx) 捕获失败并留在编辑状态（与讲解阅读器相同）。弹窗这一侧的捕获是必要的，否则重新抛出的错误会成为未处理的拒绝，FE-05 的兜底会再弹一条"Something went wrong"。
+> - 回归测试 [ReviewBankPage.test.jsx](../../frontend/src/pages/ReviewBankPage.test.jsx)"stays in the editor with the draft and says why when saving fails"：修复前在 toast 出现后找不到 Save 按钮（已退出编辑）而失败；另有成功保存后回到阅读状态的对照测试。`ReviewReaderModal.test.jsx` 新增一例：去掉弹窗的捕获时，Vitest 报未处理的拒绝，运行失败。
+> - 浏览器验证（真实数据副本，拦截书评的 PUT 使其返回 500）：编辑后保存，只出现一条 `Could not save the review — An unexpected error occurred`，编辑器仍在，输入的文字还在；数据未被修改。、编辑后点 Save，如果请求失败（后端停止、校验失败等），弹窗照常回到阅读状态，显示的是**修改前**的内容，没有任何提示。用户以为保存了，关掉弹窗后修改就丢了。
 
 **根因**：[ReviewBankPage](../../frontend/src/pages/ReviewBankPage.jsx) 的 `handleSave` 用 `catch { /* ignore */ }` 吞掉错误，正常返回；[ReviewReaderModal](../../frontend/src/components/ReviewReaderModal.jsx) 的 `handleSave` 在 `await onSave()` 返回后就 `setEditing(false)`，无法知道保存失败。（讲解阅读器没有这个问题：它的 `onSave` 失败时会抛出，阅读器留在编辑状态。）
 
