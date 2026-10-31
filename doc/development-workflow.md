@@ -62,6 +62,7 @@ python tools\rehearsal\compare_tables.py $env:TEMP\bci-rehearsal\orig\tables $en
   - 停止应用后，把各表导出为 CSV，并导出 schema。
 - `compare_api.py`：逐条比较状态码与 JSON。`compare_tables.py`：按 ID 顺序逐行比较各表。
 - `check_detail.py <api 目录>`：检查每本书的 `GET /api/books/{id}/detail` 是否等于它取代的那些细粒度接口的组合（FE-03）。
+- `roundtrip.py <源> <空目标>`：两个实例都要在运行，源用真实数据副本，目标用空库。脚本把全部书分别经 ZIP 迁移和 JSON 导入（FE-08）导入目标，再导出比较。导入相关的改动用它验证。
 - 预期**有**变化的改动（例如新增字段）：对比结果中的差异必须全部能解释，并在评审文档中写明。
 - **迁移类改动还要检查**：日志中迁移成功；`compare_tables` 各表行数和内容不变。
 - 新增 GET 接口时，同步更新 `capture_api.py`。

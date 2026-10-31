@@ -174,6 +174,45 @@
 <a id="fe-08"></a>
 ## FE-08 · JSON 导入在前端逐条请求、非事务 🟡
 
+> **🔄 进行中（2026-11-01）**
+> **① 后端接口**：[JsonImportController](../../backend/src/main/java/com/bookscoreideas/controller/JsonImportController.java) / [JsonImportService](../../backend/src/main/java/com/bookscoreideas/service/JsonImportService.java)，每个请求一个事务（格式见 [api-conventions.md](../api-conventions.md)）：
+> - `POST /api/books/import`：书库导入，书带 parts / chapters / keyIdeas / excerpts；
+> - `POST /api/books/{id}/import`：详情页的 Chapters / Parts 标签页，ADD / REPLACE；
+> - `POST /api/books/{id}/import/content`：Ideas (All)、Excerpts (All)，以及单章的 Ideas、Excerpts、Ideas + Excerpts。
+>
+> 设计选择（按最佳判断）：
+> - **整个请求一个事务**：一次导入多本书时，任何一本不合法就全部不创建（与 ZIP 迁移"每本书一个事务"不同）。粘贴的 JSON 通常很小，改好再导入即可；也不会出现"半本书"。
+> - **持久化与 ZIP 迁移共用**：新增 [BookTreeWriter](../../backend/src/main/java/com/bookscoreideas/service/BookTreeWriter.java)，从 `MigrationImporter` 中抽出 part / 章节 / 想法 / 摘录 / 讲解 / 书签 / 标记 / 图片的写入。书库导入直接复用 `MigrationImporter.persistBook`（在外层事务中运行，所以全部成功或全部回滚）。BE-06 的最后一项"两套 JSON 导入"随之解决。
+> - **校验**：沿用逐条创建时的规则（`KeyIdeaRequest`、`ExcerptRequest` 等）。错误信息写明路径，例如 `books[1].chapters[0].excerpts[0].content: must not be blank`。未知字段照旧忽略，以前能导入的 JSON（包括"Export JSON"的输出）现在仍能导入。
+> - **结构**：
+>   - 有 `parts` 或 `structureType` 为 PARTS 的书是 PARTS 书。PARTS 书顶层的 `chapters` 作为未分组章节导入：原来前端会静默丢掉，ZIP 迁移的 `persistBook` 也是这样。现有归档不会出现这种组合，所以迁移行为不变；
+>   - 向 CHAPTERS 书导入 `parts` 返回 400；
+>   - REPLACE 先删除这本书全部的 part 和章节，按实体删除，所以章节图片文件会在提交后清理。
+> - **内容导入的章节匹配**：
+>   - 优先**完全匹配**（忽略大小写和首尾空格），其次才是"包含"。原来取列表中第一个"完全或包含"匹配的章节，所以"Chapter 1"可能匹配到排在前面的"Chapter 10"；
+>   - 也可以直接给 `chapterId`，单章导入使用这种方式。如果该章节不属于这本书，返回 400。
+> - **内容 REPLACE**：每个被点名的章节只清空一次，并且在任何添加之前完成。原来同一章节出现在两组里时，后一组会把前一组刚导入的内容删掉；只清空请求中给出的种类（ideas 或 excerpts）。
+>
+> 测试 [JsonImportApiTest](../../backend/src/test/java/com/bookscoreideas/books/JsonImportApiTest.java)（11 个）：
+> - **BUG-06 回归**：书库导入保留每章的 excerpts（含 note / source）；
+> - "Export JSON"的输出导入后，再导出**完全相同**；
+> - PARTS 书的 parts 和未分组章节；
+> - 不合法时一本都不创建，并写明字段路径；
+> - 结构的 ADD、REPLACE（旧章节的内容也被删除），CHAPTERS 书拒绝 parts；
+> - 404 / 未知 mode 返回 400；
+> - "Chapter 1"不会匹配到"Chapter 10"；
+> - REPLACE 只清空给出的种类，同一章节出现两次时内容都保留；
+> - 未知章节、其他书的章节、空条目返回 400，且什么都不写入。
+>
+> 现有的迁移测试（`MigrationArchiveTest`、`ImageApiTest`）作为 `BookTreeWriter` 抽取的特征测试，改动前后都通过。后端测试 151 → 162。
+>
+> 真实数据副本：
+> - 2,748 个 GET 响应**零差异**，各表不变；
+> - 新增 [roundtrip.py](../../tools/rehearsal/roundtrip.py)，在空库实例上验证：
+>   - **JSON**：24 本书的 export 经 `POST /api/books/import` 导入后再导出，**全部相同**；
+>   - **ZIP**（检查重构后的迁移导入）：25 个条目中只有 book 195 的 `images` 5 → 0，与 BE-08 时相同，原因是图片文件不在本机。
+> - BUG-06 复现：按旧书库导入的方式 `POST /books/{id}/chapters` 并带上 excerpts，存下 0 条；`POST /api/books/import` 存下 1 条。
+
 书库与详情页的 JSON 导入都由前端循环调用 `create` 接口完成：一本 30 章、每章 10 个想法的书需要 300+ 次串行请求；中途任一失败会留下"半本书"，且没有回滚。两处实现不一致（BUG-06）。
 
 **建议**：后端 `POST /api/books/import-json`（与 `MigrationImporter` 复用持久化逻辑，单事务），前端只做 JSON 解析与预览。

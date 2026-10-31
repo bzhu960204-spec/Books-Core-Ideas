@@ -20,6 +20,11 @@
 - 把书加入书单 `POST /api/book-collections/{id}/books/{bookId}`：这是建立关联，不是新建资源，返回 204；
 - 讲解的 `PUT /api/chapters/{id}/explanation` 是 upsert，返回 200；
 - 迁移导出、导入、预览返回 200：导入的响应是逐本书的报告，其中可能有跳过或失败的书。
+- JSON 导入（FE-08）：每个请求**一个事务**，任何一处不合法都不会留下任何数据。
+  - `POST /api/books/import`：`{ "books": [...] }`，返回 **201** 和新建的书（`BookDto` 列表，顺序与请求相同）；
+  - `POST /api/books/{id}/import`：`{ "mode": "ADD"|"REPLACE", "parts": [...], "chapters": [...] }`，导入已有书的结构；
+  - `POST /api/books/{id}/import/content`：`{ "mode", "chapters": [{ "chapterId" | "chapter": 标题, "ideas", "excerpts" }] }`，向已有章节导入想法和摘录。
+  - 后两个返回 200 和 `{ parts, chapters, ideas, excerpts }`（新建的数量）。书不存在时返回 404；章节找不到、结构不符（如向 CHAPTERS 书导入 parts）时返回 400。
 
 ## 错误格式
 
