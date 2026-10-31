@@ -10,7 +10,7 @@ backend/target/
 .mvn/wrapper/maven-wrapper.jar
 
 # ===== Node.js / Vite (Frontend) =====
-frontend/node_modules/
+node_modules/
 frontend/dist/
 frontend/dist-ssr/
 frontend/.env
