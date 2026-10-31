@@ -18,6 +18,7 @@
 | BUG-11 | 🟡 P2 | 编辑器按 Markdown 粘贴时，```` ``` ```` 代码块原样变成段落文字（✅ 已修复） | ✅ 实测 |
 | BUG-12 | 🟡 P2 | 章节图片查看器：删除最后一张图片后整页崩溃（✅ 已修复） | ✅ 实测 |
 | BUG-13 | 🟠 P1 | 新建章节 / Part / 想法 / 摘录时请求带 `id`，会覆盖并挪走其他书里的那一行（✅ 已修复） | ✅ 实测 |
+| BUG-14 | 🟠 P1 | PARTS 书中未分组的章节，在 JSON 导出和 ZIP 迁移归档中都会被丢掉（✅ 已修复） | ✅ 实测 |
 
 ---
 
@@ -234,3 +235,25 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 **能否通过界面触发**：能。详情页的"Import JSON"会把 JSON 里的字段原样传给 `chapterApi.create` / `ideaApi.create` / `excerptApi.create`。如果导入的 JSON 带有 `id`（例如 AI 按 API 返回格式生成的 JSON），就会悄悄改动其他书的数据。
 
 **根因**：控制器把请求体直接绑定到 JPA 实体后调用 `save()`。
+
+---
+
+<a id="bug-14"></a>
+## BUG-14 · PARTS 书中未分组的章节，导出和迁移时被丢掉 🟠
+
+> 2026-11-01 设计 FE-08 的导入格式时发现。
+
+> **✅ 已修复（2026-11-01）**
+> - [BookArchiveBuilder](../../backend/src/main/java/com/bookscoreideas/service/BookArchiveBuilder.java) 对 PARTS 书在 `parts` 之外，把 `partId` 为空的章节作为顶层 `chapters` 输出；ZIP 归档和"Export JSON"都经过它。
+> - 没有未分组章节时，`chapters` 仍为 null 或省略，所以现有输出**逐字节不变**：真实数据的 2,748 个 GET 响应零差异，包括逐条目比较的迁移导出。
+> - 导入端在 FE-08 ① 中已经能接收这种结构，作为未分组章节导入：ZIP 迁移的 `persistBook` 和 JSON 导入都可以。
+> - 回归测试（修复前都失败）：
+>   - `BookJsonExportTest.ungroupedChaptersOfAPartsBookFollowItsParts`：导出中缺少 `chapters`；
+>   - `MigrationArchiveTest.ungroupedChaptersOfAPartsBookSurviveTheArchive`：导出、删除、导入后只剩 1 章，应为 2 章。
+> - 真实数据副本：把 book 388 的一个章节（4 条想法、4 条摘录）拖到"未分组"，再用 `roundtrip.py` 把全部书导入空库。ZIP 和 JSON 两种方式再导出都与原来相同，唯一的差别仍是 book 195 缺失的图片文件。
+
+**现象**：详情页允许 PARTS 书中存在不属于任何 part 的章节：导入只有标题的空 part 后，原有章节就在这种状态，需要拖进 part。但 `BookArchiveBuilder` 对 PARTS 书只遍历各 part 的章节，所以这些章节（连同它们的想法、摘录、讲解、书签、标记、图片）在 ZIP 迁移和单书 JSON 导出中都不存在。迁移到另一台机器后会悄悄丢失。
+
+**影响**：当前真实数据中没有这种章节（已查询确认），所以没有实际损失。
+
+**未处理的相关情况**（记录在此，暂不修改）：PARTS 书改回 CHAPTERS 后，原来的 part 记录仍在数据库中，界面上不显示。导出时章节作为平铺列表输出，part 本身和章节的归属不会导出。真实数据中也没有这种情况。

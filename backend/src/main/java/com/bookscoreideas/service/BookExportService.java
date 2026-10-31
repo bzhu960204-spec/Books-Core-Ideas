@@ -49,6 +49,8 @@ public class BookExportService {
             result.put("structureType", book.getStructureType());
             if (archive.parts() != null) {
                 result.put("parts", archive.parts().stream().map(BookExportService::part).toList());
+                // A PARTS book's ungrouped chapters (BUG-14); the import takes them back as such.
+                if (archive.chapters() != null) result.put("chapters", chapters(archive.chapters()));
             } else {
                 result.put("chapters", chapters(archive.chapters()));
             }

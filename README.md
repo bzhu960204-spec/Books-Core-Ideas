@@ -187,7 +187,7 @@ On a PARTS book's detail page, the unified **Import JSON** button's first tab be
 | `summary` | string | No | Max 1000 chars |
 | `chapters` | array | No | Chapter format (see below) |
 
-> The importer validates structure: a `parts` payload is rejected for a CHAPTERS book, and the Chapters tab rejects objects that contain a `chapters` array (a Parts structure). In the library import, top-level `chapters` of a PARTS book (next to `parts`) become ungrouped chapters.
+> The importer validates structure: a `parts` payload is rejected for a CHAPTERS book, and the Chapters tab rejects objects that contain a `chapters` array (a Parts structure). In the library import, top-level `chapters` of a PARTS book (next to `parts`) become ungrouped chapters; **Export** writes a PARTS book's ungrouped chapters the same way.
 
 ---
 

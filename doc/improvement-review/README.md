@@ -72,7 +72,7 @@
 | 顺序 | ID | 事项 |
 |---|---|---|
 | 3.1 | SEC-01 | ✅ DOMPurify 清洗富文本 |
-| 3.2 | FE-03 / FE-08 / BUG-06 | 聚合接口 + 数据层（TanStack Query）+ 后端 JSON 导入 |
+| 3.2 | FE-03 / FE-08 / BUG-06 | ✅ 聚合接口 + 数据层（TanStack Query）+ 后端 JSON 导入（顺带修复新发现的 BUG-14） |
 | 3.3 | FE-01 | 拆分 BookDetailPage / RichTextEditor / index.css |
 | 3.4 | FE-04 | 路由与重组件懒加载 |
 | 3.5 | FE-05 | Toast、ErrorBoundary、404 |
@@ -99,6 +99,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-11 | P2 | Markdown 粘贴代码块不转换 | — | ✅ | 评审后发现；公式改用 marked 扩展 + markdownPaste.test.js |
 | BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |
 | BUG-13 | P1 | 子资源新建带 id 会覆盖/挪走数据 | 2 | ✅ | BUG-09 同源（章节/Part/想法/摘录）；ChildCreateIgnoresClientIdTest |
+| BUG-14 | P1 | PARTS 书未分组章节在导出/迁移中丢失 | 3 | ✅ | 设计 FE-08 时发现；归档与 JSON 导出补上顶层 chapters（无此类章节时输出不变）；真实数据零差异 + 往返验证 |
 | BE-01 | P1 | Service 层 | 2 | ✅ | 与 BE-03 DTO 化合并；控制器不再直接用 Repository；open-in-view=false；2,695 个响应零差异 |
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ✅ | /api/books 请求/响应 DTO + chapterCount；列表 757 KB→25 KB；含 BUG-09 |
 | BE-03 | P2 | API 风格统一 | 2 | ✅ | 201/204/404 约定 + 错误一律 ProblemDetail（doc/api-conventions.md）；前端无需改动，浏览器验证 |
@@ -128,7 +129,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 162 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 52 个（含 RTL 组件测试、fetch 层假后端）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 164 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 52 个（含 RTL 组件测试、fetch 层假后端）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

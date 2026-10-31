@@ -153,6 +153,32 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(getJson("/api/books/" + book + "/reviews")).isEmpty();
     }
 
+    /** Regression (BUG-14): a PARTS book's chapters outside any part were left out of the archive. */
+    @Test
+    void ungroupedChaptersOfAPartsBookSurviveTheArchive() throws Exception {
+        String title = "Ungrouped " + System.nanoTime();
+        long book = postForId("/api/books", Map.of("title", title, "structureType", "PARTS"));
+        long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1"));
+        postForId("/api/books/" + book + "/chapters", Map.of("title", "Grouped", "orderIndex", 1, "partId", part));
+        long loose = postForId("/api/books/" + book + "/chapters", Map.of("title", "Loose", "orderIndex", 2));
+        postForId("/api/chapters/" + loose + "/excerpts", Map.of("content", "kept"));
+        byte[] zip = export(book);
+        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isNoContent());
+
+        assertThat(importArchive(zip).get("booksImported").asInt()).isEqualTo(1);
+
+        long imported = bookIdByTitle(title);
+        JsonNode chapters = getJson("/api/books/" + imported + "/chapters");
+        assertThat(chapters).hasSize(2);
+        JsonNode looseCopy = chapters.get(1);
+        assertThat(looseCopy.get("title").asText()).isEqualTo("Loose");
+        assertThat(looseCopy.get("partId").isNull()).isTrue();
+        assertThat(getJson("/api/chapters/" + looseCopy.get("id").asLong() + "/excerpts").get(0).get("content").asText())
+                .isEqualTo("kept");
+        assertThat(chapters.get(0).get("partId").asLong())
+                .isEqualTo(getJson("/api/books/" + imported + "/parts").get(0).get("id").asLong());
+    }
+
     @Test
     void archiveFromANewerFormatIsRefused() throws Exception {
         String title = "Future archive " + System.nanoTime();

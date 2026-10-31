@@ -93,6 +93,12 @@ public class BookArchiveBuilder {
                 }
                 parts.add(new PartArchiveDto(part.getTitle(), part.getOrderIndex(), part.getSummary(), partChapters));
             }
+            // Chapters outside any part ("Ungrouped" on the book page), BUG-14; absent when there are none.
+            List<ChapterArchiveDto> ungrouped = new ArrayList<>();
+            for (Chapter chapter : chapterRepository.findByBookIdOrderByOrderIndexAsc(book.getId())) {
+                if (chapter.getPartId() == null) ungrouped.add(buildChapter(chapter));
+            }
+            if (!ungrouped.isEmpty()) chapters = ungrouped;
         } else {
             chapters = new ArrayList<>();
             for (Chapter chapter : chapterRepository.findByBookIdOrderByOrderIndexAsc(book.getId())) {

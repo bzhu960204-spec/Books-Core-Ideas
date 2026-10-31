@@ -51,6 +51,22 @@ class BookJsonExportTest extends IntegrationTest {
                 + "\"keyIdeas\":[],\"excerpts\":[]}]}");
     }
 
+    /** Regression (BUG-14): a PARTS book's chapters outside any part were left out of the export. */
+    @Test
+    void ungroupedChaptersOfAPartsBookFollowItsParts() throws Exception {
+        long book = postForId("/api/books", Map.of("title", "Loose JSON", "structureType", "PARTS"));
+        long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1));
+        postForId("/api/books/" + book + "/chapters", Map.of("title", "In part", "orderIndex", 1, "partId", part));
+        long loose = postForId("/api/books/" + book + "/chapters", Map.of("title", "Loose", "orderIndex", 2));
+        postForId("/api/chapters/" + loose + "/excerpts", Map.of("content", "kept", "orderIndex", 1));
+
+        assertThat(export(book)).endsWith("\"structureType\":\"PARTS\",\"parts\":[{\"title\":\"P1\",\"orderIndex\":1,"
+                + "\"summary\":null,\"chapters\":[{\"title\":\"In part\",\"orderIndex\":1,\"summary\":null,"
+                + "\"keyIdeas\":[],\"excerpts\":[]}]}],"
+                + "\"chapters\":[{\"title\":\"Loose\",\"orderIndex\":2,\"summary\":null,\"keyIdeas\":[],"
+                + "\"excerpts\":[{\"content\":\"kept\",\"note\":null,\"source\":null,\"highlighted\":false,\"orderIndex\":1}]}]}");
+    }
+
     @Test
     void missingBookIs404() throws Exception {
         mockMvc.perform(get("/api/books/987654321/export")).andExpect(status().isNotFound());
