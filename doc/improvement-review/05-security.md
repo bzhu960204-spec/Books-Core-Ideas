@@ -16,6 +16,14 @@
 <a id="sec-01"></a>
 ## SEC-01 · 富文本 HTML 未清洗 🟠
 
+> **✅ 已修复（2026-10-31）**，粘贴 AI 回答的用法不变：
+> - 新增 [sanitizeHtml.js](../../frontend/src/utils/sanitizeHtml.js)（DOMPurify 默认规则 + 保留链接 `target`，并强制 `rel="noopener noreferrer"`）。
+> - **入口**：编辑器四条粘贴路径（原生粘贴 `transformPastedHTML`、`takeOver`、Markdown 转换、Copilot 代码块）均先清洗剪贴板 HTML。
+> - **出口**：`normalizeReviewContent` 返回清洗后的 HTML，覆盖讲解阅读、书评阅读、书评库、编辑器加载；讲解导出（HTML/PDF）单独清洗；讲解阅读窗口用 `useMemo` 缓存清洗结果。
+> - 真实数据验证：对备份库中 **51 篇讲解 + 3 篇书评（约 263 万字符）**，清洗前后 HTML 与纯文本均**零差异**（已保存段落的定位偏移不受影响）。
+> - 浏览器验证：数据库中存入含 `<img onerror>`、`javascript:` 链接、`<script>` 的讲解，阅读模式下均未执行、正常链接保留；5 类粘贴结果与清洗前逐字一致，Copilot "Render code blocks" 仍可用。
+> - 测试：[sanitizeHtml.test.js](../../frontend/src/utils/sanitizeHtml.test.js)（6 个；去掉清洗后 4 个安全用例失败）。后端保存时清洗暂未做。
+
 **现状**：
 - [ChapterExplanationModal.jsx](../../frontend/src/components/ChapterExplanationModal.jsx) 第 25 行、[ReviewReaderModal.jsx](../../frontend/src/components/ReviewReaderModal.jsx) 第 90 行用 `dangerouslySetInnerHTML` 渲染数据库中的 HTML；
 - [ExplanationExportModal.jsx](../../frontend/src/components/ExplanationExportModal.jsx) 通过 `innerHTML` 生成导出文档；

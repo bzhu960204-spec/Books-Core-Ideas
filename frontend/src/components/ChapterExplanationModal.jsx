@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo } from 'react';
 import Modal from './Modal';
 import RichTextEditor, { normalizeReviewContent } from './RichTextEditor';
 import {
@@ -72,6 +72,13 @@ export default function ChapterExplanationModal({
   });
 
   const [showHighlights, setShowHighlights] = useState(() => localStorage.getItem(HIGHLIGHTS_KEY) !== 'off');
+
+  // Sanitizing a long explanation isn't free; do it once per content change,
+  // not on every re-render (e.g. while the reader selects text).
+  const explanationHtml = useMemo(
+    () => normalizeReviewContent(explanation?.content),
+    [explanation?.content],
+  );
 
   useEffect(() => {
     setDraft(normalizeReviewContent(explanation?.content));
@@ -362,7 +369,7 @@ export default function ChapterExplanationModal({
         ) : (
           <ExplanationHtml
             contentRef={contentRef}
-            html={normalizeReviewContent(explanation?.content)}
+            html={explanationHtml}
             fontScale={fontScale}
           />
         )}

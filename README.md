@@ -29,7 +29,7 @@ Data lives in `backend/data/` (H2 database + uploaded images). Take a manual sna
 
 ```powershell
 cd backend;  mvn test          # integration tests on an isolated in-memory H2 (never touches backend/data)
-cd frontend; npm run lint; npm run build
+cd frontend; npm test; npm run lint; npm run build   # Vitest unit tests (jsdom)
 ```
 
 GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same on every push to `main` and on pull requests.

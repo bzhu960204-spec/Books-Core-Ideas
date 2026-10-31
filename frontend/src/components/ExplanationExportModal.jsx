@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import JSZip from 'jszip';
 import Modal from './Modal';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 // Export chapter explanations. Unlike a combined document, each selected chapter
 // is exported as its OWN self-contained file (HTML or print-to-PDF), each with a
@@ -266,7 +267,9 @@ function renderTocTree(entries) {
 // Build one self-contained HTML document for a single chapter's explanation.
 function buildChapterHtml({ bookTitle, chapterTitle, content, updatedAt, removeLinks, includePrintScript }) {
   const sectionId = 'note-1';
-  const stripped = removeLinks ? stripLinks(content) : content;
+  // Exported files are opened in a browser, so stored HTML is sanitized first.
+  const safe = sanitizeHtml(content);
+  const stripped = removeLinks ? stripLinks(safe) : safe;
   const { html: body, headings } = injectHeadingAnchors(stripped, sectionId);
 
   const toc = [{ id: sectionId, text: chapterTitle, level: 1 }, ...headings];

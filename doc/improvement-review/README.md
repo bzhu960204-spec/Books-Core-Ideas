@@ -70,7 +70,7 @@
 ### 阶段 3 · 前端
 | 顺序 | ID | 事项 |
 |---|---|---|
-| 3.1 | SEC-01 | DOMPurify 清洗富文本 |
+| 3.1 | SEC-01 | ✅ DOMPurify 清洗富文本 |
 | 3.2 | FE-03 / FE-08 / BUG-06 | 聚合接口 + 数据层（TanStack Query）+ 后端 JSON 导入 |
 | 3.3 | FE-01 | 拆分 BookDetailPage / RichTextEditor / index.css |
 | 3.4 | FE-04 | 路由与重组件懒加载 |
@@ -119,12 +119,12 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | FE-06 | P1 | jszip 依赖归位 | 0 | ✅ | |
 | FE-07 | P3 | api.js 样板 / 类型 | 4 | ⬜ | |
 | FE-08 | P2 | JSON 导入移到后端 | 3 | ⬜ | |
-| SEC-01 | P1 | 富文本 XSS 清洗 | 3 | ⬜ | |
+| SEC-01 | P1 | 富文本 XSS 清洗 | 3 | ✅ | DOMPurify：粘贴入口 + 显示出口 + 导出；真实数据零差异 |
 | SEC-02 | P2 | 图片类型白名单 | 4 | ⬜ | |
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | 🔄 | 已升级 TipTap/ProseMirror/router，prod audit 0 漏洞；Dependabot 待开启 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端骨架 + 迁移测试已就绪；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 28 个 + 前端 Vitest 6 个；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 暂不阻断（待 FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

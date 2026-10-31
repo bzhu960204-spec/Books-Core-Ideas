@@ -14,4 +14,7 @@ export default defineConfig({
       '/api': { target: apiTarget },
     },
   },
+  test: {
+    environment: 'jsdom',
+  },
 })

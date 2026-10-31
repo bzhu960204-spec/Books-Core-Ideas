@@ -13,6 +13,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { marked } from 'marked';
 import LinkFixPrompt from './LinkFixPrompt';
 import { analyzeHtmlLinks } from '../utils/linkFix';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 // Custom extension: adds a `fontSize` attribute to the textStyle mark so the
 // font-size dropdown can read/write inline `style="font-size: …"`.
@@ -407,13 +408,15 @@ function isLikelyHtml(s) {
   return /<\/?(p|h[1-6]|ul|ol|li|strong|em|u|s|blockquote|br|span|a|div|hr|pre|code)\b/i.test(s);
 }
 
+// Stored content as safe HTML for rendering or loading into the editor. Every
+// display path goes through here, so it is also where stored HTML is sanitized.
 export function normalizeReviewContent(content) {
   if (!content) return '';
-  if (isLikelyHtml(content)) return content;
+  if (isLikelyHtml(content)) return sanitizeHtml(content);
   try {
-    return marked.parse(content, { breaks: true, gfm: true });
+    return sanitizeHtml(marked.parse(content, { breaks: true, gfm: true }));
   } catch {
-    return content;
+    return sanitizeHtml(content);
   }
 }
 
@@ -491,7 +494,9 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
       },
       handlePaste: (view, event) => {
         const text = event.clipboardData?.getData('text/plain') ?? '';
-        const html = event.clipboardData?.getData('text/html') ?? '';
+        // Clipboard HTML is untrusted (AI answers, web pages): sanitize before
+        // any of the paths below inspect or insert it.
+        const html = sanitizeHtml(event.clipboardData?.getData('text/html') ?? '');
 
         // A bare image (screenshot) has no HTML flavor; copied web/Word/Excel content
         // with an <img> goes through the HTML paths below instead.
@@ -521,7 +526,7 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
         const insertAsMarkdown = () => {
           if (!editor || !text) return false;
           event.preventDefault();
-          editor.chain().focus().insertContent(markdownToHtml(text)).run();
+          editor.chain().focus().insertContent(sanitizeHtml(markdownToHtml(text))).run();
           return true;
         };
 
@@ -555,7 +560,9 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
         });
         return true;
       },
-      transformPastedHTML: html => dropOversizeImages(html),
+      // Native pastes (handlePaste returned false) reach ProseMirror's own parser
+      // with the raw clipboard HTML, so sanitize here too.
+      transformPastedHTML: html => dropOversizeImages(sanitizeHtml(html)),
     },
   });
 
