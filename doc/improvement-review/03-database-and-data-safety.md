@@ -152,7 +152,8 @@
 
 - `book_reviews.updated_at`、`chapter_explanations.updated_at` 是 `DATE`，丢失时分秒，同一天内多次编辑无法排序（目前靠 `id DESC` 兜底）。建议改 `TIMESTAMP`。
 - `books.category` 用分号拼接多值（`BookRepository.findDistinctCategories` 在 Java 里拆分）。如果分类会继续增强（重命名、统计），建议拆成 `categories` + 关联表；若保持简单可维持现状。
-- `reading_bookmarks.note` 在 V6 中为 `VARCHAR(500)`，控制器不截断，超长会 500（实体已在 DB-01 中标注 `length = 500`，仅为与库一致；超长输入的校验留给 BE-05）。
+- `reading_bookmarks.note` 在 V6 中为 `VARCHAR(500)`，控制器不截断，超长会 500（实体已在 DB-01 中标注 `length = 500`，仅为与库一致；✅ 超长输入随 BE-05 改为返回 400）。
+- `books.reading_status` 中"未设置"有两种存法：13 本是空串、4 本是 NULL。在把 `readingStatus` 映射为 Java 枚举之前，需要先迁移数据（`''` → NULL）。这会改变这些书在 API 中的输出（`""` → `null`），前端两种情况都当作"未设置"处理（见 BE-05）。
 - ✅ **`Chapter.explanation` 反向一对一**（2026-10-31 完成，BE-01 时发现）：
   - **问题**：没有字节码增强时，反向一对一无法懒加载，所以每次加载 `Chapter` 实体（改章节、加想法/摘录、导出等）都会把讲解全文一起读出来。
   - **改法**：从 `Chapter` 中删除该字段，删章/删书时讲解由数据库的 `ON DELETE CASCADE`（V9）删除。原本由服务层显式删除也是一种选择，但级联已经在数据库里了，不需要重复的代码。

@@ -1,6 +1,10 @@
 package com.bookscoreideas.dto;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
@@ -11,17 +15,17 @@ import java.time.LocalDate;
  * keep their original date; it defaults to today when absent.
  */
 public record CreateBookRequest(
-        @NotBlank String title,
-        String author,
-        String isbn,
-        String description,
-        String coverUrl,
+        @NotBlank @Size(max = 255) String title,
+        @Size(max = 255) String author,
+        @Size(max = 255) String isbn,
+        @Size(max = 2000) String description,
+        @Size(max = 255) String coverUrl,
         LocalDate dateAdded,
-        Integer rating,
-        String category,
-        String readingStatus,
+        @Min(1) @Max(5) Integer rating,
+        @Size(max = 255) String category,
+        @Pattern(regexp = BookValues.READING_STATUS, message = BookValues.READING_STATUS_MESSAGE) String readingStatus,
         LocalDate startDate,
         LocalDate finishDate,
         Boolean chapterImagesEnabled,
-        String structureType) {
+        @Pattern(regexp = BookValues.STRUCTURE_TYPE, message = BookValues.STRUCTURE_TYPE_MESSAGE) String structureType) {
 }

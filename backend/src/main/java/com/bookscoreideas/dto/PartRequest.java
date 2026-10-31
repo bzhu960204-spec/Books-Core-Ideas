@@ -1,10 +1,11 @@
 package com.bookscoreideas.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /** Body of part create/update; an id in the JSON is ignored (BUG-13). */
 public record PartRequest(
-        @NotBlank String title,
+        @NotBlank @Size(max = 255) String title,
         Integer orderIndex,
-        String summary) {
+        @Size(max = 1000) String summary) {
 }

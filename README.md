@@ -105,16 +105,18 @@ Click **`Import JSON`** on the Library page.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `title` | string | **Yes** | |
-| `author` | string | No | |
-| `isbn` | string | No | |
+| `title` | string | **Yes** | Max 255 chars |
+| `author` | string | No | Max 255 chars |
+| `isbn` | string | No | Max 255 chars |
 | `description` | string | No | Max 2000 chars |
-| `coverUrl` | string | No | URL to cover image |
+| `coverUrl` | string | No | URL to cover image, max 255 chars |
 | `structureType` | string | No | `"CHAPTERS"` (default) or `"PARTS"` |
 | `chapters` | array | No | Flat chapter list (CHAPTERS books) |
 | `parts` | array | No | Parts, each with nested `chapters` (PARTS books) |
 
 > If `parts` is present (or `structureType` is `"PARTS"`), the book is created as a PARTS book. See [Books with Parts](#books-with-parts).
+>
+> **Limits** (enforced by the API; a longer value fails with a message naming the field): chapter and part `title` 255, part `summary` 1000, key idea `content` / `example` 3000 and `tags` 500, excerpt `note` 1000 and `source` 300. Chapter `summary` and excerpt `content` are unlimited.
 
 ---
 

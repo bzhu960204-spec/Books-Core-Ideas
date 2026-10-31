@@ -1,11 +1,10 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.ExplanationDto;
+import com.bookscoreideas.dto.ExplanationRequest;
 import com.bookscoreideas.service.ExplanationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chapters/{chapterId}/explanation")
@@ -27,8 +26,8 @@ public class ChapterExplanationController {
     // Upsert: one explanation per chapter, so PUT creates or updates in place.
     @PutMapping
     public ResponseEntity<ExplanationDto> saveExplanation(@PathVariable Long chapterId,
-                                                          @RequestBody Map<String, String> body) {
-        return ResponseEntity.of(explanationService.save(chapterId, body.getOrDefault("content", "")));
+                                                          @RequestBody ExplanationRequest body) {
+        return ResponseEntity.of(explanationService.save(chapterId, body.content() != null ? body.content() : ""));
     }
 
     @DeleteMapping

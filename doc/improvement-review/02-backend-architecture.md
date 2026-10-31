@@ -107,6 +107,24 @@
 
 **建议**：DTO + `@Size/@Min/@Max/@NotBlank` + 枚举。
 
+> **✅ 已完成（2026-10-31，枚举映射除外）**
+> - **校验**：所有写接口的请求体都做 Bean Validation，失败时返回 400 ProblemDetail，`detail` 中写明字段名。
+>   - 文本长度按数据库列宽：书名/作者/ISBN/封面/分类 255，简介 2000，章节和 Part 标题 255，Part 摘要 1000，想法正文/例子 3000、标签 500，摘录批注 1000、出处 300，书评标题 255，书签批注 500。
+>   - 评分只能为 1–5 或空。
+>   - `readingStatus` 只能为 `WANT_TO_READ` / `READING` / `FINISHED` / 空串 / null；`structureType` 只能为 `CHAPTERS` / `PARTS`。允许的值集中在 [BookValues](../../backend/src/main/java/com/bookscoreideas/dto/BookValues.java)。
+> - **改动前的问题**：超长文本一路写到数据库，"value too long"被当成 **409 冲突**返回；评分 6 会被保存，而书库页按 `5 - rating` 画空心星，`'★'.repeat(-1)` 会让**页面崩溃**；任意状态值都能写入。
+> - **类型错误**（例如 `scrollRatio: "half"`）原来返回笼统的 "Failed to read request"，现在写明字段：`scrollRatio: must be a valid Double`。
+> - **`Map` 请求体全部换成带校验的 record**：书评 `ReviewRequest`、讲解 `ExplanationRequest`、书签 `BookmarkRequest`、标记 `MarkRequest` / `MarkNoteRequest`。
+>   - 标记的上下文和批注仍然是**截断而不拒绝**：上下文是从页面上截取的，长度不由读者决定（行为不变）。
+>   - 书评更新时 null 表示"不改"，与原来"缺省表示不改"一致；界面总是同时发送两个字段。
+> - **契约变化**：`scrollRatio` 不是数字时由"静默存为空"改为 400。前端只会发送数字或 null；`ReadingApiTest` 中的对应用例已改为"缺省"。
+> - **未做：Java 枚举映射**。真实库中有 13 本书的 `reading_status` 是空串、4 本是 NULL，直接映射为 `@Enumerated` 会在加载时报错。需要先迁移数据（`''` → NULL），这会改变这 13 本书在 API 中的输出，所以暂缓，目前用请求校验保证新写入的值合法。
+> - 书单请求体 `BookCollectionRequest` 未改：服务层已对名称做校验并返回 400。
+> - **测试**：[InputValidationTest](../../backend/src/test/java/com/bookscoreideas/web/InputValidationTest.java)，参数化 36 个：27 个非法输入改动前全部失败（409 / 200 / 空 400），9 个边界值改动前后都通过。
+> - **真实数据**：
+>   - 2,724 个 GET 响应零差异。
+>   - 在副本上把现有的 24 本书、16 个 Part、479 章、1,285 条想法、932 条摘录、5 条书评**原样 PUT 回去**，全部通过新校验，即现有数据都还能编辑。新旧代码执行同样的回写后，两边状态零差异。其中 2 条标题为 NULL 的书评会变成空串并更新日期，这是读取 DTO 把 null 显示为 `""` 造成的，旧代码同样如此，与本次无关。
+
 ---
 
 <a id="be-06"></a>

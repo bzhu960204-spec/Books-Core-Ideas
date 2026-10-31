@@ -1,12 +1,13 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.BookmarkDto;
+import com.bookscoreideas.dto.BookmarkRequest;
 import com.bookscoreideas.service.BookmarkService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -20,12 +21,10 @@ public class ReadingBookmarkController {
 
     @PostMapping("/chapters/{chapterId}/bookmarks")
     public ResponseEntity<BookmarkDto> create(@PathVariable Long chapterId,
-                                              @RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> payload = body != null ? body : Map.of();
-        Double scrollRatio = payload.get("scrollRatio") instanceof Number number ? number.doubleValue() : null;
-        Object note = payload.get("note");
-        String trimmedNote = note != null && !note.toString().isBlank() ? note.toString().trim() : null;
-        return ResponseEntity.of(bookmarkService.create(chapterId, scrollRatio, trimmedNote));
+                                              @Valid @RequestBody(required = false) BookmarkRequest body) {
+        BookmarkRequest request = body != null ? body : new BookmarkRequest(null, null);
+        String note = request.note() != null && !request.note().isBlank() ? request.note().trim() : null;
+        return ResponseEntity.of(bookmarkService.create(chapterId, request.scrollRatio(), note));
     }
 
     @GetMapping("/books/{bookId}/bookmarks/latest")

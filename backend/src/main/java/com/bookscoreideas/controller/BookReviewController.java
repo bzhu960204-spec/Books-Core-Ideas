@@ -1,12 +1,13 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.ReviewDto;
+import com.bookscoreideas.dto.ReviewRequest;
 import com.bookscoreideas.service.ReviewService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/books/{bookId}/reviews")
@@ -25,18 +26,18 @@ public class BookReviewController {
 
     @PostMapping
     public ResponseEntity<ReviewDto> createReview(@PathVariable Long bookId,
-                                                  @RequestBody Map<String, String> body) {
+                                                  @Valid @RequestBody ReviewRequest body) {
         return ResponseEntity.of(reviewService.create(bookId,
-                body.getOrDefault("title", ""), body.getOrDefault("content", "")));
+                body.title() != null ? body.title() : "", body.content() != null ? body.content() : ""));
     }
 
     @PutMapping("/{reviewId}")
     public ResponseEntity<ReviewDto> updateReview(@PathVariable Long bookId,
                                                   @PathVariable Long reviewId,
-                                                  @RequestBody Map<String, String> body) {
+                                                  @Valid @RequestBody ReviewRequest body) {
         var changes = new ReviewService.ReviewChanges(
-                body.containsKey("title"), body.get("title"),
-                body.containsKey("content"), body.get("content"));
+                body.title() != null, body.title(),
+                body.content() != null, body.content());
         return ResponseEntity.of(reviewService.update(bookId, reviewId, changes));
     }
 

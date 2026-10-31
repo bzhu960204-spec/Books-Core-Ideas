@@ -106,7 +106,8 @@ class ReadingApiTest extends IntegrationTest {
                 "bookAuthor", "bookCoverUrl", "scrollRatio", "note", "createdAt");
         assertThat(first.get("note").asText()).isEqualTo("start");
         assertThat(first.get("chapterTitle").asText()).isEqualTo("Ch");
-        JsonNode second = postJson("/api/chapters/" + chapter + "/bookmarks", Map.of("scrollRatio", "not a number"));
+        // No ratio (null) and a blank note; a non-numeric ratio is a 400 (InputValidationTest, BE-05).
+        JsonNode second = postJson("/api/chapters/" + chapter + "/bookmarks", Map.of("note", "   "));
         assertThat(second.get("scrollRatio").isNull()).isTrue();
         assertThat(second.get("note").asText()).isEmpty();
 
