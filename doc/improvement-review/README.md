@@ -123,7 +123,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-02 | P2 | 图片类型白名单 | 4 | ⬜ | |
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
-| SEC-05 | P2 | 依赖漏洞扫描 | 4 | ⬜ | npm audit：3 high，含 prosemirror-view 粘贴 XSS，建议提前 |
+| SEC-05 | P2 | 依赖漏洞扫描 | 4 | 🔄 | 已升级 TipTap/ProseMirror/router，prod audit 0 漏洞；Dependabot 待开启 |
 | ENG-01 | P0 | 测试 | 1 | 🔄 | 后端骨架 + 迁移测试已就绪；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 暂不阻断（待 FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
