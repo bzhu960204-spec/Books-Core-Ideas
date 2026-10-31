@@ -100,7 +100,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |
 | BUG-13 | P1 | 子资源新建带 id 会覆盖/挪走数据 | 2 | ✅ | BUG-09 同源（章节/Part/想法/摘录）；ChildCreateIgnoresClientIdTest |
 | BUG-14 | P1 | PARTS 书未分组章节在导出/迁移中丢失 | 3 | ✅ | 设计 FE-08 时发现；归档与 JSON 导出补上顶层 chapters（无此类章节时输出不变）；真实数据零差异 + 往返验证 |
-| BUG-15 | P3 | 撤销保存段落失败时无提示 | — | ⬜ | FE-01 写特征测试时发现；错误信息依赖已被清除的 savedNotice |
+| BUG-15 | P3 | 撤销保存段落失败时无提示 | — | ✅ | FE-01 写特征测试时发现；失败时恢复提示条，错误可见且可重试；回归测试 + 浏览器验证（模拟 500） |
 | BUG-16 | P2 | 字体/字号/颜色控件无效 | — | ⬜ | FE-01 写特征测试时发现；未注册 TextStyle。修复会改变粘贴行为，3 个选项待决定 |
 | BE-01 | P1 | Service 层 | 2 | ✅ | 与 BE-03 DTO 化合并；控制器不再直接用 Repository；open-in-view=false；2,695 个响应零差异 |
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ✅ | /api/books 请求/响应 DTO + chapterCount；列表 757 KB→25 KB；含 BUG-09 |
@@ -131,7 +131,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 165 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 119 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 165 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 120 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

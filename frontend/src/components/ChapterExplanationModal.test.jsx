@@ -271,6 +271,24 @@ describe('ChapterExplanationModal saved passages', () => {
     expect(screen.queryByText('Could not save. Try again.')).toBeNull();
   });
 
+  // BUG-15: the notice was cleared before the request, so the menu holding the
+  // error unmounted and the failure went unreported.
+  it('reports a failed undo and offers Undo again', async () => {
+    const onSaveMark = vi.fn().mockResolvedValue({ id: 9 });
+    const onDeleteMark = vi.fn().mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
+    renderModal({ explanation: { content: TEXT }, onSaveMark, onDeleteMark });
+
+    selectText('gamma');
+    fireEvent.click(await screen.findByRole('button', { name: '📑 Save passage' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+
+    expect(await screen.findByText('Could not undo. Remove it from Saved Passages.')).toBeTruthy();
+    expect(screen.getByText('✓ Passage saved')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(screen.queryByText('✓ Passage saved')).toBeNull());
+    expect(onDeleteMark.mock.calls).toEqual([[9], [9]]);
+  });
+
   it('offers nothing while editing', async () => {
     renderModal({ explanation: { content: TEXT }, startInEdit: true });
     expect(screen.getByTestId('editor')).toBeTruthy();

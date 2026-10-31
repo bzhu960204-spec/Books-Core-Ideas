@@ -116,11 +116,13 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
 
   const undo = async () => {
     if (!savedNotice) return;
-    const { id } = savedNotice;
+    const notice = savedNotice;
     setSavedNotice(null);
     try {
-      await onDeleteMark?.(id);
+      await onDeleteMark?.(notice.id);
     } catch {
+      // Bring the notice back: the error is shown in it, and Undo can be retried.
+      setSavedNotice(notice);
       setMarkError('Could not undo. Remove it from Saved Passages.');
     }
   };

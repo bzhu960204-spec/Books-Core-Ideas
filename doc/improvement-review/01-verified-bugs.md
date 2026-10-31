@@ -19,7 +19,7 @@
 | BUG-12 | 🟡 P2 | 章节图片查看器：删除最后一张图片后整页崩溃（✅ 已修复） | ✅ 实测 |
 | BUG-13 | 🟠 P1 | 新建章节 / Part / 想法 / 摘录时请求带 `id`，会覆盖并挪走其他书里的那一行（✅ 已修复） | ✅ 实测 |
 | BUG-14 | 🟠 P1 | PARTS 书中未分组的章节，在 JSON 导出和 ZIP 迁移归档中都会被丢掉（✅ 已修复） | ✅ 实测 |
-| BUG-15 | ⚪ P3 | 讲解阅读器中"撤销保存段落"失败时，错误提示不会显示 | 🔍 代码确认 + 组件测试 |
+| BUG-15 | ⚪ P3 | 讲解阅读器中"撤销保存段落"失败时，错误提示不会显示（✅ 已修复） | 🔍 代码确认 + 组件测试 |
 | BUG-16 | 🟡 P2 | 编辑器的字体、字号、文字颜色控件无效并抛错；粘贴内容中的这些内联样式被丢弃 | ✅ 实测 |
 
 ---
@@ -265,7 +265,11 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 <a id="bug-15"></a>
 ## BUG-15 · 撤销保存段落失败时没有任何提示 ⚪
 
-> 2026-11-01 为 FE-01 写特征测试时发现。未修复（FE-01 是行为不变的重构）。
+> 2026-11-01 为 FE-01 写特征测试时发现。
+
+> **✅ 已修复（2026-11-01，FE-01 之后单独提交）**：撤销失败时恢复 `savedNotice`，错误信息显示在浮动条中，Undo 可以重试。
+> - 回归测试 `ChapterExplanationModal.test.jsx`"reports a failed undo and offers Undo again"：修复前找不到错误信息而失败；同时检查重试会再次删除同一段落。
+> - 浏览器验证（真实数据副本）：拦截 `DELETE /api/marks/*` 使其返回 500，保存段落后点 Undo，浮动条显示"✓ Passage saved / Undo / Could not undo…"；取消拦截后再点 Undo，段落删除，Saved Passages 回到 0。
 
 **现象**：在讲解阅读器中选中文本、保存为段落后，浮动条显示"✓ Passage saved / Undo"。如果点 Undo 时删除请求失败，界面应显示"Could not undo. Remove it from Saved Passages."，实际什么都不显示，浮动条直接消失，段落仍然保存着。
 
