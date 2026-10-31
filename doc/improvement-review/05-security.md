@@ -77,5 +77,7 @@
 > **✅ 依赖已升级（2026-10-31）**：全部 `@tiptap/*` 3.26.1 → 3.32.2（同时修复 `@tiptap/core ≤3.30.4` 的 `mergeAttributes` `__proto__` 高危），`prosemirror-view` 1.41.9 → 1.42.9，`react-router` 7.15.0 → 7.18.5。`npm audit --omit=dev` → **0 个漏洞**。
 > 验证：只有一份 `@tiptap/core`、36 个 TipTap 包版本一致；lint 不变、构建通过；在浏览器中对升级前（worktree）与升级后用同一脚本粘贴 Markdown / 富文本 / 颜色链接 / Copilot / 恶意 HTML 五类内容并逐字对比——唯一差异是表格单元格不再输出默认的 `colspan="1" rowspan="1"`（项目中无依赖），恶意 HTML 在两版中均未执行。
 > 剩余：开启 Dependabot（待推送到 GitHub 后在仓库设置中启用或提交 `.github/dependabot.yml`）。
+>
+> **✅ Dependabot 已配置**：[.github/dependabot.yml](../../.github/dependabot.yml)——npm（`/frontend`，每周；`@tiptap/*`、`prosemirror-*` 各自分组为一个 PR，保证 TipTap 版本一致）、maven（`/backend`，每周）、github-actions（每月）。已通过 SchemaStore 官方 schema 校验。推送到 GitHub 后生效。
 
 没有 Dependabot / `npm audit` / OWASP Dependency-Check。结合 [BE-10](02-backend-architecture.md#be-10)（Spring Boot 3.2.x 已停止 OSS 支持），建议在 GitHub 开启 Dependabot（maven + npm），并在 CI 中运行 `npm audit --omit=dev`。

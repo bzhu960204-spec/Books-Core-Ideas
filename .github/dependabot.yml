@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # All @tiptap/* packages must stay on one version (a single @tiptap/core).
+      tiptap:
+        patterns:
+          - "@tiptap/*"
+      prosemirror:
+        patterns:
+          - "prosemirror-*"
+
+  - package-ecosystem: maven
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
