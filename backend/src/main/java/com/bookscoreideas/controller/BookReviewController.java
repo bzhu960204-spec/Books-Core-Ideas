@@ -1,81 +1,49 @@
 package com.bookscoreideas.controller;
 
-import com.bookscoreideas.entity.BookReview;
-import com.bookscoreideas.repository.BookRepository;
-import com.bookscoreideas.repository.BookReviewRepository;
+import com.bookscoreideas.dto.ReviewDto;
+import com.bookscoreideas.service.ReviewService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/books/{bookId}/reviews")
 public class BookReviewController {
 
-    private final BookReviewRepository reviewRepository;
-    private final BookRepository bookRepository;
+    private final ReviewService reviewService;
 
-    public BookReviewController(BookReviewRepository reviewRepository, BookRepository bookRepository) {
-        this.reviewRepository = reviewRepository;
-        this.bookRepository = bookRepository;
+    public BookReviewController(ReviewService reviewService) {
+        this.reviewService = reviewService;
     }
 
     @GetMapping
-    public List<Map<String, Object>> listReviews(@PathVariable Long bookId) {
-        return reviewRepository.findByBookIdOrderByUpdatedAtDescIdDesc(bookId).stream()
-                .map(BookReviewController::toMap)
-                .collect(Collectors.toList());
+    public List<ReviewDto> listReviews(@PathVariable Long bookId) {
+        return reviewService.list(bookId);
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createReview(@PathVariable Long bookId,
-                                                            @RequestBody Map<String, String> body) {
-        return bookRepository.findById(bookId).map(book -> {
-            BookReview review = new BookReview();
-            review.setBook(book);
-            review.setTitle(body.getOrDefault("title", ""));
-            review.setContent(body.getOrDefault("content", ""));
-            reviewRepository.save(review);
-            return ResponseEntity.ok(toMap(review));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ReviewDto> createReview(@PathVariable Long bookId,
+                                                  @RequestBody Map<String, String> body) {
+        return ResponseEntity.of(reviewService.create(bookId,
+                body.getOrDefault("title", ""), body.getOrDefault("content", "")));
     }
 
     @PutMapping("/{reviewId}")
-    public ResponseEntity<Map<String, Object>> updateReview(@PathVariable Long bookId,
-                                                            @PathVariable Long reviewId,
-                                                            @RequestBody Map<String, String> body) {
-        return reviewRepository.findById(reviewId)
-                .filter(r -> r.getBook() != null && bookId.equals(r.getBook().getId()))
-                .map(review -> {
-                    if (body.containsKey("title")) review.setTitle(body.get("title"));
-                    if (body.containsKey("content")) review.setContent(body.get("content"));
-                    reviewRepository.save(review);
-                    return ResponseEntity.ok(toMap(review));
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<ReviewDto> updateReview(@PathVariable Long bookId,
+                                                  @PathVariable Long reviewId,
+                                                  @RequestBody Map<String, String> body) {
+        var changes = new ReviewService.ReviewChanges(
+                body.containsKey("title"), body.get("title"),
+                body.containsKey("content"), body.get("content"));
+        return ResponseEntity.of(reviewService.update(bookId, reviewId, changes));
     }
 
     @DeleteMapping("/{reviewId}")
     public ResponseEntity<Void> deleteReview(@PathVariable Long bookId, @PathVariable Long reviewId) {
-        return reviewRepository.findById(reviewId)
-                .filter(r -> r.getBook() != null && bookId.equals(r.getBook().getId()))
-                .map(review -> {
-                    reviewRepository.delete(review);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    static Map<String, Object> toMap(BookReview review) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", review.getId());
-        map.put("bookId", review.getBook() != null ? review.getBook().getId() : null);
-        map.put("title", review.getTitle() != null ? review.getTitle() : "");
-        map.put("content", review.getContent() != null ? review.getContent() : "");
-        map.put("updatedAt", review.getUpdatedAt() != null ? review.getUpdatedAt().toString() : "");
-        return map;
+        return reviewService.delete(bookId, reviewId)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 }

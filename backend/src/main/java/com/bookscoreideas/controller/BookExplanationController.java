@@ -1,6 +1,6 @@
 package com.bookscoreideas.controller;
 
-import com.bookscoreideas.repository.ChapterExplanationRepository;
+import com.bookscoreideas.service.ExplanationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,14 +14,14 @@ import java.util.List;
 @RequestMapping("/api/books/{bookId}/explanation-chapter-ids")
 public class BookExplanationController {
 
-    private final ChapterExplanationRepository explanationRepository;
+    private final ExplanationService explanationService;
 
-    public BookExplanationController(ChapterExplanationRepository explanationRepository) {
-        this.explanationRepository = explanationRepository;
+    public BookExplanationController(ExplanationService explanationService) {
+        this.explanationService = explanationService;
     }
 
     @GetMapping
     public List<Long> chapterIds(@PathVariable Long bookId) {
-        return explanationRepository.findChapterIdsByBookId(bookId);
+        return explanationService.chapterIdsWithExplanation(bookId);
     }
 }
