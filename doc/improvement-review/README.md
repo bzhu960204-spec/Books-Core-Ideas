@@ -93,7 +93,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-06 | P1 | 书库导入丢 excerpts | 3 | ⬜ | |
 | BUG-07 | P2 | 404/400 被当成 500 | 1 | ✅ | 随 BE-04 |
 | BUG-08 | P2 | 删书后书单成员残留 | 0 | ✅ | 删书时同事务清除成员行 |
-| BUG-09 | P3 | POST 带 id 500 | 4 | ⬜ | |
+| BUG-09 | P1 | POST 带 id 500 / 静默覆盖 | 2 | ✅ | 随 BE-02 请求 DTO；严重度由 P3 上调（无 500 时会直接覆盖）；BookRequestTest |
 | BUG-10 | P3 | 图片上传序号/吞异常 | 4 | ⬜ | |
 | BUG-11 | P2 | Markdown 粘贴代码块不转换 | — | ✅ | 评审后发现；公式改用 marked 扩展 + markdownPaste.test.js |
 | BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |

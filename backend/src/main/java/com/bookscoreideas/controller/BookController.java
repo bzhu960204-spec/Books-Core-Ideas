@@ -1,5 +1,7 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.CreateBookRequest;
+import com.bookscoreideas.dto.UpdateBookRequest;
 import com.bookscoreideas.entity.Book;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.service.BookService;
@@ -39,29 +41,15 @@ public class BookController {
     }
 
     @PostMapping
-    public Book createBook(@Valid @RequestBody Book book) {
-        return bookRepository.save(book);
+    public Book createBook(@Valid @RequestBody CreateBookRequest request) {
+        return bookService.create(request);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable Long id, @Valid @RequestBody Book book) {
-        return bookRepository.findById(id).map(existing -> {
-            existing.setTitle(book.getTitle());
-            existing.setAuthor(book.getAuthor());
-            existing.setIsbn(book.getIsbn());
-            existing.setDescription(book.getDescription());
-            existing.setCoverUrl(book.getCoverUrl());
-            existing.setRating(book.getRating());
-            existing.setCategory(book.getCategory());
-            existing.setReadingStatus(book.getReadingStatus());
-            existing.setStartDate(book.getStartDate());
-            existing.setFinishDate(book.getFinishDate());
-            existing.setChapterImagesEnabled(book.getChapterImagesEnabled());
-            if (book.getStructureType() != null) {
-                existing.setStructureType(book.getStructureType());
-            }
-            return ResponseEntity.ok(bookRepository.save(existing));
-        }).orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Book> updateBook(@PathVariable Long id, @Valid @RequestBody UpdateBookRequest request) {
+        return bookService.update(id, request)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")

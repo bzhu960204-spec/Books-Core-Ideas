@@ -13,7 +13,7 @@
 | BUG-06 | 🟠 P1 | 书库页 JSON 导入静默丢弃章节下的 `excerpts` | 🔍 代码确认 |
 | BUG-07 | 🟡 P2 | "不存在 / 参数非法"一律返回 500（✅ 已修复） | ✅ 实测 |
 | BUG-08 | 🟡 P2 | 删除书后，书单（Collection）成员行残留（✅ 已修复） | 🔍 代码确认 |
-| BUG-09 | ⚪ P3 | `POST /api/books` 携带 `id` 时 500 | ✅ 实测 |
+| BUG-09 | 🟠 P1 | `POST /api/books` 携带 `id` 时 500，或静默覆盖已有书（✅ 已修复） | ✅ 实测 |
 | BUG-10 | ⚪ P3 | 图片上传：序号计算偏差 & 静默吞异常 | 🔍 代码确认 |
 | BUG-11 | 🟡 P2 | 编辑器按 Markdown 粘贴时，```` ``` ```` 代码块原样变成段落文字（✅ 已修复） | ✅ 实测 |
 | BUG-12 | 🟡 P2 | 章节图片查看器：删除最后一张图片后整页崩溃（✅ 已修复） | ✅ 实测 |
@@ -168,9 +168,13 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 ---
 
 <a id="bug-09"></a>
-## BUG-09 · `POST /api/books` 携带 `id` → 500 ⚪
+## BUG-09 · `POST /api/books` 携带 `id` → 500 / 静默覆盖已有书 🟠
 
-**实测**：请求体带已存在的 `id` 时返回 500（没有覆盖数据，但应当被忽略或返回 400）。根因是控制器直接把请求体绑定到 JPA 实体并 `save()`（变成 merge）。随 [BE-02](02-backend-architecture.md#be-02) 引入请求 DTO 后自然消失。
+> **✅ 已修复（2026-10-31，随 BE-02）**：`POST`/`PUT` 改用 [CreateBookRequest](../../backend/src/main/java/com/bookscoreideas/dto/CreateBookRequest.java) / [UpdateBookRequest](../../backend/src/main/java/com/bookscoreideas/dto/UpdateBookRequest.java)（只包含客户端可编辑的字段），映射移到 [BookService](../../backend/src/main/java/com/bookscoreideas/service/BookService.java)。请求中的 `id`、`chapters` 一律忽略。回归测试见 [BookRequestTest](../../backend/src/test/java/com/bookscoreideas/books/BookRequestTest.java)：修复前"带 id 新建"用例失败，其余 4 个保护现有行为的用例修复前后都通过（导入时 `dateAdded` 等字段仍会保存；PUT 不改 `dateAdded`、结构类型为 null 时保持原值、未传的图片开关视为关闭）。
+>
+> **严重度上调**：写回归测试时发现，被覆盖的书**没有章节时不会报 500，而是直接被覆盖**（标题等字段被替换，`dateAdded` 被清空）；请求里夹带的 `chapters` 也会被保存，而且没有 `book_id`（孤儿行）。真实数据副本中 `book_id` 为空的章节为 0，前端各入口也都不会发送 `id`/`chapters`，因此没有实际受影响的数据。
+
+**评审时实测**：请求体带已存在的 `id` 时返回 500（推测是因为那本书有章节，merge 时替换带 orphanRemoval 的章节集合失败；未单独验证）。根因是控制器直接把请求体绑定到 JPA 实体并 `save()`（变成 merge）。
 
 ---
 
