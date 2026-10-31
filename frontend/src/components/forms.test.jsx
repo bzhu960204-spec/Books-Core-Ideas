@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render as rtlRender, screen } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createQueryClient } from '../queries';
 import BookForm from './BookForm';
 import ChapterForm from './ChapterForm';
 import PartForm from './PartForm';
@@ -11,6 +13,9 @@ vi.mock('../api', () => ({
 }));
 
 afterEach(cleanup);
+
+// BookForm reads the shared category list through the data layer.
+const render = (ui) => rtlRender(<QueryClientProvider client={createQueryClient()}>{ui}</QueryClientProvider>);
 
 function submit(onSave) {
   fireEvent.submit(document.querySelector('form'));

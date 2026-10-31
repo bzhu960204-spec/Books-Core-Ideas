@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { bookmarkApi, bookApi } from '../api';
+import { bookmarkApi } from '../api';
+import { useBookmarks, useBooks, useRefresh } from '../queries';
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
+
+const NONE = [];
 
 // Group bookmarks under a human "Today / Yesterday / date" heading.
 function dayLabel(iso) {
@@ -24,31 +27,14 @@ function timeLabel(iso) {
 
 export default function ReadingHistoryPage() {
   const navigate = useNavigate();
-  const [bookmarks, setBookmarks] = useState([]);
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const bookmarksQuery = useBookmarks();
+  const bookmarks = bookmarksQuery.data ?? NONE;
+  const loading = bookmarksQuery.isPending;
+  const error = bookmarksQuery.error ? (bookmarksQuery.error.message || 'Failed to load reading history') : null;
+  const books = useBooks().data ?? NONE;
+  const refresh = useRefresh();
   const [filterBookId, setFilterBookId] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
-
-  const loadBookmarks = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await bookmarkApi.list();
-      setBookmarks(data || []);
-    } catch (err) {
-      setError(err.message || 'Failed to load reading history');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-    loadBookmarks();
-    bookApi.getAll().then(setBooks).catch(() => {});
-  }, [loadBookmarks]);
 
   const openBookmark = (b) => {
     navigate(`/book/${b.bookId}`, {
@@ -61,7 +47,7 @@ export default function ReadingHistoryPage() {
     try {
       await bookmarkApi.delete(confirmDelete.id);
       setConfirmDelete(null);
-      loadBookmarks();
+      refresh();
     } catch { /* ignore */ }
   };
 

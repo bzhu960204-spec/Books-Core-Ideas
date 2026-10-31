@@ -42,7 +42,7 @@
 > 1. `a78b9ef` 非组件导出拆到单独文件：`utils/reviewContent.js`（`normalizeReviewContent`）、`collections/folderTree.js`、`useTheme.js` + `themes.js`；同时去掉多余转义、多余的 disable，并开启 `ignoreRestSiblings`（用剩余解构剔除字段的写法）。
 > 2. `249dcfd` `RichTextEditor` 不再在 render 期间读写 ref：镜像 ref 改在 `useLayoutEffect` 中同步，初始 HTML 改为惰性 state（顺带避免每次渲染都重新清洗内容）。引入 `@testing-library/react`，新增 `RichTextEditor.test.jsx`；去掉 ref 同步后，"粘贴模式切换"用例会失败。
 > 3. `2a4b867` 只是"把 props 复制进 state"的 effect：5 个表单改为惰性初始化，调用处加 `key={id}`；讲解、书评 Modal 以及两处菜单改为"记住上一次的 prop，在渲染时比较并调整 state"。组件测试在旧代码（effect 版本）和新代码上都通过，删掉新的重置逻辑后会失败。
-> 4. "挂载/参数变化时加载数据"的 9 处 effect 按约定逐行加 `eslint-disable-next-line … -- … replaced by the FE-03 data layer`，**FE-03 引入数据层后应删除这些注释**。届时如果遗漏，ESLint 会把多余的 disable 报为警告，CI 会失败。
+> 4. "挂载/参数变化时加载数据"的 9 处 effect 按约定逐行加 `eslint-disable-next-line … -- … replaced by the FE-03 data layer`，**FE-03 引入数据层后应删除这些注释**。届时如果遗漏，ESLint 会把多余的 disable 报为警告，CI 会失败。**（已随 FE-03 全部删除）**
 > - 清理 `exhaustive-deps` 警告时发现并修复 **BUG-12**（删除最后一张章节图片后崩溃）。`BookDetailPage` 的 `loadBook` 只依赖 `id`，不存在读到旧值的问题，随第 4 项加 disable。
 > - 浏览器冒烟测试（临时库）：主题切换；书、章、想法、摘录表单的编辑预填与新增空表单；讲解和书评保存后回到阅读模式、再次编辑时预填；摘录阅读器切换时关闭菜单；书单面包屑菜单在切换选中时关闭；7 个页面加载无控制台错误。
 
@@ -61,7 +61,7 @@
 <a id="fe-03"></a>
 ## FE-03 · 数据获取：N+1、无缓存、重复拉全库 🟠
 
-> **🔄 进行中（2026-11-01）**
+> **✅ 已完成（2026-11-01）**，分两个提交：① 后端聚合接口；② 前端数据层。
 > **① 后端聚合接口**：新增 `GET /api/books/{id}/detail`（[BookDetailService](../../backend/src/main/java/com/bookscoreideas/service/BookDetailService.java)），一次返回：
 > - `book`、`parts`、`chapters`。每章包含 `keyIdeas`、`excerpts` 列表、`imageCount`、`hasExplanation`；
 > - `bookmarks`：最新的在前；
@@ -80,6 +80,37 @@
 >   - 2,748 个 GET 响应中，只有新增的 24 个 `detail` 不同（旧版 404 → 200），各表不变；
 >   - 新增 [check_detail.py](../../tools/rehearsal/check_detail.py)：24 本书的 `detail` 都等于细粒度接口的组合，想法和摘录的顺序也一致；
 >   - 最大的书有 67 章：原来打开详情页要发 70 多个请求；现在 1 个，168 KB，约 20 ms。
+>
+> **② 前端数据层（TanStack Query）**：所有读取都放在 [queries.js](../../frontend/src/queries.js) 的 hook 中（`useBooks`、`useBookDetail`、`useIdeaSearch` 等），`main.jsx` 提供 `QueryClient`。
+> - 设计选择：
+>   - **缓存策略**：`staleTime` 30 秒。写操作后调用 `refresh()`，让**全部**查询失效：屏幕上的立即重新获取，其他的下次显示时再获取。
+>     - 写操作仍然直接调用 api.js，`refresh()` 放在原来调用 `loadX()` 的位置，所以先后顺序不变（原来 await 的地方仍然 await）。
+>     - 没有把失效放进 `apiFetch` 的隐式钩子：那样会让旧的逐条导入循环在每次写之后都重新获取一次，而且对 mock 了 `../api` 的组件测试不可见。
+>     - "全部失效"比逐个列出受影响的键简单，也不会漏，例如在详情页标星后，想法库要更新。代价是屏幕上的一两个查询多获取一次，本地应用可以接受。
+>   - **即时反馈**：评分、阅读状态、章节拖到其他 Part、保存/删除标记、书签、讲解标志、删除摘录，先用 `setQueryData` 更新缓存，再由 `refresh()` 以服务器为准。失败时 `refresh()` 会恢复服务器上的值，代替原来的手工回滚。
+>   - **讲解正文不放进查询缓存**，仍在打开时请求一次，保存在弹窗状态中：`ChapterExplanationModal` 每次收到新的 `explanation` 引用，都会重置草稿、编辑模式和滚动位置。放进会自动重新获取的缓存后，保存书签或标记触发的重新获取可能把读者"踢回"开头。
+>   - 详情页按书 `key`（`App.jsx` 的 `BookDetailRoute`）：切换书时展开状态、弹窗等不会带到另一本书。
+>   - 重试：4xx 不重试（例如书已被删除），其他错误重试 1 次。查询都传入 `signal`，离开页面时会取消未完成的请求。
+>   - 想法库、摘录库的防抖改为 `useDebouncedValue` + 以参数为键的查询。原来挂载时会连发两次相同的搜索，现在只发一次。
+> - 删除了 FE-02 留下的 **9 处** `FE-03 data layer` eslint-disable，lint 仍为 0 / 0。`ChapterImageViewer` 不再需要 `onImagesChange` 回调：上传/删除后 `refresh()`，详情页的图片角标自动更新。
+> - 回归测试：新增 [BookDetailPage.test.jsx](../../frontend/src/pages/BookDetailPage.test.jsx) 和 [sharedBooks.test.jsx](../../frontend/src/pages/sharedBooks.test.jsx)，使用 fetch 层的假后端 [fakeBackend.js](../../frontend/src/test/fakeBackend.js)。它同时提供 `detail` 和全部细粒度接口，所以同一个测试能在新旧代码上运行。在旧代码上 4 个用例全部失败：
+>   - 打开一本书只发 1 个请求。旧代码 5 章的书发 10 个；
+>   - 展开章节不再请求。旧代码多发 `/ideas`；
+>   - 快速切换书时，前一本书迟到的响应不会覆盖新书。旧代码会显示成 Book One；
+>   - 在书库、想法库、摘录库之间来回切换，书列表只获取一次。旧代码获取 4 次。
+>
+>   `ChapterImageViewer.test`（BUG-12）、`forms.test` 只是补了 `QueryClientProvider`。前端测试 41 → 45。
+> - 浏览器验证（真实数据副本，18084 + Vite 15173）：
+>   - 打开 67 章的书只有 1 个 `detail` 请求。开发模式下 StrictMode 会先取消一次，日志显示 `ERR_ABORTED`，正好说明取消有效；
+>   - 展开章节没有请求；标星后立即生效，并且在想法库中出现；
+>   - 回到书库时书列表来自缓存，只请求了分类；评分立即生效；
+>   - 摘录阅读器中删除第 2 条后显示"2 / 3"，角标 4→3，服务器上确实删除了；
+>   - 讲解中"Mark read here"后，弹窗保持阅读模式和滚动位置，出现"Continue reading ~50%"和 🔖；
+>   - 从阅读历史跳转，打开讲解并定位到 50%；
+>   - 选中文本保存段落后，高亮出现，"Saved Passages (1)"；
+>   - 上传图片后章节角标变为 🖼️ 1；
+>   - 书单：选择文件夹后显示书；Remove 后列表和数量立即变为 3；
+>   - 书评库正常；无页面错误。
 
 - **详情页扇出**：[BookDetailPage.loadBook](../../frontend/src/pages/BookDetailPage.jsx) 先取章节列表，再对**每个章节**各请求一次 excerpts、一次 images（第 224–246 行）。50 章的书 = 100+ 个请求。
 - **重复拉全库**：书库、想法库、摘录库、书评库、阅读历史 5 个页面都调用 `bookApi.getAll()`，而该接口返回每本书完整的章节+想法树（BE-02）。其它页面只是为了渲染"按书筛选"下拉框。**BE-02 已完成**：列表接口只返回书本身的字段和 `chapterCount`（真实数据下约 25 KB），这一条的代价已大幅降低；缓存和去重仍由本项负责。

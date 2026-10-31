@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { chapterImageApi } from '../api';
+import { useChapterImages, useRefresh } from '../queries';
+
+const NO_IMAGES = [];
 
 /**
  * Full-screen chapter image viewer with upload & browse modes.
@@ -9,41 +12,30 @@ import { chapterImageApi } from '../api';
  *   chapterId    – chapter ID
  *   chapterTitle – shown in the header
  *   onClose      – close handler
- *   onImagesChange – callback when images are added/deleted (to update badge)
+ * Uploads and deletes refresh every cached read, so the page's image badge updates too.
  */
-export default function ChapterImageViewer({ chapterId, chapterTitle, onClose, onImagesChange }) {
+export default function ChapterImageViewer({ chapterId, chapterTitle, onClose }) {
   const [mode, setMode] = useState('browse'); // 'browse' | 'upload'
-  const [images, setImages] = useState([]);
-  const [idx, setIdx] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const imagesQuery = useChapterImages(chapterId);
+  const images = imagesQuery.data ?? NO_IMAGES;
+  const loading = imagesQuery.isPending;
+  const refresh = useRefresh();
+  const [storedIdx, setIdx] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
-  const loadImages = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await chapterImageApi.getAll(chapterId);
-      setImages(data);
-      // Clamp against the current index (e.g. after deleting the last image).
-      setIdx(i => (data.length > 0 && i >= data.length ? data.length - 1 : i));
-    } catch (e) {
-      console.error('Failed to load images', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [chapterId]);
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-  useEffect(() => { loadImages(); }, [loadImages]);
+  // Clamp against the current list (e.g. after deleting the last image).
+  const lastIdx = Math.max(images.length - 1, 0);
+  if (storedIdx > lastIdx) setIdx(lastIdx);
+  const idx = Math.min(storedIdx, lastIdx);
 
   const handleUpload = async (files) => {
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
       await chapterImageApi.upload(chapterId, files);
-      await loadImages();
-      onImagesChange?.();
+      await refresh();
       // Switch to browse mode after upload
       setMode('browse');
     } catch (e) {
@@ -55,8 +47,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose, o
 
   const handleDelete = async (imageId) => {
     await chapterImageApi.delete(chapterId, imageId);
-    await loadImages();
-    onImagesChange?.();
+    await refresh();
   };
 
   const handleDrop = (e) => {

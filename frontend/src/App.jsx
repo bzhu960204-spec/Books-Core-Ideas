@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 import { ThemeProvider } from './ThemeContext';
 import Sidebar from './components/Sidebar';
 import LibraryPage from './pages/LibraryPage';
@@ -9,6 +9,12 @@ import ReviewBankPage from './pages/ReviewBankPage';
 import CollectionsPage from './pages/CollectionsPage';
 import ReadingHistoryPage from './pages/ReadingHistoryPage';
 
+// A fresh page per book: expanded chapters, open dialogs etc. don't carry over.
+function BookDetailRoute() {
+  const { id } = useParams();
+  return <BookDetailPage key={id} />;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -18,7 +24,7 @@ export default function App() {
           <main className="main-content">
             <Routes>
               <Route path="/" element={<LibraryPage />} />
-              <Route path="/book/:id" element={<BookDetailPage />} />
+              <Route path="/book/:id" element={<BookDetailRoute />} />
               <Route path="/ideas" element={<IdeaBankPage />} />
               <Route path="/excerpts" element={<ExcerptBankPage />} />
               <Route path="/reviews" element={<ReviewBankPage />} />

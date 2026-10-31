@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { reviewApi, bookApi } from '../api';
+import { reviewApi } from '../api';
+import { useBooks, useRefresh, useReviews } from '../queries';
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
 import RichTextEditor from '../components/RichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
 import ReviewReaderModal from '../components/ReviewReaderModal';
+
+const NONE = [];
 
 // Derive a fallback title from review content for legacy reviews that
 // have no explicit title yet. Tries first heading, then first non-empty line.
@@ -37,10 +40,12 @@ function getExcerpt(content, max = 320) {
 
 export default function ReviewBankPage() {
   const navigate = useNavigate();
-  const [reviews, setReviews] = useState([]);
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const reviewsQuery = useReviews();
+  const reviews = reviewsQuery.data ?? NONE;
+  const loading = reviewsQuery.isPending;
+  const error = reviewsQuery.error ? (reviewsQuery.error.message || 'Failed to load reviews') : null;
+  const books = useBooks().data ?? NONE;
+  const refresh = useRefresh();
   const [filterBookId, setFilterBookId] = useState('');
 
   // Reader modal state
@@ -57,32 +62,13 @@ export default function ReviewBankPage() {
   // Delete confirmation state
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const loadReviews = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await reviewApi.getAll();
-      setReviews(data);
-    } catch (err) {
-      setError(err.message || 'Failed to load reviews');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-    loadReviews();
-    bookApi.getAll().then(setBooks).catch(() => {});
-  }, [loadReviews]);
-
   const handleSave = async ({ title, content }) => {
     const review = reviews.find(r => r.id === openId);
     if (!review) return;
     setSaving(true);
     try {
       await reviewApi.update(review.bookId, review.id, { title, content });
-      await loadReviews();
+      await refresh();
     } catch { /* ignore */ } finally {
       setSaving(false);
     }
@@ -100,7 +86,7 @@ export default function ReviewBankPage() {
       setNewBookId('');
       setNewTitle('');
       setNewDraft('');
-      loadReviews();
+      refresh();
     } catch { /* ignore */ } finally {
       setSaving(false);
     }
@@ -112,7 +98,7 @@ export default function ReviewBankPage() {
       await reviewApi.delete(confirmDelete.bookId, confirmDelete.id);
       if (openId === confirmDelete.id) setOpenId(null);
       setConfirmDelete(null);
-      loadReviews();
+      refresh();
     } catch { /* ignore */ }
   };
 

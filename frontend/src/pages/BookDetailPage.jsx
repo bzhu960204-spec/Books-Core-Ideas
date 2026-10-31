@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { bookApi, chapterApi, partApi, ideaApi, excerptApi, chapterImageApi, explanationApi, bookmarkApi, markApi } from '../api';
+import { useQueryClient } from '@tanstack/react-query';
+import { bookApi, chapterApi, partApi, ideaApi, excerptApi, explanationApi, bookmarkApi, markApi } from '../api';
+import { queryKeys, useBookDetail, useRefresh } from '../queries';
 import ChapterForm from '../components/ChapterForm';
 import PartForm from '../components/PartForm';
 import IdeaForm from '../components/IdeaForm';
@@ -143,26 +145,52 @@ function formatBookmarkTime(iso) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+const NONE = [];
+
+// State of the explanation reader for a loaded explanation (null = none yet).
+function explanationModalState(chapterId, data, startInEdit = false, initialScrollRatio = null, initialAnchor = null) {
+  return { chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data, initialScrollRatio, initialAnchor };
+}
+
+const byChapterId = (chapters, value) => Object.fromEntries(chapters.map(c => [c.id, value(c)]));
+
 export default function BookDetailPage() {
   const { id } = useParams();
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const refresh = useRefresh();
   const fromCollections = location.state?.from === 'collections';
   const backTo = fromCollections ? '/collections' : '/';
   const backState = fromCollections
     ? { collectionId: location.state?.collectionId ?? null, includeDescendants: location.state?.includeDescendants ?? false }
     : undefined;
   const backLabel = fromCollections ? '← Back to Collection' : '← Back to Library';
-  const [book, setBook] = useState(null);
-  const [chapters, setChapters] = useState([]);
-  const [parts, setParts] = useState([]);
+
+  // Everything the page shows comes from one cached request (GET /books/{id}/detail).
+  const detailQuery = useBookDetail(id);
+  const detail = detailQuery.data;
+  const book = detail?.book ?? null;
+  const chapters = detail?.chapters ?? NONE;
+  const parts = book?.structureType === 'PARTS' ? detail.parts : NONE;
+  const marks = detail?.marks ?? NONE; // saved explanation passages for this book
+  const bookmarks = detail?.bookmarks ?? NONE; // newest first
+  const latestBookmark = bookmarks[0] ?? null; // drives "continue reading"
+  const bookmarkedChapterIds = Object.fromEntries(bookmarks.map(m => [m.chapterId, true]));
+  const chapterIdeas = byChapterId(chapters, c => c.keyIdeas);
+  const chapterExcerpts = byChapterId(chapters, c => c.excerpts);
+  const chapterImageCounts = byChapterId(chapters, c => c.imageCount);
+  const chapterHasExplanation = byChapterId(chapters, c => c.hasExplanation);
+  // Immediate feedback after a write; refresh() then confirms it from the server.
+  const updateDetail = (change) =>
+    queryClient.setQueryData(queryKeys.bookDetail(id), d => (d ? change(d) : d));
+  const updateChapter = (chapterId, change) =>
+    updateDetail(d => ({ ...d, chapters: d.chapters.map(c => (c.id === chapterId ? change(c) : c)) }));
+
   const [collapsedParts, setCollapsedParts] = useState({});
-  const [loading, setLoading] = useState(true);
   const [expandedChapters, setExpandedChapters] = useState({});
   const [scrollToChapter, setScrollToChapter] = useState(null);
   const chapterRefs = useRef({});
   const openedFromState = useRef(false);
-  const [chapterIdeas, setChapterIdeas] = useState({});
-  const [chapterExcerpts, setChapterExcerpts] = useState({});
 
   // Form states
   const [showChapterForm, setShowChapterForm] = useState(false);
@@ -179,15 +207,10 @@ export default function BookDetailPage() {
   const [showChapterImport, setShowChapterImport] = useState(null); // chapterId
   const [excerptReader, setExcerptReader] = useState(null); // { chapterId, startIndex }
   const [imageViewer, setImageViewer] = useState(null); // chapterId
-  const [chapterImageCounts, setChapterImageCounts] = useState({});
-  const [chapterHasExplanation, setChapterHasExplanation] = useState({}); // { chapterId: true }
   const [explanationModal, setExplanationModal] = useState(null); // { chapterId, data, startInEdit, initialScrollRatio, initialAnchor }
   const [savingExplanation, setSavingExplanation] = useState(false);
-  const [marks, setMarks] = useState([]); // saved explanation passages for this book
   const [showMarks, setShowMarks] = useState(false);
   const [staleMarkIds, setStaleMarkIds] = useState({}); // { markId: true } when a jump could not find the text
-  const [latestBookmark, setLatestBookmark] = useState(null); // most recent reading bookmark for this book
-  const [bookmarkedChapterIds, setBookmarkedChapterIds] = useState({}); // { chapterId: true }
   const [savingBookmark, setSavingBookmark] = useState(false);
   const [showExplanationExport, setShowExplanationExport] = useState(false);
   // Drag-and-drop: reassign a chapter to another part (or to "Ungrouped").
@@ -196,63 +219,11 @@ export default function BookDetailPage() {
 
   const handleStatusChange = async (status) => {
     const newStatus = status || null;
-    const prev = book;
-    setBook(b => ({ ...b, readingStatus: newStatus }));
+    updateDetail(d => ({ ...d, book: { ...d.book, readingStatus: newStatus } }));
     try {
       await bookApi.update(book.id, { ...book, readingStatus: newStatus });
-    } catch {
-      setBook(prev);
-    }
-  };
-
-  const loadBook = async () => {
-    try {
-      const [bookData, chaptersData] = await Promise.all([
-        bookApi.get(id),
-        chapterApi.getAll(id),
-      ]);
-      setBook(bookData);
-      setChapters(chaptersData);
-      if (bookData.structureType === 'PARTS') {
-        const partsData = await partApi.getAll(id);
-        setParts(partsData);
-      } else {
-        setParts([]);
-      }
-      // Pre-load excerpt counts for all chapters so the 📖 badges appear immediately
-      if (chaptersData.length > 0) {
-        const results = await Promise.all(
-          chaptersData.map(ch => excerptApi.getAll(ch.id).then(exs => [ch.id, exs]))
-        );
-        setChapterExcerpts(Object.fromEntries(results));
-        // Which chapters already have an explanation (ids only — cheap).
-        try {
-          const ids = await explanationApi.chapterIds(id);
-          setChapterHasExplanation(Object.fromEntries((ids || []).map(cid => [cid, true])));
-        } catch { /* ignore */ }
-        // Reading bookmarks: latest drives "continue reading", all drive markers.
-        try {
-          const marks = await bookmarkApi.list(id);
-          setLatestBookmark(marks && marks.length ? marks[0] : null);
-          setBookmarkedChapterIds(Object.fromEntries((marks || []).map(m => [m.chapterId, true])));
-        } catch { /* ignore */ }
-        // Saved explanation passages for the "Saved Passages" panel.
-        try {
-          setMarks((await markApi.listByBook(id)) || []);
-        } catch { /* ignore */ }
-        // Pre-load image counts only when chapter images are enabled
-        if (bookData.chapterImagesEnabled) {
-          const imgResults = await Promise.all(
-            chaptersData.map(ch => chapterImageApi.getAll(ch.id).then(imgs => [ch.id, imgs.length]))
-          );
-          setChapterImageCounts(Object.fromEntries(imgResults));
-        }
-      }
-    } catch {
-      console.error('Failed to load book');
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* refresh() puts the stored status back */ }
+    refresh();
   };
 
   const handleExport = async () => {
@@ -267,9 +238,6 @@ export default function BookDetailPage() {
       URL.revokeObjectURL(url);
     } catch { /* ignore */ }
   };
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- load on id change; replaced by the FE-03 data layer
-  useEffect(() => { loadBook(); }, [id]);
 
   useEffect(() => {
     if (scrollToChapter && chapterRefs.current[scrollToChapter]) {
@@ -309,31 +277,11 @@ export default function BookDetailPage() {
     };
   }, [draggedChapterId]);
 
-  const toggleChapter = async (chapterId) => {
+  // Ideas and excerpts come with the chapters, so expanding needs no request.
+  const toggleChapter = (chapterId) => {
     const isExpanded = expandedChapters[chapterId];
     setExpandedChapters(isExpanded ? {} : { [chapterId]: true });
-
-    if (!isExpanded) {
-      setScrollToChapter(chapterId);
-      if (!chapterIdeas[chapterId]) {
-        const ideas = await ideaApi.getAll(chapterId);
-        setChapterIdeas(prev => ({ ...prev, [chapterId]: ideas }));
-      }
-      if (!chapterExcerpts[chapterId]) {
-        const excerpts = await excerptApi.getAll(chapterId);
-        setChapterExcerpts(prev => ({ ...prev, [chapterId]: excerpts }));
-      }
-    }
-  };
-
-  const loadIdeas = async (chapterId) => {
-    const ideas = await ideaApi.getAll(chapterId);
-    setChapterIdeas(prev => ({ ...prev, [chapterId]: ideas }));
-  };
-
-  const loadExcerpts = async (chapterId) => {
-    const excerpts = await excerptApi.getAll(chapterId);
-    setChapterExcerpts(prev => ({ ...prev, [chapterId]: excerpts }));
+    if (!isExpanded) setScrollToChapter(chapterId);
   };
 
   // Chapter explanation (详解) — open loads the document, then view/edit inline.
@@ -342,28 +290,34 @@ export default function BookDetailPage() {
     try {
       data = await explanationApi.get(chapterId);
     } catch { /* none yet */ }
-    setExplanationModal({ chapterId, data: data || { content: '' }, startInEdit: startInEdit || !data, initialScrollRatio, initialAnchor });
+    setExplanationModal(explanationModalState(chapterId, data, startInEdit, initialScrollRatio, initialAnchor));
   };
 
   // Save a passage selected in the open explanation.
   const handleSaveMark = async (mark) => {
     if (!explanationModal) return null;
     const saved = await markApi.create(explanationModal.chapterId, mark);
-    setMarks(prev => [...prev, saved].sort((a, b) =>
-      (a.chapterOrderIndex ?? 0) - (b.chapterOrderIndex ?? 0)
-      || (a.startOffset ?? 0) - (b.startOffset ?? 0)
-      || a.id - b.id));
+    updateDetail(d => ({
+      ...d,
+      marks: [...d.marks, saved].sort((a, b) =>
+        (a.chapterOrderIndex ?? 0) - (b.chapterOrderIndex ?? 0)
+        || (a.startOffset ?? 0) - (b.startOffset ?? 0)
+        || a.id - b.id),
+    }));
+    refresh();
     return saved;
   };
 
   const handleUpdateMarkNote = async (markId, note) => {
     const updated = await markApi.updateNote(markId, note);
-    setMarks(prev => prev.map(m => (m.id === markId ? updated : m)));
+    updateDetail(d => ({ ...d, marks: d.marks.map(m => (m.id === markId ? updated : m)) }));
+    refresh();
   };
 
   const handleDeleteMark = async (markId) => {
     await markApi.delete(markId);
-    setMarks(prev => prev.filter(m => m.id !== markId));
+    updateDetail(d => ({ ...d, marks: d.marks.filter(m => m.id !== markId) }));
+    refresh();
   };
 
   const jumpToMark = (mark) => {
@@ -393,23 +347,23 @@ export default function BookDetailPage() {
     setSavingBookmark(true);
     try {
       const saved = await bookmarkApi.create(chapterId, { scrollRatio });
-      setLatestBookmark(saved);
-      setBookmarkedChapterIds(prev => ({ ...prev, [chapterId]: true }));
+      updateDetail(d => ({ ...d, bookmarks: [saved, ...d.bookmarks] }));
+      refresh();
     } finally {
       setSavingBookmark(false);
     }
   };
 
   // Deep-link from Reading History: open an explanation at the saved position.
+  const deepLink = location.state?.openExplanation;
+  const bookLoaded = book != null;
   useEffect(() => {
-    if (openedFromState.current || !book) return;
-    const target = location.state?.openExplanation;
-    if (target?.chapterId) {
-      openedFromState.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-      openExplanation(target.chapterId, false, target.scrollRatio ?? 0);
-    }
-  }, [book, location.state]);
+    if (openedFromState.current || !bookLoaded || !deepLink?.chapterId) return;
+    openedFromState.current = true;
+    explanationApi.get(deepLink.chapterId)
+      .catch(() => null)
+      .then(data => setExplanationModal(explanationModalState(deepLink.chapterId, data, false, deepLink.scrollRatio ?? 0)));
+  }, [bookLoaded, deepLink]);
 
   const handleSaveExplanation = async ({ content }) => {
     if (!explanationModal) return;
@@ -417,9 +371,10 @@ export default function BookDetailPage() {
     setSavingExplanation(true);
     try {
       const saved = await explanationApi.save(chapterId, { content });
-      setChapterHasExplanation(prev => ({ ...prev, [chapterId]: true }));
+      updateChapter(chapterId, c => ({ ...c, hasExplanation: true }));
       // Clear startInEdit so the reader switches to view mode after the first save.
       setExplanationModal(m => (m ? { ...m, data: saved, startInEdit: false } : m));
+      refresh();
     } finally {
       setSavingExplanation(false);
     }
@@ -429,13 +384,10 @@ export default function BookDetailPage() {
     if (!explanationModal) return;
     const chapterId = explanationModal.chapterId;
     await explanationApi.delete(chapterId);
-    setMarks(prev => prev.filter(m => m.chapterId !== chapterId));
-    setChapterHasExplanation(prev => {
-      const next = { ...prev };
-      delete next[chapterId];
-      return next;
-    });
+    updateDetail(d => ({ ...d, marks: d.marks.filter(m => m.chapterId !== chapterId) }));
+    updateChapter(chapterId, c => ({ ...c, hasExplanation: false }));
     setExplanationModal(null);
+    refresh();
   };
 
   // Chapter CRUD
@@ -448,7 +400,7 @@ export default function BookDetailPage() {
     setShowChapterForm(false);
     setEditChapter(null);
     setAddChapterPartId(null);
-    loadBook();
+    refresh();
   };
 
   // Part CRUD
@@ -460,7 +412,7 @@ export default function BookDetailPage() {
     }
     setShowPartForm(false);
     setEditPart(null);
-    loadBook();
+    refresh();
   };
 
   // Idea CRUD
@@ -473,17 +425,17 @@ export default function BookDetailPage() {
     }
     setShowIdeaForm(null);
     setEditIdea(null);
-    loadIdeas(chapterId);
+    refresh();
   };
 
   const handleToggleHighlight = async (idea, chapterId) => {
     await ideaApi.update(chapterId, idea.id, { ...idea, highlighted: !idea.highlighted });
-    loadIdeas(chapterId);
+    refresh();
   };
 
   const handleToggleExcerptHighlight = async (excerpt) => {
     await excerptApi.update(excerpt.chapterId || excerptReader?.chapterId, excerpt.id, { ...excerpt, highlighted: !excerpt.highlighted });
-    loadExcerpts(excerpt.chapterId || excerptReader?.chapterId);
+    refresh();
   };
 
   // Excerpt CRUD
@@ -496,7 +448,7 @@ export default function BookDetailPage() {
     }
     setShowExcerptForm(null);
     setEditExcerpt(null);
-    loadExcerpts(chapterId);
+    refresh();
   };
 
   // Delete
@@ -504,23 +456,21 @@ export default function BookDetailPage() {
     if (!deleteTarget) return;
     if (deleteTarget.type === 'chapter') {
       await chapterApi.delete(id, deleteTarget.id);
-      loadBook();
     } else if (deleteTarget.type === 'part') {
       await partApi.delete(id, deleteTarget.id);
-      loadBook();
     } else if (deleteTarget.type === 'idea') {
       await ideaApi.delete(deleteTarget.chapterId, deleteTarget.id);
-      loadIdeas(deleteTarget.chapterId);
     } else if (deleteTarget.type === 'excerpt') {
       await excerptApi.delete(deleteTarget.chapterId, deleteTarget.id);
-      const updated = await excerptApi.getAll(deleteTarget.chapterId);
-      setChapterExcerpts(prev => ({ ...prev, [deleteTarget.chapterId]: updated }));
-      if (updated.length > 0) {
-        const newIndex = Math.min(deleteTarget.readerIndex ?? 0, updated.length - 1);
+      const remaining = (chapterExcerpts[deleteTarget.chapterId] ?? []).filter(e => e.id !== deleteTarget.id);
+      updateChapter(deleteTarget.chapterId, c => ({ ...c, excerpts: remaining }));
+      if (remaining.length > 0) {
+        const newIndex = Math.min(deleteTarget.readerIndex ?? 0, remaining.length - 1);
         setExcerptReader({ chapterId: deleteTarget.chapterId, startIndex: newIndex });
       }
     }
     setDeleteTarget(null);
+    refresh();
   };
 
   const handleChapterJsonImport = async (parsed, mode) => {
@@ -555,7 +505,7 @@ export default function BookDetailPage() {
         }
       }
     }
-    loadBook();
+    refresh();
   };
 
   const handlePartJsonImport = async (parsed, mode) => {
@@ -598,7 +548,7 @@ export default function BookDetailPage() {
         }
       }
     }
-    loadBook();
+    refresh();
   };
 
   const resolveChapterId = (chapterRef) => {
@@ -628,8 +578,8 @@ export default function BookDetailPage() {
       for (const idea of group.ideas) {
         await ideaApi.create(chapterId, idea);
       }
-      loadIdeas(chapterId);
     }
+    refresh();
   };
 
   const handleBulkExcerptImport = async (parsed, mode) => {
@@ -650,8 +600,8 @@ export default function BookDetailPage() {
       for (const ex of group.excerpts) {
         await excerptApi.create(chapterId, ex);
       }
-      loadExcerpts(chapterId);
     }
+    refresh();
   };
 
   const handleChapterCombinedImport = (chapterId) => async (parsed, mode) => {
@@ -679,15 +629,14 @@ export default function BookDetailPage() {
     }
     if (obj.ideas) {
       for (const item of obj.ideas) await ideaApi.create(chapterId, item);
-      loadIdeas(chapterId);
     }
     if (obj.excerpts) {
       for (const item of obj.excerpts) await excerptApi.create(chapterId, item);
-      loadExcerpts(chapterId);
     }
+    refresh();
   };
 
-  if (loading) return <div className="loading">Loading book</div>;
+  if (detailQuery.isPending) return <div className="loading">Loading book</div>;
   if (!book) return <div className="empty-state"><p>Book not found</p></div>;
 
   const isParts = book.structureType === 'PARTS';
@@ -705,7 +654,7 @@ export default function BookDetailPage() {
     const currentPartId = chapter.partId ?? null;
     const newPartId = targetPartId ?? null;
     if (currentPartId === newPartId) return;
-    setChapters(prev => prev.map(c => (c.id === chapterId ? { ...c, partId: newPartId } : c)));
+    updateChapter(chapterId, c => ({ ...c, partId: newPartId }));
     try {
       await chapterApi.update(id, chapterId, {
         title: chapter.title,
@@ -714,8 +663,9 @@ export default function BookDetailPage() {
         partId: newPartId,
       });
     } catch {
-      setChapters(prev => prev.map(c => (c.id === chapterId ? { ...c, partId: currentPartId } : c)));
+      updateChapter(chapterId, c => ({ ...c, partId: currentPartId }));
     }
+    refresh();
   };
 
   // Build the export list for explanations: assign a book-wide continuous sequence
@@ -1120,7 +1070,7 @@ export default function BookDetailPage() {
               return (async () => {
                 if (mode === 'replace') { const ex = await ideaApi.getAll(showChapterImport); for (const i of ex) await ideaApi.delete(showChapterImport, i.id); }
                 for (const item of items) await ideaApi.create(showChapterImport, item);
-                loadIdeas(showChapterImport);
+                refresh();
               })();
             }},
             { key: 'excerpts', label: 'Excerpts', placeholder: CHAPTER_EXCERPTS_HINT, onImport: (parsed, mode) => {
@@ -1129,7 +1079,7 @@ export default function BookDetailPage() {
               return (async () => {
                 if (mode === 'replace') { const ex = await excerptApi.getAll(showChapterImport); for (const e of ex) await excerptApi.delete(showChapterImport, e.id); }
                 for (const item of items) await excerptApi.create(showChapterImport, item);
-                loadExcerpts(showChapterImport);
+                refresh();
               })();
             }},
             { key: 'combined', label: 'Ideas + Excerpts', placeholder: CHAPTER_COMBINED_HINT, onImport: handleChapterCombinedImport(showChapterImport) },
@@ -1177,10 +1127,6 @@ export default function BookDetailPage() {
           chapterId={imageViewer}
           chapterTitle={chapters.find(c => c.id === imageViewer)?.title || ''}
           onClose={() => setImageViewer(null)}
-          onImagesChange={async () => {
-            const imgs = await chapterImageApi.getAll(imageViewer);
-            setChapterImageCounts(prev => ({ ...prev, [imageViewer]: imgs.length }));
-          }}
         />
       )}
 

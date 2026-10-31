@@ -1,54 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { bookCollectionApi } from '../../api';
+import { queryKeys, useCollectionBooks, useCollections, useRefresh } from '../../queries';
 import CollectionTree, { BOOK_DND_TYPE, BOOK_SOURCE_DND_TYPE } from './CollectionTree';
 import { buildFolderTree } from './folderTree';
 import PickBooksModal from './PickBooksModal';
 
+const NONE = [];
+
 export default function CollectionsExplorer() {
   const location = useLocation();
-  const [collections, setCollections] = useState([]);
+  const queryClient = useQueryClient();
+  const refresh = useRefresh();
   const [selectedId, setSelectedId] = useState(() => location.state?.collectionId ?? null);
   const [expanded, setExpanded] = useState(() => new Set());
-  const [books, setBooks] = useState([]);
   const [includeDescendants, setIncludeDescendants] = useState(() => location.state?.includeDescendants ?? false);
-  const [loadingTree, setLoadingTree] = useState(true);
-  const [loadingBooks, setLoadingBooks] = useState(false);
+  const collectionsQuery = useCollections();
+  const collections = collectionsQuery.data ?? NONE;
+  const loadingTree = collectionsQuery.isPending;
+  const booksQuery = useCollectionBooks(selectedId, includeDescendants);
+  const books = (selectedId != null && booksQuery.data) || NONE;
+  const loadingBooks = selectedId != null && booksQuery.isPending;
   const [dialog, setDialog] = useState(null); // { mode, parentId, targetId, value }
   const [showPicker, setShowPicker] = useState(false);
   const [brokenCovers, setBrokenCovers] = useState(() => new Set());
   const [crumbMenuOpen, setCrumbMenuOpen] = useState(false);
   const navigate = useNavigate();
-
-  const reloadTree = useCallback(
-    () =>
-      bookCollectionApi
-        .list()
-        .then(setCollections)
-        .catch(err => console.error('Failed to load collections:', err))
-        .finally(() => setLoadingTree(false)),
-    [],
-  );
-
-  useEffect(() => { reloadTree(); }, [reloadTree]);
-
-  const loadBooks = useCallback((id, includeDesc) => {
-    setLoadingBooks(true);
-    bookCollectionApi
-      .booksIn(id, includeDesc)
-      .then(setBooks)
-      .catch(err => console.error('Failed to load books:', err))
-      .finally(() => setLoadingBooks(false));
-  }, []);
-
-  useEffect(() => {
-    if (selectedId == null) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-      setBooks([]);
-      return;
-    }
-    loadBooks(selectedId, includeDescendants);
-  }, [selectedId, includeDescendants, loadBooks]);
 
   const roots = useMemo(() => buildFolderTree(collections), [collections]);
   const byId = useMemo(() => new Map(collections.map(c => [c.id, c])), [collections]);
@@ -124,7 +102,7 @@ export default function CollectionsExplorer() {
         setSelectedId(created.id);
       }
       setDialog(null);
-      await reloadTree();
+      await refresh();
     } catch (err) {
       console.error('Folder operation failed:', err);
       alert('Operation failed, please try again.');
@@ -136,7 +114,7 @@ export default function CollectionsExplorer() {
     try {
       await bookCollectionApi.remove(folder.id);
       if (selectedId === folder.id) setSelectedId(null);
-      await reloadTree();
+      await refresh();
     } catch (err) {
       console.error('Failed to delete folder:', err);
       alert('Delete failed, please try again.');
@@ -151,8 +129,7 @@ export default function CollectionsExplorer() {
       if (sourceFolderId != null && sourceFolderId !== folderId) {
         await bookCollectionApi.removeBook(sourceFolderId, bookId);
       }
-      await reloadTree();
-      if (selectedId != null) loadBooks(selectedId, includeDescendants);
+      await refresh();
     } catch (err) {
       console.error('Failed to move book to folder:', err);
     }
@@ -162,8 +139,9 @@ export default function CollectionsExplorer() {
     if (selectedId == null) return;
     try {
       await bookCollectionApi.removeBook(selectedId, bookId);
-      setBooks(prev => prev.filter(b => b.id !== bookId));
-      reloadTree();
+      queryClient.setQueryData(queryKeys.collectionBooks(selectedId, includeDescendants),
+        list => list?.filter(b => b.id !== bookId));
+      refresh();
     } catch (err) {
       console.error('Failed to remove book:', err);
     }
@@ -174,7 +152,7 @@ export default function CollectionsExplorer() {
     try {
       await bookCollectionApi.move(draggedId, targetId);
       if (targetId != null) setExpanded(prev => new Set(prev).add(targetId));
-      await reloadTree();
+      await refresh();
     } catch (err) {
       console.error('Failed to move folder:', err);
       alert('Operation failed, please try again.');
@@ -388,10 +366,7 @@ export default function CollectionsExplorer() {
           folderId={selectedId}
           existingIds={new Set(books.map(b => b.id))}
           onClose={() => setShowPicker(false)}
-          onAdded={() => {
-            loadBooks(selectedId, includeDescendants);
-            reloadTree();
-          }}
+          onAdded={refresh}
         />
       )}
     </div>

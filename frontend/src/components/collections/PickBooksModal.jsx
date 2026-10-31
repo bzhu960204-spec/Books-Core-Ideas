@@ -1,25 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
-import { bookApi, bookCollectionApi } from '../../api';
+import { useMemo, useState } from 'react';
+import { bookCollectionApi } from '../../api';
+import { useBooks } from '../../queries';
 
 /** Sentinel key for books that have no author. */
 const UNASSIGNED = '\u0000unassigned';
+const NONE = [];
 
 export default function PickBooksModal({ folderId, existingIds, onClose, onAdded }) {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const booksQuery = useBooks();
+  const books = booksQuery.data ?? NONE;
+  const loading = booksQuery.isPending;
   const [query, setQuery] = useState('');
   const [author, setAuthor] = useState(null); // null = all authors
   const [authorSearch, setAuthorSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [brokenCovers, setBrokenCovers] = useState(() => new Set());
-
-  useEffect(() => {
-    bookApi.getAll()
-      .then(setBooks)
-      .catch(err => console.error('Failed to load books:', err))
-      .finally(() => setLoading(false));
-  }, []);
 
   const markCoverBroken = (id) => setBrokenCovers(prev => {
     if (prev.has(id)) return prev;

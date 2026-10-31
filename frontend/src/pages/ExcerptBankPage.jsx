@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
-import { excerptBankApi, bookApi } from '../api';
+import { useBooks, useDebouncedValue, useExcerptSearch } from '../queries';
 import BookPicker from '../components/BookPicker';
+
+const NONE = [];
 
 function ExcerptCard({ excerpt, navigate }) {
   return (
@@ -35,43 +37,17 @@ function ExcerptCard({ excerpt, navigate }) {
 
 export default function ExcerptBankPage() {
   const navigate = useNavigate();
-  const [excerpts, setExcerpts] = useState([]);
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const books = useBooks().data ?? NONE;
 
   const [q, setQ] = useState('');
   const [bookId, setBookId] = useState('');
 
-  const debounceRef = useRef(null);
-
-  const fetchExcerpts = useCallback(async (searchQ, searchBookId) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await excerptBankApi.search({ q: searchQ, bookId: searchBookId || null });
-      setExcerpts(data);
-    } catch (err) {
-      setError(err.message || 'Failed to load excerpts');
-      setExcerpts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    bookApi.getAll().then(setBooks).catch(() => {});
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-    fetchExcerpts('', '');
-  }, [fetchExcerpts]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchExcerpts(q, bookId);
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [q, bookId, fetchExcerpts]);
+  // Search 300 ms after the last keystroke / filter change.
+  const params = useDebouncedValue({ q, bookId: bookId || null }, 300);
+  const excerptsQuery = useExcerptSearch(params);
+  const excerpts = excerptsQuery.data ?? NONE;
+  const loading = excerptsQuery.isPending || excerptsQuery.isPlaceholderData;
+  const error = excerptsQuery.error ? (excerptsQuery.error.message || 'Failed to load excerpts') : null;
 
   return (
     <div>

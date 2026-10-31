@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { bookApi } from '../api';
+import { useCategories } from '../queries';
 import Modal from './Modal';
 
 function formFromBook(book) {
@@ -26,11 +27,7 @@ export default function BookForm({ book, onSave, onClose, onCategoryChange }) {
   const [fetchingCover, setFetchingCover] = useState(false);
   const [coverError, setCoverError] = useState('');
 
-  const [allCategories, setAllCategories] = useState([]);
-
-  useEffect(() => {
-    bookApi.getCategories().then(setAllCategories).catch(() => {});
-  }, []);
+  const allCategories = useCategories().data ?? [];
 
   const handleCategoryInputChange = (value) => {
     setCategoryInput(value);

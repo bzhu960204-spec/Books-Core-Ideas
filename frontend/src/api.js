@@ -18,16 +18,21 @@ async function errorMessage(res, fallback) {
 async function apiFetch(url, options) {
   const res = await fetch(url, options);
   if (!res.ok) {
-    throw new Error(await errorMessage(res));
+    const error = new Error(await errorMessage(res));
+    error.status = res.status;
+    throw error;
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') return null;
   return res.json();
 }
 
+// Reads take an optional { signal } so the data layer (queries.js) can cancel them.
 export const bookApi = {
-  getAll: () => apiFetch(`${API_BASE}/books`),
+  getAll: (opts) => apiFetch(`${API_BASE}/books`, opts),
   get: (id) => apiFetch(`${API_BASE}/books/${id}`),
-  getCategories: () => apiFetch(`${API_BASE}/books/categories`),
+  // The book page in one request: book, parts, chapters with ideas/excerpts, bookmarks, marks.
+  detail: (id, opts) => apiFetch(`${API_BASE}/books/${id}/detail`, opts),
+  getCategories: (opts) => apiFetch(`${API_BASE}/books/categories`, opts),
   create: (book) => apiFetch(`${API_BASE}/books`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -122,9 +127,9 @@ export const bookmarkApi = {
       body: JSON.stringify({ scrollRatio, note }),
     }),
   latest: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/bookmarks/latest`),
-  list: (bookId = null) => {
+  list: (bookId = null, opts) => {
     const qs = bookId ? `?bookId=${bookId}` : '';
-    return apiFetch(`${API_BASE}/bookmarks${qs}`);
+    return apiFetch(`${API_BASE}/bookmarks${qs}`, opts);
   },
   delete: (id) => apiFetch(`${API_BASE}/bookmarks/${id}`, { method: 'DELETE' }),
 };
@@ -148,28 +153,28 @@ export const markApi = {
 };
 
 export const ideaBankApi = {
-  search: ({ q = '', bookId = null, tag = '' } = {}) => {
+  search: ({ q = '', bookId = null, tag = '' } = {}, opts) => {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (bookId) params.set('bookId', bookId);
     if (tag) params.set('tag', tag);
     const qs = params.toString();
-    return apiFetch(`${API_BASE}/ideas${qs ? '?' + qs : ''}`);
+    return apiFetch(`${API_BASE}/ideas${qs ? '?' + qs : ''}`, opts);
   },
 };
 
 export const excerptBankApi = {
-  search: ({ q = '', bookId = null } = {}) => {
+  search: ({ q = '', bookId = null } = {}, opts) => {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (bookId) params.set('bookId', bookId);
     const qs = params.toString();
-    return apiFetch(`${API_BASE}/excerpts${qs ? '?' + qs : ''}`);
+    return apiFetch(`${API_BASE}/excerpts${qs ? '?' + qs : ''}`, opts);
   },
 };
 
 export const chapterImageApi = {
-  getAll: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/images`),
+  getAll: (chapterId, opts) => apiFetch(`${API_BASE}/chapters/${chapterId}/images`, opts),
   upload: (chapterId, files) => {
     const formData = new FormData();
     for (const file of files) {
@@ -210,7 +215,7 @@ export const migrationApi = {
 };
 
 export const reviewApi = {
-  getAll: () => apiFetch(`${API_BASE}/reviews`),
+  getAll: (opts) => apiFetch(`${API_BASE}/reviews`, opts),
   list: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/reviews`),
   create: (bookId, review) => apiFetch(`${API_BASE}/books/${bookId}/reviews`, {
     method: 'POST',
@@ -228,7 +233,7 @@ export const reviewApi = {
 };
 
 export const bookCollectionApi = {
-  list: () => apiFetch(`${API_BASE}/book-collections`),
+  list: (opts) => apiFetch(`${API_BASE}/book-collections`, opts),
   create: (name, parentId = null, sortOrder) => apiFetch(`${API_BASE}/book-collections`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -245,8 +250,8 @@ export const bookCollectionApi = {
     body: JSON.stringify({ parentId }),
   }),
   remove: (id) => apiFetch(`${API_BASE}/book-collections/${id}`, { method: 'DELETE' }),
-  booksIn: (id, includeDescendants = false) =>
-    apiFetch(`${API_BASE}/book-collections/${id}/books?includeDescendants=${includeDescendants}`),
+  booksIn: (id, includeDescendants = false, opts) =>
+    apiFetch(`${API_BASE}/book-collections/${id}/books?includeDescendants=${includeDescendants}`, opts),
   collectionsForBook: (bookId) => apiFetch(`${API_BASE}/book-collections/for-book/${bookId}`),
   addBook: (id, bookId) => apiFetch(`${API_BASE}/book-collections/${id}/books/${bookId}`, { method: 'POST' }),
   removeBook: (id, bookId) => apiFetch(`${API_BASE}/book-collections/${id}/books/${bookId}`, { method: 'DELETE' }),

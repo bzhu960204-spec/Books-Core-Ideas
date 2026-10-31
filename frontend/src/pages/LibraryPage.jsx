@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { bookApi, chapterApi, partApi, ideaApi } from '../api';
+import { queryKeys, useBooks, useCategories, useRefresh } from '../queries';
 import BookForm from '../components/BookForm';
 import ConfirmDialog from '../components/ConfirmDialog';
 import JsonImportModal from '../components/JsonImportModal';
@@ -32,9 +34,15 @@ const BOOK_JSON_HINT = `// Single book (simple):
   ]
 }`;
 
+const NONE = [];
+
 export default function LibraryPage() {
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const booksQuery = useBooks();
+  const books = booksQuery.data ?? NONE;
+  const loading = booksQuery.isPending;
+  const categories = useCategories().data ?? NONE;
+  const queryClient = useQueryClient();
+  const refresh = useRefresh();
   const [showForm, setShowForm] = useState(false);
   const [editBook, setEditBook] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -46,7 +54,6 @@ export default function LibraryPage() {
   const [filterRating, setFilterRating] = useState(() => Number(sessionStorage.getItem('library-rating')) || 0); // 0 = all
   const [filterCategory, setFilterCategory] = useState(() => sessionStorage.getItem('library-category') || ''); // '' = all
   const [filterStatus, setFilterStatus] = useState(() => sessionStorage.getItem('library-status') || ''); // '' = all
-  const [categories, setCategories] = useState([]);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('library-view') || 'grid');
   const [brokenCovers, setBrokenCovers] = useState(() => new Set());
   const navigate = useNavigate();
@@ -66,28 +73,9 @@ export default function LibraryPage() {
     return next;
   });
 
-  const loadBooks = async () => {
-    try {
-      const data = await bookApi.getAll();
-      setBooks(data);
-    } catch {
-      console.error('Failed to load books');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const data = await bookApi.getCategories();
-      setCategories(data);
-    } catch {
-      console.error('Failed to load categories');
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-  useEffect(() => { loadBooks(); loadCategories(); }, []);
+  // Immediate feedback for rating/status; refresh() then confirms it (or puts it back on failure).
+  const updateBook = (bookId, change) =>
+    queryClient.setQueryData(queryKeys.books, list => list?.map(b => (b.id === bookId ? { ...b, ...change } : b)));
 
   const handleSave = async (form) => {
     if (editBook) {
@@ -97,36 +85,33 @@ export default function LibraryPage() {
     }
     setShowForm(false);
     setEditBook(null);
-    loadBooks();
-    loadCategories();
+    refresh();
   };
 
   const handleDelete = async () => {
     if (deleteTarget) {
       await bookApi.delete(deleteTarget.id);
       setDeleteTarget(null);
-      loadBooks();
+      refresh();
     }
   };
 
   const handleRateBook = async (book, star) => {
     const newRating = book.rating === star ? null : star;
-    setBooks(prev => prev.map(b => b.id === book.id ? { ...b, rating: newRating } : b));
+    updateBook(book.id, { rating: newRating });
     try {
       await bookApi.update(book.id, { ...book, rating: newRating });
-    } catch {
-      setBooks(prev => prev.map(b => b.id === book.id ? { ...b, rating: book.rating } : b));
-    }
+    } catch { /* refresh() restores the stored rating */ }
+    refresh();
   };
 
   const handleStatusChange = async (book, status) => {
     const newStatus = status || null;
-    setBooks(prev => prev.map(b => b.id === book.id ? { ...b, readingStatus: newStatus } : b));
+    updateBook(book.id, { readingStatus: newStatus });
     try {
       await bookApi.update(book.id, { ...book, readingStatus: newStatus });
-    } catch {
-      setBooks(prev => prev.map(b => b.id === book.id ? { ...b, readingStatus: book.readingStatus } : b));
-    }
+    } catch { /* refresh() restores the stored status */ }
+    refresh();
   };
 
   const handleJsonImport = async (parsed) => {
@@ -172,7 +157,7 @@ export default function LibraryPage() {
         }
       }
     }
-    loadBooks();
+    refresh();
   };
 
   if (loading) return <div className="loading">Loading library</div>;
@@ -429,7 +414,7 @@ export default function LibraryPage() {
           book={editBook}
           onSave={handleSave}
           onClose={() => { setShowForm(false); setEditBook(null); }}
-          onCategoryChange={() => { loadBooks(); loadCategories(); }}
+          onCategoryChange={refresh}
         />
       )}
 
@@ -447,7 +432,7 @@ export default function LibraryPage() {
         <BookMigrationModal
           books={books}
           onClose={() => setShowMigration(false)}
-          onImported={() => { loadBooks(); loadCategories(); }}
+          onImported={refresh}
         />
       )}
 

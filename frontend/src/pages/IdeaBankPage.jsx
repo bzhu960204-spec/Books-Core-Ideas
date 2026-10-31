@@ -1,8 +1,10 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
-import { ideaBankApi, bookApi } from '../api';
+import { useBooks, useDebouncedValue, useIdeaSearch } from '../queries';
 import BookPicker from '../components/BookPicker';
+
+const NONE = [];
 
 function TagChip({ label, active, onClick }) {
   return (
@@ -52,48 +54,22 @@ function IdeaCard({ idea, navigate }) {
 
 export default function IdeaBankPage() {
   const navigate = useNavigate();
-  const [ideas, setIdeas] = useState([]);
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const books = useBooks().data ?? NONE;
 
   const [q, setQ] = useState('');
   const [bookId, setBookId] = useState('');
   const [activeTag, setActiveTag] = useState('');
 
-  const debounceRef = useRef(null);
+  // Search 300 ms after the last keystroke / filter change.
+  const params = useDebouncedValue({ q, bookId: bookId || null, tag: activeTag }, 300);
+  const ideasQuery = useIdeaSearch(params);
+  const ideas = ideasQuery.data ?? NONE;
+  const loading = ideasQuery.isPending || ideasQuery.isPlaceholderData;
+  const error = ideasQuery.error ? (ideasQuery.error.message || 'Failed to load ideas') : null;
 
   const allTags = [...new Set(
     ideas.flatMap(i => (i.tags ? i.tags.split(',').map(t => t.trim()).filter(Boolean) : []))
   )].sort();
-
-  const fetchIdeas = useCallback(async (searchQ, searchBookId, searchTag) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await ideaBankApi.search({ q: searchQ, bookId: searchBookId || null, tag: searchTag });
-      setIdeas(data);
-    } catch (err) {
-      setError(err.message || 'Failed to load ideas');
-      setIdeas([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    bookApi.getAll().then(setBooks).catch(() => {});
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
-    fetchIdeas('', '', '');
-  }, [fetchIdeas]);
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchIdeas(q, bookId, activeTag);
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [q, bookId, activeTag, fetchIdeas]);
 
   return (
     <div>
