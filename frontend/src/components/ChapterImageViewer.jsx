@@ -34,6 +34,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose, o
     }
   }, [chapterId]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
   useEffect(() => { loadImages(); }, [loadImages]);
 
   const handleUpload = async (files) => {

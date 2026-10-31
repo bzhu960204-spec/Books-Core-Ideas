@@ -54,7 +54,7 @@
 |---|---|---|
 | 1.1 | ENG-01 | 后端集成测试骨架 + 阶段 0 的回归测试 |
 | 1.2 | ENG-02 | ✅ GitHub Actions CI |
-| 1.3 | FE-02 | ESLint 清零 |
+| 1.3 | FE-02 | ✅ ESLint 清零（CI 阻断，含警告） |
 | 1.4 | BE-04 / BUG-07 | ✅ 全局异常处理（ProblemDetail） |
 | 1.5 | BUG-05 | ✅ 子资源归属校验 |
 
@@ -114,7 +114,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | DB-05 | P2 | 备份机制 | 0 | ✅ | 按需求缩小为手动 backup/restore 脚本，不做自动备份 |
 | DB-06 | P3 | 建模细节 | 4 | ⬜ | |
 | FE-01 | P1 | 拆分超大组件/样式 | 3 | ⬜ | |
-| FE-02 | P1 | ESLint 清零 | 1 | ⬜ | |
+| FE-02 | P1 | ESLint 清零 | 1 | ✅ | 0 error / 0 warning，CI 阻断；9 处加载 effect 暂用 disable，待 FE-03 删除 |
 | FE-03 | P1 | 数据获取 N+1 / 缓存 | 3 | ⬜ | |
 | FE-04 | P2 | 代码分割 | 3 | ⬜ | |
 | FE-05 | P2 | 错误处理与反馈 | 3 | ⬜ | |
@@ -126,8 +126,8 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 28 个 + 前端 Vitest 12 个；每个修复附回归测试 |
-| ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 暂不阻断（待 FE-02）；推送后确认首次运行 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 28 个 + 前端 Vitest 37 个（含 RTL 组件测试）；每个修复附回归测试 |
+| ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |
 | ENG-05 | P2 | 文档更新 | 4 | ⬜ | 每阶段顺带更新相关文档 |

@@ -268,6 +268,7 @@ export default function BookDetailPage() {
     } catch { /* ignore */ }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- load on id change; replaced by the FE-03 data layer
   useEffect(() => { loadBook(); }, [id]);
 
   useEffect(() => {
@@ -405,6 +406,7 @@ export default function BookDetailPage() {
     const target = location.state?.openExplanation;
     if (target?.chapterId) {
       openedFromState.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
       openExplanation(target.chapterId, false, target.scrollRatio ?? 0);
     }
   }, [book, location.state]);

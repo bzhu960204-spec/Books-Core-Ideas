@@ -86,6 +86,7 @@ export default function LibraryPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
   useEffect(() => { loadBooks(); loadCategories(); }, []);
 
   const handleSave = async (form) => {

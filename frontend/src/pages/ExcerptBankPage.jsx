@@ -61,6 +61,7 @@ export default function ExcerptBankPage() {
 
   useEffect(() => {
     bookApi.getAll().then(setBooks).catch(() => {});
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
     fetchExcerpts('', '');
   }, [fetchExcerpts]);
 

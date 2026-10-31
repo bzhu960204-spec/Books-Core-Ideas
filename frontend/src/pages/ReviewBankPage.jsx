@@ -71,6 +71,7 @@ export default function ReviewBankPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load-on-mount/param; replaced by the FE-03 data layer
     loadReviews();
     bookApi.getAll().then(setBooks).catch(() => {});
   }, [loadReviews]);

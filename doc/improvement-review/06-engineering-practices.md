@@ -15,7 +15,7 @@
 ## ENG-01 · 前后端零测试 🔴
 
 > **进展（2026-10-31）**：后端测试骨架已建立——[IntegrationTest](../../backend/src/test/java/com/bookscoreideas/support/IntegrationTest.java) 基类（`@SpringBootTest` + MockMvc + `test` profile，随机内存库、`ddl-auto=validate`），首批 3 个测试覆盖空库/老库迁移。运行：`cd backend; mvn test`。
-> 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`），现有 `sanitizeHtml.test.js`、`markdownPaste.test.js`（BUG-11）；CI 中前端测试为阻断步骤。
+> 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`）和 `@testing-library/react`（组件测试，FE-02 引入）。现有纯函数测试 `sanitizeHtml`、`markdownPaste`（BUG-11），组件测试 `RichTextEditor`、`ChapterImageViewer`（BUG-12）、各编辑表单、讲解和书评 Modal、`ExcerptReader`，共 37 个；CI 中前端测试为阻断步骤。
 
 **现状**：`backend/src/test` 不存在（虽然 pom 已引入 `spring-boot-starter-test`）；前端没有测试框架。本次发现的 BUG-01~05 都是一个最基础的集成测试就能拦住的。
 
@@ -33,7 +33,7 @@
 <a id="eng-02"></a>
 ## ENG-02 · 没有 CI 🟠
 
-> **✅ 已完成（2026-10-31）**：[.github/workflows/ci.yml](../../.github/workflows/ci.yml)——push 到 `main` 及 PR 时运行；后端 `mvn -B verify`（JDK 17），前端 `npm ci` → `npm test`（阻断）→ `lint` → `build`（Node 24）。lint 暂为 `continue-on-error`，FE-02 清零后改为阻断。
+> **✅ 已完成（2026-10-31）**：[.github/workflows/ci.yml](../../.github/workflows/ci.yml)——push 到 `main` 及 PR 时运行；后端 `mvn -B verify`（JDK 17），前端 `npm ci` → `npm test`（阻断）→ `lint` → `build`（Node 24）。lint 自 FE-02 起改为阻断（`--max-warnings 0`）。
 > 验证：actionlint 1.7.12 无告警；在干净 worktree 中原样执行各命令均符合预期（npm ci ✅、build ✅、mvn verify 16/16 ✅）。尚未在 GitHub 上实际运行（需推送后确认）。
 
 仓库没有 `.github/workflows`。

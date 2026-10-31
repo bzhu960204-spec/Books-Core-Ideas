@@ -48,8 +48,5 @@ jobs:
         run: npm test
       - name: Lint
         run: npm run lint
-        # Known lint errors are tracked as FE-02 in doc/improvement-review;
-        # make this blocking once they are fixed.
-        continue-on-error: true
       - name: Build
         run: npm run build

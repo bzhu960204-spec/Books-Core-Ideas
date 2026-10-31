@@ -38,6 +38,14 @@
 <a id="fe-02"></a>
 ## FE-02 · ESLint 不通过 🟠
 
+> **✅ 已完成（2026-10-31）**：`npm run lint` 由 30 errors / 3 warnings 降为 **0 / 0**；脚本改为 `eslint . --max-warnings 0`，CI 中 lint 改为阻断（警告同样会导致失败）。分 4 个提交：
+> 1. `a78b9ef` 非组件导出拆到单独文件：`utils/reviewContent.js`（`normalizeReviewContent`）、`collections/folderTree.js`、`useTheme.js` + `themes.js`；同时去掉多余转义、多余的 disable，并开启 `ignoreRestSiblings`（用剩余解构剔除字段的写法）。
+> 2. `249dcfd` `RichTextEditor` 不再在 render 期间读写 ref：镜像 ref 改在 `useLayoutEffect` 中同步，初始 HTML 改为惰性 state（顺带避免每次渲染都重新清洗内容）。引入 `@testing-library/react`，新增 `RichTextEditor.test.jsx`；去掉 ref 同步后，"粘贴模式切换"用例会失败。
+> 3. `2a4b867` 只是"把 props 复制进 state"的 effect：5 个表单改为惰性初始化，调用处加 `key={id}`；讲解、书评 Modal 以及两处菜单改为"记住上一次的 prop，在渲染时比较并调整 state"。组件测试在旧代码（effect 版本）和新代码上都通过，删掉新的重置逻辑后会失败。
+> 4. "挂载/参数变化时加载数据"的 9 处 effect 按约定逐行加 `eslint-disable-next-line … -- … replaced by the FE-03 data layer`，**FE-03 引入数据层后应删除这些注释**。届时如果遗漏，ESLint 会把多余的 disable 报为警告，CI 会失败。
+> - 清理 `exhaustive-deps` 警告时发现并修复 **BUG-12**（删除最后一张章节图片后崩溃）。`BookDetailPage` 的 `loadBook` 只依赖 `id`，不存在读到旧值的问题，随第 4 项加 disable。
+> - 浏览器冒烟测试（临时库）：主题切换；书、章、想法、摘录表单的编辑预填与新增空表单；讲解和书评保存后回到阅读模式、再次编辑时预填；摘录阅读器切换时关闭菜单；书单面包屑菜单在切换选中时关闭；7 个页面加载无控制台错误。
+
 | 规则 | 数量（约） | 说明 |
 |---|---|---|
 | `react-hooks/set-state-in-effect` | 18 | effect 内同步 setState，多数是"挂载即加载"模式 |
@@ -57,6 +65,7 @@
 - **重复拉全库**：书库、想法库、摘录库、书评库、阅读历史 5 个页面都调用 `bookApi.getAll()`，而该接口返回每本书完整的章节+想法树（BE-02）。其它页面只是为了渲染"按书筛选"下拉框。
 - **"全部替换"导入**：先逐条 `DELETE` 再逐条 `POST`（第 623–683、1119–1129 行），中途失败会留下半成品。
 - 每个页面自管 `loading/error`，切换页面全部重拉，无缓存、无请求取消（快速切书可能出现旧响应覆盖新数据的竞态）。
+- FE-02 为 9 处"加载数据"的 effect 加了 `eslint-disable-next-line react-hooks/set-state-in-effect -- … FE-03 data layer`，完成本项时应一并删除（搜索 `FE-03 data layer`）。
 
 **建议**：
 1. 后端提供聚合接口：`GET /api/books/{id}/detail`（一次返回章节+想法+摘录计数/列表+图片数+讲解标记）、`GET /api/books?fields=summary`（轻量列表）、`PUT .../ideas:replace`（事务内替换）。
