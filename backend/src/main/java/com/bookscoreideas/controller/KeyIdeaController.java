@@ -38,10 +38,7 @@ public class KeyIdeaController {
     public ResponseEntity<KeyIdea> updateIdea(@PathVariable Long chapterId,
                                                @PathVariable Long ideaId,
                                                @Valid @RequestBody KeyIdea idea) {
-        if (!chapterRepository.existsById(chapterId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return keyIdeaRepository.findById(ideaId).map(existing -> {
+        return keyIdeaRepository.findByIdAndChapterId(ideaId, chapterId).map(existing -> {
             existing.setContent(idea.getContent());
             existing.setExample(idea.getExample());
             existing.setTags(idea.getTags());
@@ -53,10 +50,7 @@ public class KeyIdeaController {
 
     @DeleteMapping("/{ideaId}")
     public ResponseEntity<Void> deleteIdea(@PathVariable Long chapterId, @PathVariable Long ideaId) {
-        if (!chapterRepository.existsById(chapterId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return keyIdeaRepository.findById(ideaId).map(idea -> {
+        return keyIdeaRepository.findByIdAndChapterId(ideaId, chapterId).map(idea -> {
             keyIdeaRepository.delete(idea);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());

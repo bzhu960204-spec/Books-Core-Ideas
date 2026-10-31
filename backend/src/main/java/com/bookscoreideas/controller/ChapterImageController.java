@@ -81,7 +81,7 @@ public class ChapterImageController {
     @GetMapping("/{imageId}/data")
     public ResponseEntity<Resource> getImageData(@PathVariable Long chapterId,
                                                   @PathVariable Long imageId) {
-        return imageRepository.findById(imageId).map(image -> {
+        return imageRepository.findByIdAndChapterId(imageId, chapterId).map(image -> {
             try {
                 Path filePath = uploadDir.resolve(image.getFilename()).normalize();
                 if (!filePath.startsWith(uploadDir)) {
@@ -105,7 +105,7 @@ public class ChapterImageController {
     @DeleteMapping("/{imageId}")
     public ResponseEntity<Void> deleteImage(@PathVariable Long chapterId,
                                              @PathVariable Long imageId) {
-        return imageRepository.findById(imageId).map(image -> {
+        return imageRepository.findByIdAndChapterId(imageId, chapterId).map(image -> {
             imageRepository.delete(image);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());

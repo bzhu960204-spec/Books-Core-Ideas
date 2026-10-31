@@ -38,10 +38,7 @@ public class PartController {
     public ResponseEntity<Part> updatePart(@PathVariable Long bookId,
                                             @PathVariable Long partId,
                                             @Valid @RequestBody Part part) {
-        if (!bookRepository.existsById(bookId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return partRepository.findById(partId).map(existing -> {
+        return partRepository.findByIdAndBookId(partId, bookId).map(existing -> {
             existing.setTitle(part.getTitle());
             existing.setOrderIndex(part.getOrderIndex());
             existing.setSummary(part.getSummary());
@@ -51,10 +48,7 @@ public class PartController {
 
     @DeleteMapping("/{partId}")
     public ResponseEntity<Void> deletePart(@PathVariable Long bookId, @PathVariable Long partId) {
-        if (!bookRepository.existsById(bookId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return partRepository.findById(partId).map(part -> {
+        return partRepository.findByIdAndBookId(partId, bookId).map(part -> {
             partRepository.delete(part);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());

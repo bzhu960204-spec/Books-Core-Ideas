@@ -56,7 +56,7 @@
 | 1.2 | ENG-02 | ✅ GitHub Actions CI |
 | 1.3 | FE-02 | ESLint 清零 |
 | 1.4 | BE-04 / BUG-07 | ✅ 全局异常处理（ProblemDetail） |
-| 1.5 | BUG-05 | 子资源归属校验 |
+| 1.5 | BUG-05 | ✅ 子资源归属校验 |
 
 ### 阶段 2 · 后端结构与数据
 | 顺序 | ID | 事项 |
@@ -89,7 +89,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-02 | P0 | 删除带书评的书 500 | 0 | ✅ | Book.reviews 级联 + BookService |
 | BUG-03 | P0 | 删除带图片的章节 500 / 图片不清理 | 0 | ✅ | Chapter.images 级联 + 提交后删文件 |
 | BUG-04 | P1 | CORS 缺 PATCH | 0 | ✅ | 补 PATCH + Vite 代理同源 + CorsConfigTest |
-| BUG-05 | P1 | 子资源归属校验 | 1 | ⬜ | |
+| BUG-05 | P1 | 子资源归属校验 | 1 | ✅ | 404/400 + ParentOwnershipTest |
 | BUG-06 | P1 | 书库导入丢 excerpts | 3 | ⬜ | |
 | BUG-07 | P2 | 404/400 被当成 500 | 1 | ✅ | 随 BE-04 |
 | BUG-08 | P2 | 删书后书单成员残留 | 0 | ✅ | 删书时同事务清除成员行 |

@@ -38,10 +38,7 @@ public class ExcerptController {
     public ResponseEntity<Excerpt> updateExcerpt(@PathVariable Long chapterId,
                                                   @PathVariable Long excerptId,
                                                   @Valid @RequestBody Excerpt excerpt) {
-        if (!chapterRepository.existsById(chapterId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return excerptRepository.findById(excerptId).map(existing -> {
+        return excerptRepository.findByIdAndChapterId(excerptId, chapterId).map(existing -> {
             existing.setContent(excerpt.getContent());
             existing.setNote(excerpt.getNote());
             existing.setSource(excerpt.getSource());
@@ -53,10 +50,7 @@ public class ExcerptController {
 
     @DeleteMapping("/{excerptId}")
     public ResponseEntity<Void> deleteExcerpt(@PathVariable Long chapterId, @PathVariable Long excerptId) {
-        if (!chapterRepository.existsById(chapterId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return excerptRepository.findById(excerptId).map(excerpt -> {
+        return excerptRepository.findByIdAndChapterId(excerptId, chapterId).map(excerpt -> {
             excerptRepository.delete(excerpt);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());

@@ -9,7 +9,7 @@
 | BUG-02 | 🔴 P0 | 删除带书评的书 → 500（✅ 已修复） | ✅ 实测 |
 | BUG-03 | 🔴 P0 | 删除带配图的章节（或含此类章节的书）→ 500，图片文件也不清理（✅ 已修复） | ✅ 实测 |
 | BUG-04 | 🟠 P1 | 开发模式下"修改摘录批注"（PATCH）被 CORS 拦截（✅ 已修复） | ✅ 实测 |
-| BUG-05 | 🟠 P1 | 子资源缺少父子归属校验，可跨章节改/删数据 | ✅ 实测 |
+| BUG-05 | 🟠 P1 | 子资源缺少父子归属校验，可跨章节改/删数据（✅ 已修复） | ✅ 实测 |
 | BUG-06 | 🟠 P1 | 书库页 JSON 导入静默丢弃章节下的 `excerpts` | 🔍 代码确认 |
 | BUG-07 | 🟡 P2 | "不存在 / 参数非法"一律返回 500（✅ 已修复） | ✅ 实测 |
 | BUG-08 | 🟡 P2 | 删除书后，书单（Collection）成员行残留（✅ 已修复） | 🔍 代码确认 |
@@ -108,6 +108,8 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 
 <a id="bug-05"></a>
 ## BUG-05 · 子资源缺少父子归属校验 🟠
+
+> **✅ 已修复（2026-10-31）**：仓库新增 `findByIdAndChapterId` / `findByIdAndBookId`；想法、摘录、章节、Part、章节图片（读取与删除）在"子资源不属于路径中的父资源"时返回 404；`ChapterController` 创建/更新时若 `partId` 属于其他书返回 400（且校验先于字段修改）。回归测试 [ParentOwnershipTest](../../backend/src/test/java/com/bookscoreideas/ownership/ParentOwnershipTest.java)（修复前 6 个用例全部失败）。已逐一核对前端调用，传入的父 ID 均正确，不受影响。
 
 **实测**：
 - 想法 #2 属于章节 C2；`PUT /api/chapters/{C3}/ideas/2` 把它改成了 `"HIJACKED"` —— **成功**；

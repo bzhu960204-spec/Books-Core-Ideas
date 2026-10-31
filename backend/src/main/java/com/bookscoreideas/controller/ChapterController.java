@@ -1,6 +1,7 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.entity.Chapter;
+import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.PartRepository;
@@ -33,44 +34,42 @@ public class ChapterController {
     @PostMapping
     public ResponseEntity<Chapter> createChapter(@PathVariable Long bookId, @Valid @RequestBody Chapter chapter) {
         return bookRepository.findById(bookId).map(book -> {
+            applyPart(chapter, bookId, chapter.getPartId());
             chapter.setBook(book);
-            applyPart(chapter, chapter.getPartId());
             return ResponseEntity.ok(chapterRepository.save(chapter));
         }).orElse(ResponseEntity.notFound().build());
     }
 
     // Resolve the optional partId from the request into the Part relationship.
-    // A null partId clears the grouping (plain chapter).
-    private void applyPart(Chapter chapter, Long partId) {
-        if (partId != null) {
-            partRepository.findById(partId).ifPresent(chapter::setPart);
-        } else {
+    // A null partId clears the grouping (plain chapter); a part from another
+    // book is rejected.
+    private void applyPart(Chapter chapter, Long bookId, Long partId) {
+        if (partId == null) {
             chapter.setPart(null);
+            return;
         }
+        Part part = partRepository.findByIdAndBookId(partId, bookId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Part " + partId + " does not belong to book " + bookId));
+        chapter.setPart(part);
     }
 
     @PutMapping("/{chapterId}")
     public ResponseEntity<Chapter> updateChapter(@PathVariable Long bookId,
                                                   @PathVariable Long chapterId,
                                                   @Valid @RequestBody Chapter chapter) {
-        if (!bookRepository.existsById(bookId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return chapterRepository.findById(chapterId).map(existing -> {
+        return chapterRepository.findByIdAndBookId(chapterId, bookId).map(existing -> {
+            applyPart(existing, bookId, chapter.getPartId());
             existing.setTitle(chapter.getTitle());
             existing.setOrderIndex(chapter.getOrderIndex());
             existing.setSummary(chapter.getSummary());
-            applyPart(existing, chapter.getPartId());
             return ResponseEntity.ok(chapterRepository.save(existing));
         }).orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{chapterId}")
     public ResponseEntity<Void> deleteChapter(@PathVariable Long bookId, @PathVariable Long chapterId) {
-        if (!bookRepository.existsById(bookId)) {
-            return ResponseEntity.notFound().build();
-        }
-        return chapterRepository.findById(chapterId).map(chapter -> {
+        return chapterRepository.findByIdAndBookId(chapterId, bookId).map(chapter -> {
             chapterRepository.delete(chapter);
             return ResponseEntity.ok().<Void>build();
         }).orElse(ResponseEntity.notFound().build());

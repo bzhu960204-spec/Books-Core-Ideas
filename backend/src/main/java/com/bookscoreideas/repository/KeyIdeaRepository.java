@@ -7,10 +7,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface KeyIdeaRepository extends JpaRepository<KeyIdea, Long> {
 
     List<KeyIdea> findByChapterIdOrderByOrderIndexAsc(Long chapterId);
+
+    Optional<KeyIdea> findByIdAndChapterId(Long id, Long chapterId);
 
     @Query("""
             SELECT new com.bookscoreideas.dto.IdeaSearchResult(

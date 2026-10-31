@@ -7,10 +7,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ExcerptRepository extends JpaRepository<Excerpt, Long> {
 
     List<Excerpt> findByChapterIdOrderByOrderIndexAsc(Long chapterId);
+
+    Optional<Excerpt> findByIdAndChapterId(Long id, Long chapterId);
 
     @Query("""
             SELECT new com.bookscoreideas.dto.ExcerptSearchResult(
