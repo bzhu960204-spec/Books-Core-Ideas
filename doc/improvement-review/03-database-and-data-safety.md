@@ -144,3 +144,11 @@
 - `book_reviews.updated_at`、`chapter_explanations.updated_at` 是 `DATE`，丢失时分秒，同一天内多次编辑无法排序（目前靠 `id DESC` 兜底）。建议改 `TIMESTAMP`。
 - `books.category` 用分号拼接多值（`BookRepository.findDistinctCategories` 在 Java 里拆分）。如果分类会继续增强（重命名、统计），建议拆成 `categories` + 关联表；若保持简单可维持现状。
 - `reading_bookmarks.note` 在 V6 中为 `VARCHAR(500)`，控制器不截断，超长会 500（实体已在 DB-01 中标注 `length = 500`，仅为与库一致；超长输入的校验留给 BE-05）。
+- ✅ **`Chapter.explanation` 反向一对一**（2026-10-31 完成，BE-01 时发现）：
+  - **问题**：没有字节码增强时，反向一对一无法懒加载，所以每次加载 `Chapter` 实体（改章节、加想法/摘录、导出等）都会把讲解全文一起读出来。
+  - **改法**：从 `Chapter` 中删除该字段，删章/删书时讲解由数据库的 `ON DELETE CASCADE`（V9）删除。原本由服务层显式删除也是一种选择，但级联已经在数据库里了，不需要重复的代码。
+  - **确认无副作用**：没有代码使用 `getExplanation()`；也没有任何删除路径会在同一事务里先加载讲解实体（否则数据库级联后 Hibernate 会持有过期对象）。
+  - **测试** [ChapterExplanationLoadingTest](../../backend/src/test/java/com/bookscoreideas/books/ChapterExplanationLoadingTest.java)：
+    - 改章节 + 加想法 + 加摘录时加载讲解实体 0 次（改动前为 3 次，测试失败）；
+    - 删章/删书仍会删除讲解（特征测试，改动前后都通过）。
+  - **真实库副本**：2,724 个 GET 响应零差异。

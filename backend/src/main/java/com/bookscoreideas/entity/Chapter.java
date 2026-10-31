@@ -49,11 +49,9 @@ public class Chapter {
     @JsonIgnore
     private List<Excerpt> excerpts = new ArrayList<>();
 
-    // Optional AI "explanation" (详解) document for the chapter; 0:1, cascade
-    // delete so removing a chapter removes its explanation.
-    @OneToOne(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore
-    private ChapterExplanation explanation;
+    // The optional explanation (详解, ChapterExplanation) is deliberately not mapped
+    // here: an inverse one-to-one can't be lazy, so every chapter load would read
+    // its full text. It is deleted with the chapter by the database (V9 cascade).
 
     // Reading-history bookmarks on this chapter's explanation; cascade delete so
     // removing a chapter (or its book) also removes its bookmarks.
@@ -93,10 +91,6 @@ public class Chapter {
     public void setKeyIdeas(List<KeyIdea> keyIdeas) { this.keyIdeas = keyIdeas; }
     public List<Excerpt> getExcerpts() { return excerpts; }
     public void setExcerpts(List<Excerpt> excerpts) { this.excerpts = excerpts; }
-    @JsonIgnore
-    public ChapterExplanation getExplanation() { return explanation; }
-    @JsonIgnore
-    public void setExplanation(ChapterExplanation explanation) { this.explanation = explanation; }
     @JsonIgnore
     public List<ReadingBookmark> getBookmarks() { return bookmarks; }
     @JsonIgnore
