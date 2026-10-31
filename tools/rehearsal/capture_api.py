@@ -73,6 +73,7 @@ for c in cols or []:
 for b in books:
     i = b['id']
     save(f'book-{i}', f'/api/books/{i}')
+    save(f'book-{i}-detail', f'/api/books/{i}/detail')
     chapters = save(f'book-{i}-chapters', f'/api/books/{i}/chapters')
     save(f'book-{i}-parts', f'/api/books/{i}/parts')
     save(f'book-{i}-reviews', f'/api/books/{i}/reviews')

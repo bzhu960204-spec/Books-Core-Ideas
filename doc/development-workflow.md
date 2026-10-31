@@ -61,6 +61,7 @@ python tools\rehearsal\compare_tables.py $env:TEMP\bci-rehearsal\orig\tables $en
   - `capture_api.py` 采集全部 GET 接口（含迁移 ZIP 导出的逐条目内容和图片字节的哈希）；
   - 停止应用后，把各表导出为 CSV，并导出 schema。
 - `compare_api.py`：逐条比较状态码与 JSON。`compare_tables.py`：按 ID 顺序逐行比较各表。
+- `check_detail.py <api 目录>`：检查每本书的 `GET /api/books/{id}/detail` 是否等于它取代的那些细粒度接口的组合（FE-03）。
 - 预期**有**变化的改动（例如新增字段）：对比结果中的差异必须全部能解释，并在评审文档中写明。
 - **迁移类改动还要检查**：日志中迁移成功；`compare_tables` 各表行数和内容不变。
 - 新增 GET 接口时，同步更新 `capture_api.py`。

@@ -61,6 +61,26 @@
 <a id="fe-03"></a>
 ## FE-03 · 数据获取：N+1、无缓存、重复拉全库 🟠
 
+> **🔄 进行中（2026-11-01）**
+> **① 后端聚合接口**：新增 `GET /api/books/{id}/detail`（[BookDetailService](../../backend/src/main/java/com/bookscoreideas/service/BookDetailService.java)），一次返回：
+> - `book`、`parts`、`chapters`。每章包含 `keyIdeas`、`excerpts` 列表、`imageCount`、`hasExplanation`；
+> - `bookmarks`：最新的在前；
+> - `marks`。
+>
+> 各部分内容与原来的细粒度接口完全相同（那些接口保留不动）。
+> - 设计选择：
+>   - 摘录给**完整列表**，不只给数量。原页面一打开就加载全部摘录（用于 📖 角标和阅读器），这样数据量不变，只是请求从 N 个变成 1 个；
+>   - 图片只给数量。原页面也只用数量，打开图片查看器时才加载列表；
+>   - `parts` 总是返回，前端只在 PARTS 书中使用（与原来"非 PARTS 书不显示 parts"的效果相同）。
+> - 测试 [BookDetailApiTest](../../backend/src/test/java/com/bookscoreideas/books/BookDetailApiTest.java)：
+>   - 与各细粒度接口的组合结果逐字段相等；
+>   - 不存在的书返回 404；
+>   - **语句数不随章节数增长**：1 章和 6 章都是 12 条，每章都带想法、摘录、图片、讲解、书签、标记。把摘录改回逐章查询后，测试失败（17 ≠ 12）。
+> - 真实数据副本：
+>   - 2,748 个 GET 响应中，只有新增的 24 个 `detail` 不同（旧版 404 → 200），各表不变；
+>   - 新增 [check_detail.py](../../tools/rehearsal/check_detail.py)：24 本书的 `detail` 都等于细粒度接口的组合，想法和摘录的顺序也一致；
+>   - 最大的书有 67 章：原来打开详情页要发 70 多个请求；现在 1 个，168 KB，约 20 ms。
+
 - **详情页扇出**：[BookDetailPage.loadBook](../../frontend/src/pages/BookDetailPage.jsx) 先取章节列表，再对**每个章节**各请求一次 excerpts、一次 images（第 224–246 行）。50 章的书 = 100+ 个请求。
 - **重复拉全库**：书库、想法库、摘录库、书评库、阅读历史 5 个页面都调用 `bookApi.getAll()`，而该接口返回每本书完整的章节+想法树（BE-02）。其它页面只是为了渲染"按书筛选"下拉框。**BE-02 已完成**：列表接口只返回书本身的字段和 `chapterCount`（真实数据下约 25 KB），这一条的代价已大幅降低；缓存和去重仍由本项负责。
 - **"全部替换"导入**：先逐条 `DELETE` 再逐条 `POST`（第 623–683、1119–1129 行），中途失败会留下半成品。

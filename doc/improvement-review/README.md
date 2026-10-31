@@ -117,7 +117,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | DB-06 | P3 | 建模细节 | 4 | 🔄 | `Chapter.explanation` 反向一对一已去掉（ChapterExplanationLoadingTest）；DATE→TIMESTAMP、分类拆表待做 |
 | FE-01 | P1 | 拆分超大组件/样式 | 3 | ⬜ | |
 | FE-02 | P1 | ESLint 清零 | 1 | ✅ | 0 error / 0 warning，CI 阻断；9 处加载 effect 暂用 disable，待 FE-03 删除 |
-| FE-03 | P1 | 数据获取 N+1 / 缓存 | 3 | ⬜ | |
+| FE-03 | P1 | 数据获取 N+1 / 缓存 | 3 | 🔄 | ① 聚合接口 `GET /books/{id}/detail` ✅（语句数固定；真实数据与细粒度接口逐本一致）；② TanStack Query 待做 |
 | FE-04 | P2 | 代码分割 | 3 | ⬜ | |
 | FE-05 | P2 | 错误处理与反馈 | 3 | ⬜ | |
 | FE-06 | P1 | jszip 依赖归位 | 0 | ✅ | |
