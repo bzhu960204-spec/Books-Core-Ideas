@@ -111,6 +111,11 @@
 >   - 上传图片后章节角标变为 🖼️ 1；
 >   - 书单：选择文件夹后显示书；Remove 后列表和数量立即变为 3；
 >   - 书评库正常；无页面错误。
+>
+> **③ 后续修正（单独提交）**：前端现在会取消不再需要的请求（开发模式下的 StrictMode、切换页面）。如果取消发生在服务器写响应的过程中，Tomcat 抛出 `AsyncRequestNotUsableException`，而全局异常处理的兜底分支会把它当作"Unhandled exception"，记录 ERROR 和完整堆栈，并试图返回 500。浏览器验证期间日志里出现过一次。
+> - 修正：[GlobalExceptionHandler](../../backend/src/main/java/com/bookscoreideas/web/GlobalExceptionHandler.java) 单独处理该异常，只记 debug 日志。较新的 Spring 版本会在基类中处理它，升级（BE-10）时如果映射冲突，启动就会失败，届时删掉即可。
+> - 测试 [ClientAbortTest](../../backend/src/test/java/com/bookscoreideas/web/ClientAbortTest.java)：修复前返回 500 并记录"Unhandled exception"。
+> - 在真实数据副本上快速来回打开两本书 24 次，日志中没有 ERROR。
 
 - **详情页扇出**：[BookDetailPage.loadBook](../../frontend/src/pages/BookDetailPage.jsx) 先取章节列表，再对**每个章节**各请求一次 excerpts、一次 images（第 224–246 行）。50 章的书 = 100+ 个请求。
 - **重复拉全库**：书库、想法库、摘录库、书评库、阅读历史 5 个页面都调用 `bookApi.getAll()`，而该接口返回每本书完整的章节+想法树（BE-02）。其它页面只是为了渲染"按书筛选"下拉框。**BE-02 已完成**：列表接口只返回书本身的字段和 `chapterCount`（真实数据下约 25 KB），这一条的代价已大幅降低；缓存和去重仍由本项负责。
