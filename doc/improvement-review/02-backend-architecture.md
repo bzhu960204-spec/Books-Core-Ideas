@@ -37,7 +37,7 @@
 > - ⑤ 收尾：单书 JSON 导出原样搬进 `BookExportService`（格式留给 BE-08）；分类查询移进 `BookService`。**现在所有控制器都不再直接注入 Repository。** 迁移导出加上只读事务（它在 `StreamingResponseBody` 的异步线程里执行，以前靠 OSIV 的异步绑定）。设置 **`spring.jpa.open-in-view=false`**，并用 [OpenInViewDisabledTest](../../backend/src/test/java/com/bookscoreideas/config/OpenInViewDisabledTest.java) 锁定（强制打开 OSIV 时该测试失败）；全部 62 个后端测试在 OSIV 关闭下通过。真实数据验证：2,695 个响应零差异；整库迁移导出 ZIP 与上一个提交（OSIV 开启）导出的 25 个条目逐字节一致（不计导出时间戳）；浏览器中 8 个页面和讲解阅读窗口正常，后端日志无异常。
 > - ~~留给 DB-06：其他地方加载 `Chapter` 实体时仍会顺带加载讲解（大字段），可以考虑把这个反向一对一去掉，改由服务层负责级联删除。~~ ✅ 已在 DB-06 中完成：去掉反向一对一，删除改由数据库级联（V9）负责，见 [DB-06](03-database-and-data-safety.md#db-06)。
 > - 留给 BE-05：请求体的 `Map` 宽松解析（书签、片段收藏、讲解、书评）改为带校验的请求 record。
-> - 留给 BE-03（契约变更，需配合前端）：DELETE 返回 200 还是 204、查无时返回 204 还是 404、POST 是否返回 201，目前仍和原来一样不统一。
+> - ~~留给 BE-03（契约变更，需配合前端）：DELETE 返回 200 还是 204、查无时返回 204 还是 404、POST 是否返回 201，目前仍和原来一样不统一。~~ ✅ 已在 BE-03 中统一（见 [api-conventions.md](../api-conventions.md)）。
 
 ---
 
@@ -78,6 +78,25 @@
 
 **建议**：统一为 record DTO；约定删除返回 204、查无返回 404、校验失败 400（ProblemDetail）。可在 `doc/` 中补一份 API 约定。
 
+> **✅ 已完成（2026-10-31）**：约定写在 [api-conventions.md](../api-conventions.md)。响应 DTO 化随 BE-01 完成，请求体 record 化随 BE-05 完成；这次统一状态码和错误格式。用户授权"按最佳判断"，决定如下：
+> 1. **删除 → 204**：书、章节、Part、想法、摘录、图片原来返回 200。
+> 2. **新建 → 201**：书、章节、Part、想法、摘录、书评、书签、标记、书单、图片上传。不带 `Location`，因为多数子资源没有单独的 GET。导入导出返回报告或文件，仍为 200；"把书加入书单"是建立关联，仍为 204。
+> 3. **父资源不存在 → 404**：原来是 200 `[]`，讲解和最近书签原来是 204。涉及 12 个嵌套读取接口，由服务层用 `NotFoundException.requireExists` 检查。
+> 4. **可选的单个资源为空 → 仍为 204**：章节没有讲解、书没有书签。这是正常状态，不是错误，前端依赖它返回 null。
+> 5. **查询参数筛选**（`/ideas?bookId=` 等）**仍返回 200 `[]`**：筛选条件不是父资源。
+> 6. **所有错误都是 ProblemDetail**：
+>    - 迁移接口原来返回纯文本 400，现在交给全局异常处理；
+>    - `ResponseEntity.of` / `notFound()` 原来返回空体的 404，现在一律经 [Responses](../../backend/src/main/java/com/bookscoreideas/web/Responses.java) 抛出 `NotFoundException`，404 都带 `detail`，例如 "Chapter not found: 5"。
+> - **前端无需改动**：`apiFetch` 只看 `res.ok`，对 204、200 空体、201 的处理相同；`errorMessage()` 早已能解析 ProblemDetail。
+> - **测试**：
+>   - [ApiConventionsTest](../../backend/src/test/java/com/bookscoreideas/web/ApiConventionsTest.java)，28 个：在 HEAD 上运行有 24 个失败，4 个特征用例（可选资源 204、查询筛选 200 `[]`）前后都通过。
+>   - 原有测试中断言旧状态码的 17 处已按新约定逐一修改，例如 `unknownBookListsNothing` 改为 `unknownBookIs404`。
+> - **真实数据 / 浏览器验证**：
+>   - GET 对比：2,724 个响应中只有 5 个不同，都是"图片文件不存在"的 404，响应体由空变为 ProblemDetail。
+>   - 浏览器（真实数据副本 + Vite 15173）中依次操作：新建 Part（201）→ 新建章节（201）→ 打开没有讲解的章节（204，编辑器为空）→ 保存讲解（200，标记 ✓）→ 标记读到这里（201，"继续阅读"出现）→ 删除讲解 / 章节 / Part（204，界面同步更新，"继续阅读"消失）→ 新建书单（201）。
+>   - 不存在的书 `/book/999999` 仍显示 "Book not found"。书库、阅读历史等页面正常。
+>   - 浏览器工具会把经 Vite 代理的 204 响应记为 `ERR_ABORTED`。HEAD 中已有的 204 接口也是这样；`fetch` 正常返回，界面也正确更新。
+
 ---
 
 <a id="be-04"></a>
@@ -87,7 +106,7 @@
 > - [GlobalExceptionHandler](../../backend/src/main/java/com/bookscoreideas/web/GlobalExceptionHandler.java)（继承 `ResponseEntityExceptionHandler`）：`NotFoundException`→404、`IllegalArgumentException`→400、`DataIntegrityViolationException`→409、其他异常→500（只返回通用提示，详情写日志）；Spring MVC 自身的错误（校验、JSON 格式、未知路由等）由基类处理。全部返回 `application/problem+json`。
 > - 校验失败时 `detail` 列出具体字段（如 `title: must not be blank`），替代 Spring 默认的 "Invalid request content."。
 > - 前端 [api.js](../../frontend/src/api.js) 新增 `errorMessage()`：优先取 ProblemDetail 的 `detail`，兼容纯文本错误（迁移接口仍返回纯文本）。在浏览器中导入真实 `api.js` 验证了 404 / 400 / 校验 / 迁移纯文本各类错误信息均可读。
-> - 尚未处理：`MigrationController` 自己 try/catch 返回纯文本、`ChapterImageController` 吞掉 `IOException`（见 BUG-10）。
+> - 尚未处理：~~`MigrationController` 自己 try/catch 返回纯文本~~（✅ 随 BE-03 改为 ProblemDetail）、`ChapterImageController` 吞掉 `IOException`（见 BUG-10）。
 
 **现状**：无 `@RestControllerAdvice`；服务抛 `RuntimeException` → 500（BUG-07）；`MigrationController` 自己 try/catch 返回纯文本；`ChapterImageController` 吞掉 `IOException`；多处 `catch (Exception e)` 无日志。
 

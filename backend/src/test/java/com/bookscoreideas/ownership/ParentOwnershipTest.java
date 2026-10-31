@@ -109,7 +109,7 @@ class ParentOwnershipTest extends IntegrationTest {
     void imageUnderWrongChapterIs404() throws Exception {
         String body = mockMvc.perform(multipart("/api/chapters/" + chapterA + "/images")
                         .file(new MockMultipartFile("files", "a.png", "image/png", PNG)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         long imageId = objectMapper.readTree(body).get(0).get("id").asLong();
 

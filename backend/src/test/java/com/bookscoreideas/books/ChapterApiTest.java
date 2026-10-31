@@ -93,14 +93,15 @@ class ChapterApiTest extends IntegrationTest {
         assertThat(updated.get("title").asText()).isEqualTo("Part 2");
 
         mockMvc.perform(delete("/api/books/" + book + "/parts/" + created.get("id").asLong()))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/books/" + book + "/parts")).andExpect(jsonPath("$.length()").value(0));
     }
 
+    // Was 200 [] before BE-03; reads under a missing parent are now 404 (doc/api-conventions.md).
     @Test
-    void unknownBookListsNothing() throws Exception {
-        mockMvc.perform(get("/api/books/999999/chapters")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
-        mockMvc.perform(get("/api/books/999999/parts")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    void unknownBookIs404() throws Exception {
+        mockMvc.perform(get("/api/books/999999/chapters")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/books/999999/parts")).andExpect(status().isNotFound());
     }
 
     /** Regression: listing chapters loaded each chapter's ideas with its own query (N+1). */

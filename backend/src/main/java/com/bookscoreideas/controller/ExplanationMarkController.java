@@ -4,6 +4,7 @@ import com.bookscoreideas.dto.MarkDto;
 import com.bookscoreideas.dto.MarkNoteRequest;
 import com.bookscoreideas.dto.MarkRequest;
 import com.bookscoreideas.service.MarkService;
+import com.bookscoreideas.web.Responses;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class ExplanationMarkController {
     public ResponseEntity<MarkDto> create(@PathVariable Long chapterId, @Valid @RequestBody MarkRequest body) {
         var mark = new MarkService.NewMark(body.quote(), body.prefix(), body.suffix(),
                 body.startOffset(), body.endOffset(), body.note());
-        return ResponseEntity.of(markService.create(chapterId, mark));
+        return Responses.created(markService.create(chapterId, mark), "Chapter", chapterId);
     }
 
     @GetMapping("/books/{bookId}/marks")
@@ -40,13 +41,11 @@ public class ExplanationMarkController {
     @PatchMapping("/marks/{id}")
     public ResponseEntity<MarkDto> updateNote(@PathVariable Long id,
                                               @RequestBody(required = false) MarkNoteRequest body) {
-        return ResponseEntity.of(markService.updateNote(id, body != null ? body.note() : null));
+        return Responses.ok(markService.updateNote(id, body != null ? body.note() : null), "Mark", id);
     }
 
     @DeleteMapping("/marks/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        return markService.delete(id)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+        return Responses.deleted(markService.delete(id), "Mark", id);
     }
 }

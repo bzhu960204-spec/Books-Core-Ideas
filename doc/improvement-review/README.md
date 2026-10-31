@@ -66,7 +66,7 @@
 | 2.2 | BE-01 / BE-06 | ✅ Service 层（含 open-in-view=false）、✅ 图片存储统一；统一导出推迟到 BE-08 |
 | 2.3 | DB-01 / DB-02 | ✅ Flyway 成为唯一 schema 来源，`ddl-auto=validate`（DB-01）；✅ 补外键与级联（DB-02） |
 | 2.4 | BE-08 | ✅ 迁移归档 v2：补齐书评/书签/标记/书单 |
-| 2.5 | BE-05 / BE-03 | 校验、枚举、API 风格统一 |
+| 2.5 | BE-05 / BE-03 | ✅ 校验、API 风格统一（枚举映射因数据中有 '' 暂缓，见 DB-06） |
 
 ### 阶段 3 · 前端
 | 顺序 | ID | 事项 |
@@ -101,7 +101,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BUG-13 | P1 | 子资源新建带 id 会覆盖/挪走数据 | 2 | ✅ | BUG-09 同源（章节/Part/想法/摘录）；ChildCreateIgnoresClientIdTest |
 | BE-01 | P1 | Service 层 | 2 | ✅ | 与 BE-03 DTO 化合并；控制器不再直接用 Repository；open-in-view=false；2,695 个响应零差异 |
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ✅ | /api/books 请求/响应 DTO + chapterCount；列表 757 KB→25 KB；含 BUG-09 |
-| BE-03 | P2 | API 风格统一 | 2 | 🔄 | 响应 DTO 化已随 BE-01 完成；状态码等契约变更待做（需配合前端） |
+| BE-03 | P2 | API 风格统一 | 2 | ✅ | 201/204/404 约定 + 错误一律 ProblemDetail（doc/api-conventions.md）；前端无需改动，浏览器验证 |
 | BE-04 | P1 | 全局异常处理 | 1 | ✅ | ProblemDetail + 前端解析 detail |
 | BE-05 | P2 | 校验与枚举 | 2 | ✅ | 全部写接口 Bean Validation（长度/评分/状态值）+ Map 请求体换成 record；枚举映射因数据中有 '' 暂缓 |
 | BE-06 | P2 | 重复代码 | 2 | 🔄 | 图片存储统一 ✅；两套导出共用 BookArchiveBuilder ✅（随 BE-08）；JSON 导入随 FE-08 |
@@ -128,7 +128,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 119 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验）+ 前端 Vitest 41 个（含 RTL 组件测试）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 147 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定）+ 前端 Vitest 41 个（含 RTL 组件测试）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

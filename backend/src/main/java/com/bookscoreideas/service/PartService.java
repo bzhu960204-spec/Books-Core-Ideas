@@ -5,6 +5,7 @@ import com.bookscoreideas.dto.PartRequest;
 import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.PartRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ public class PartService {
 
     @Transactional(readOnly = true)
     public List<PartDto> list(Long bookId) {
+        NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
         return partRepository.findByBookIdOrderByOrderIndexAsc(bookId).stream().map(PartDto::from).toList();
     }
 

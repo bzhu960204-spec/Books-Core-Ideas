@@ -40,7 +40,7 @@ class FreshDatabaseMigrationTest extends IntegrationTest {
         String body = mockMvc.perform(post("/api/books")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"title\":\"Fresh DB Book\"}"))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         String id = body.replaceAll(".*\"id\":(\\d+).*", "$1");
 

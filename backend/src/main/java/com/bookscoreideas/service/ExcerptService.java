@@ -6,6 +6,7 @@ import com.bookscoreideas.dto.ExcerptSearchResult;
 import com.bookscoreideas.entity.Excerpt;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.ExcerptRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class ExcerptService {
 
     @Transactional(readOnly = true)
     public List<ExcerptDto> list(Long chapterId) {
+        NotFoundException.requireExists(chapterRepository.existsById(chapterId), "Chapter", chapterId);
         return excerptRepository.findByChapterIdOrderByOrderIndexAsc(chapterId).stream().map(ExcerptDto::from).toList();
     }
 

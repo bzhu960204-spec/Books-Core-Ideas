@@ -4,6 +4,7 @@ import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.dto.CreateBookRequest;
 import com.bookscoreideas.dto.UpdateBookRequest;
 import com.bookscoreideas.service.BookService;
+import com.bookscoreideas.web.Responses;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,27 +33,21 @@ public class BookController {
 
     @GetMapping("/{id}")
     public ResponseEntity<BookDto> getBook(@PathVariable Long id) {
-        return bookService.get(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return Responses.ok(bookService.get(id), "Book", id);
     }
 
     @PostMapping
-    public BookDto createBook(@Valid @RequestBody CreateBookRequest request) {
-        return bookService.create(request);
+    public ResponseEntity<BookDto> createBook(@Valid @RequestBody CreateBookRequest request) {
+        return Responses.created(bookService.create(request));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<BookDto> updateBook(@PathVariable Long id, @Valid @RequestBody UpdateBookRequest request) {
-        return bookService.update(id, request)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return Responses.ok(bookService.update(id, request), "Book", id);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteBook(@PathVariable Long id) {
-        return bookService.delete(id)
-                ? ResponseEntity.ok().build()
-                : ResponseEntity.notFound().build();
+        return Responses.deleted(bookService.delete(id), "Book", id);
     }
 }

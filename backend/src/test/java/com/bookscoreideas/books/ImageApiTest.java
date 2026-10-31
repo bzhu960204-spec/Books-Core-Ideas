@@ -55,7 +55,7 @@ class ImageApiTest extends IntegrationTest {
         assertThat(data.getResponse().getContentType()).isEqualTo("image/png");
         assertThat(data.getResponse().getHeader(HttpHeaders.CONTENT_DISPOSITION)).isEqualTo("inline; filename=\"page.png\"");
 
-        mockMvc.perform(delete(base + "/" + id)).andExpect(status().isOk());
+        mockMvc.perform(delete(base + "/" + id)).andExpect(status().isNoContent());
         assertThat(file).doesNotExist();
         mockMvc.perform(get(base + "/" + id + "/data")).andExpect(status().isNotFound());
         mockMvc.perform(delete(base + "/" + id)).andExpect(status().isNotFound());
@@ -84,7 +84,7 @@ class ImageApiTest extends IntegrationTest {
                 .andExpect(request().asyncStarted()).andReturn();
         byte[] zip = mockMvc.perform(asyncDispatch(started)).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
-        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isNoContent());
 
         JsonNode result = objectMapper.readTree(mockMvc.perform(multipart("/api/migration/import")
                         .file(new MockMultipartFile("file", "export.zip", "application/zip", zip)))
@@ -110,7 +110,7 @@ class ImageApiTest extends IntegrationTest {
     private JsonNode upload(String url, MockMultipartFile... files) throws Exception {
         var request = multipart(url);
         for (MockMultipartFile f : files) request.file(f);
-        return objectMapper.readTree(mockMvc.perform(request).andExpect(status().isOk())
+        return objectMapper.readTree(mockMvc.perform(request).andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
     }
 

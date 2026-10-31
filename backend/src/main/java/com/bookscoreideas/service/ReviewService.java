@@ -5,6 +5,7 @@ import com.bookscoreideas.dto.ReviewDto;
 import com.bookscoreideas.entity.BookReview;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.BookReviewRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public List<ReviewDto> list(Long bookId) {
+        NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
         return reviewRepository.findByBookIdOrderByUpdatedAtDescIdDesc(bookId).stream().map(ReviewDto::from).toList();
     }
 

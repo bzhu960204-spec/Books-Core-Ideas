@@ -63,7 +63,7 @@ MigrationImporter  ← 单本书事务性落库（@Transactional）
 
 导出响应带 `Content-Disposition: attachment; filename="books-export-<yyyy-MM-dd>.zip"`，并使用 `StreamingResponseBody` 边打包边输出，避免大归档占满内存。
 
-预览 / 导入对非法归档返回 `400 Bad Request`，错误信息来自 `IllegalArgumentException`（如 `manifest.json` 缺失、格式版本比本应用新）或 `IOException`。
+预览 / 导入对非法归档返回 `400 Bad Request`（ProblemDetail，原因在 `detail` 中；BE-03 之前是纯文本）。原因包括：未提供文件、`manifest.json` 缺失、格式版本比本应用新、文件不是可读的 ZIP。
 
 ## 4. 归档文件格式（ZIP 布局）
 

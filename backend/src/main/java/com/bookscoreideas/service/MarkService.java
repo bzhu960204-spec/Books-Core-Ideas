@@ -2,8 +2,10 @@ package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.MarkDto;
 import com.bookscoreideas.entity.ExplanationMark;
+import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.ExplanationMarkRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +29,13 @@ public class MarkService {
 
     private final ExplanationMarkRepository markRepository;
     private final ChapterRepository chapterRepository;
+    private final BookRepository bookRepository;
 
-    public MarkService(ExplanationMarkRepository markRepository, ChapterRepository chapterRepository) {
+    public MarkService(ExplanationMarkRepository markRepository, ChapterRepository chapterRepository,
+                       BookRepository bookRepository) {
         this.markRepository = markRepository;
         this.chapterRepository = chapterRepository;
+        this.bookRepository = bookRepository;
     }
 
     /** @return empty if the chapter does not exist */
@@ -53,11 +58,13 @@ public class MarkService {
     /** Ordered by chapter, then position in the explanation. */
     @Transactional(readOnly = true)
     public List<MarkDto> listByBook(Long bookId) {
+        NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
         return markRepository.findRowsByBookId(bookId).stream().map(MarkService::toDto).toList();
     }
 
     @Transactional(readOnly = true)
     public List<MarkDto> listByChapter(Long chapterId) {
+        NotFoundException.requireExists(chapterRepository.existsById(chapterId), "Chapter", chapterId);
         return markRepository.findRowsByChapterId(chapterId).stream().map(MarkService::toDto).toList();
     }
 

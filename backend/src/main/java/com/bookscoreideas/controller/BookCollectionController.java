@@ -6,6 +6,7 @@ import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.entity.BookCollection;
 import com.bookscoreideas.service.BookCollectionService;
 import com.bookscoreideas.service.BookService;
+import com.bookscoreideas.web.Responses;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,9 +39,9 @@ public class BookCollectionController {
     }
 
     @PostMapping
-    public BookCollectionResponse create(@RequestBody BookCollectionRequest req) {
+    public ResponseEntity<BookCollectionResponse> create(@RequestBody BookCollectionRequest req) {
         BookCollection c = service.create(req.getName(), req.getParentId(), req.getSortOrder());
-        return BookCollectionResponse.from(c, 0L);
+        return Responses.created(BookCollectionResponse.from(c, 0L));
     }
 
     @PutMapping("/{id}")

@@ -81,7 +81,7 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(exported.get("parts").get(0).get("chapters").get(1).get("bookmarks")).hasSize(1);
         assertThat(paths(exported)).containsExactlyInAnyOrder(List.of(shelf, "Child"), List.of(other));
 
-        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isNoContent());
         mockMvc.perform(delete("/api/book-collections/" + child)).andExpect(status().isNoContent());
 
         JsonNode result = importArchive(zip(original));

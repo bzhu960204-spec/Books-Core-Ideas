@@ -171,6 +171,7 @@ public class BookCollectionService {
     /** Collection ids that the given book is a direct member of. */
     @Transactional(readOnly = true)
     public List<Long> collectionIdsForBook(Long bookId) {
+        NotFoundException.requireExists(bookRepo.existsById(bookId), "Book", bookId);
         Set<Long> existing = list().stream().map(BookCollection::getId).collect(Collectors.toSet());
         return itemRepo.findByBookId(bookId).stream()
                 .map(BookCollectionItem::getCollectionId)

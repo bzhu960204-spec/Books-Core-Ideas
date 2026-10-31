@@ -4,6 +4,7 @@ import com.bookscoreideas.dto.ChapterImageDto;
 import com.bookscoreideas.entity.ChapterImage;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +38,7 @@ public class ChapterImageService {
 
     @Transactional(readOnly = true)
     public List<ChapterImageDto> list(Long chapterId) {
+        NotFoundException.requireExists(chapterRepository.existsById(chapterId), "Chapter", chapterId);
         return imageRepository.findByChapterIdOrderByOrderIndexAsc(chapterId).stream()
                 .map(ChapterImageDto::from).toList();
     }

@@ -10,6 +10,7 @@ import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ public class ChapterService {
     /** A book's chapters with their ideas, in two queries however many chapters there are. */
     @Transactional(readOnly = true)
     public List<ChapterDto> list(Long bookId) {
+        NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
         List<ChapterRepository.ChapterRow> chapters = chapterRepository.findRowsByBookId(bookId);
         if (chapters.isEmpty()) return List.of();
         Map<Long, List<KeyIdeaDto>> ideas = new HashMap<>();

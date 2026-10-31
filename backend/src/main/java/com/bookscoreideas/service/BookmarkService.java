@@ -2,8 +2,10 @@ package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.BookmarkDto;
 import com.bookscoreideas.entity.ReadingBookmark;
+import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.ReadingBookmarkRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +23,13 @@ public class BookmarkService {
 
     private final ReadingBookmarkRepository bookmarkRepository;
     private final ChapterRepository chapterRepository;
+    private final BookRepository bookRepository;
 
-    public BookmarkService(ReadingBookmarkRepository bookmarkRepository, ChapterRepository chapterRepository) {
+    public BookmarkService(ReadingBookmarkRepository bookmarkRepository, ChapterRepository chapterRepository,
+                           BookRepository bookRepository) {
         this.bookmarkRepository = bookmarkRepository;
         this.chapterRepository = chapterRepository;
+        this.bookRepository = bookRepository;
     }
 
     /** @return empty if the chapter does not exist */
@@ -42,6 +47,7 @@ public class BookmarkService {
 
     @Transactional(readOnly = true)
     public Optional<BookmarkDto> latest(Long bookId) {
+        NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
         return bookmarkRepository.findFirstByBookIdOrderByCreatedAtDescIdDesc(bookId).map(BookmarkDto::from);
     }
 

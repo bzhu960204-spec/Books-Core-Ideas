@@ -2,6 +2,8 @@ package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.ChapterImageDto;
 import com.bookscoreideas.service.ChapterImageService;
+import com.bookscoreideas.web.NotFoundException;
+import com.bookscoreideas.web.Responses;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -30,7 +32,7 @@ public class ChapterImageController {
     @PostMapping
     public ResponseEntity<List<ChapterImageDto>> uploadImages(@PathVariable Long chapterId,
                                                               @RequestParam("files") MultipartFile[] files) {
-        return ResponseEntity.of(imageService.upload(chapterId, files));
+        return Responses.created(imageService.upload(chapterId, files), "Chapter", chapterId);
     }
 
     @GetMapping("/{imageId}/data")
@@ -41,14 +43,12 @@ public class ChapterImageController {
                         .contentType(MediaType.parseMediaType(image.contentType()))
                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + image.originalName() + "\"")
                         .<Resource>body(new FileSystemResource(image.path())))
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> NotFoundException.of("Image", imageId));
     }
 
     @DeleteMapping("/{imageId}")
     public ResponseEntity<Void> deleteImage(@PathVariable Long chapterId,
                                             @PathVariable Long imageId) {
-        return imageService.delete(chapterId, imageId)
-                ? ResponseEntity.ok().build()
-                : ResponseEntity.notFound().build();
+        return Responses.deleted(imageService.delete(chapterId, imageId), "Image", imageId);
     }
 }

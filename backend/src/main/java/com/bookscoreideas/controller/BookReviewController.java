@@ -3,6 +3,7 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.dto.ReviewDto;
 import com.bookscoreideas.dto.ReviewRequest;
 import com.bookscoreideas.service.ReviewService;
+import com.bookscoreideas.web.Responses;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,8 +28,9 @@ public class BookReviewController {
     @PostMapping
     public ResponseEntity<ReviewDto> createReview(@PathVariable Long bookId,
                                                   @Valid @RequestBody ReviewRequest body) {
-        return ResponseEntity.of(reviewService.create(bookId,
-                body.title() != null ? body.title() : "", body.content() != null ? body.content() : ""));
+        String title = body.title() != null ? body.title() : "";
+        String content = body.content() != null ? body.content() : "";
+        return Responses.created(reviewService.create(bookId, title, content), "Book", bookId);
     }
 
     @PutMapping("/{reviewId}")
@@ -38,13 +40,11 @@ public class BookReviewController {
         var changes = new ReviewService.ReviewChanges(
                 body.title() != null, body.title(),
                 body.content() != null, body.content());
-        return ResponseEntity.of(reviewService.update(bookId, reviewId, changes));
+        return Responses.ok(reviewService.update(bookId, reviewId, changes), "Review", reviewId);
     }
 
     @DeleteMapping("/{reviewId}")
     public ResponseEntity<Void> deleteReview(@PathVariable Long bookId, @PathVariable Long reviewId) {
-        return reviewService.delete(bookId, reviewId)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+        return Responses.deleted(reviewService.delete(bookId, reviewId), "Review", reviewId);
     }
 }

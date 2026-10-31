@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -45,33 +46,31 @@ public class MigrationController {
                 .body(body);
     }
 
+    // Errors (no file, not an archive, newer format) are IllegalArgumentExceptions,
+    // returned as 400 ProblemDetail by GlobalExceptionHandler like everywhere else.
     @PostMapping("/import/preview")
-    public ResponseEntity<?> preview(@RequestParam("file") MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().body("No file provided.");
-        }
-        try (var in = file.getInputStream()) {
-            ImportPreviewDto preview = migrationService.previewArchive(in);
-            return ResponseEntity.ok(preview);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+    public ImportPreviewDto preview(@RequestParam("file") MultipartFile file) {
+        try (var in = open(file)) {
+            return migrationService.previewArchive(in);
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body("Could not read archive: " + e.getMessage());
+            throw new IllegalArgumentException("Could not read archive: " + e.getMessage(), e);
         }
     }
 
+    // 200, not 201: the response is a per-book report (some may be skipped or fail).
     @PostMapping("/import")
-    public ResponseEntity<?> importArchive(@RequestParam("file") MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().body("No file provided.");
-        }
-        try (var in = file.getInputStream()) {
-            ImportResultDto result = migrationService.importArchive(in);
-            return ResponseEntity.ok(result);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+    public ImportResultDto importArchive(@RequestParam("file") MultipartFile file) {
+        try (var in = open(file)) {
+            return migrationService.importArchive(in);
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body("Could not read archive: " + e.getMessage());
+            throw new IllegalArgumentException("Could not read archive: " + e.getMessage(), e);
         }
+    }
+
+    private static InputStream open(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("No file provided.");
+        }
+        return file.getInputStream();
     }
 }

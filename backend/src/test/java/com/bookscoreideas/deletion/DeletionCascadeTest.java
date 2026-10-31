@@ -48,7 +48,7 @@ class DeletionCascadeTest extends IntegrationTest {
         long bookId = postForId("/api/books", Map.of("title", "Book with review"));
         long reviewId = postForId("/api/books/" + bookId + "/reviews", Map.of("title", "r", "content", "c"));
 
-        mockMvc.perform(delete("/api/books/" + bookId)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + bookId)).andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/books/" + bookId)).andExpect(status().isNotFound());
         assertThat(reviewRepository.existsById(reviewId)).isFalse();
@@ -61,7 +61,7 @@ class DeletionCascadeTest extends IntegrationTest {
         JsonNode image = uploadImage(chapterId);
         Path file = imageFile(image);
 
-        mockMvc.perform(delete("/api/books/" + bookId + "/chapters/" + chapterId)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + bookId + "/chapters/" + chapterId)).andExpect(status().isNoContent());
 
         assertThat(chapterRepository.existsById(chapterId)).isFalse();
         assertThat(imageRepository.existsById(image.get("id").asLong())).isFalse();
@@ -75,7 +75,7 @@ class DeletionCascadeTest extends IntegrationTest {
         long chapterId = postForId("/api/books/" + bookId + "/chapters", Map.of("title", "C1", "partId", partId));
         Path file = imageFile(uploadImage(chapterId));
 
-        mockMvc.perform(delete("/api/books/" + bookId + "/parts/" + partId)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + bookId + "/parts/" + partId)).andExpect(status().isNoContent());
 
         assertThat(chapterRepository.existsById(chapterId)).isFalse();
         assertThat(file).doesNotExist();
@@ -89,7 +89,7 @@ class DeletionCascadeTest extends IntegrationTest {
         Path file = imageFile(image);
 
         mockMvc.perform(delete("/api/chapters/" + chapterId + "/images/" + image.get("id").asLong()))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         assertThat(imageRepository.existsById(image.get("id").asLong())).isFalse();
         assertThat(file).doesNotExist();
@@ -111,7 +111,7 @@ class DeletionCascadeTest extends IntegrationTest {
         mockMvc.perform(post("/api/book-collections/" + collectionId + "/books/" + bookId))
                 .andExpect(status().is2xxSuccessful());
 
-        mockMvc.perform(delete("/api/books/" + bookId)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + bookId)).andExpect(status().isNoContent());
 
         mockMvc.perform(get("/api/books/" + bookId)).andExpect(status().isNotFound());
         assertThat(chapterRepository.existsById(chapterId)).isFalse();
@@ -153,7 +153,7 @@ class DeletionCascadeTest extends IntegrationTest {
     private JsonNode uploadImage(long chapterId) throws Exception {
         String body = mockMvc.perform(multipart("/api/chapters/" + chapterId + "/images")
                         .file(new MockMultipartFile("files", "pic.png", "image/png", PNG)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         JsonNode images = objectMapper.readTree(body);
         assertThat(images).hasSize(1);

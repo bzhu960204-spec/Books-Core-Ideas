@@ -3,6 +3,7 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.dto.BookmarkDto;
 import com.bookscoreideas.dto.BookmarkRequest;
 import com.bookscoreideas.service.BookmarkService;
+import com.bookscoreideas.web.Responses;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class ReadingBookmarkController {
                                               @Valid @RequestBody(required = false) BookmarkRequest body) {
         BookmarkRequest request = body != null ? body : new BookmarkRequest(null, null);
         String note = request.note() != null && !request.note().isBlank() ? request.note().trim() : null;
-        return ResponseEntity.of(bookmarkService.create(chapterId, request.scrollRatio(), note));
+        return Responses.created(bookmarkService.create(chapterId, request.scrollRatio(), note), "Chapter", chapterId);
     }
 
     @GetMapping("/books/{bookId}/bookmarks/latest")
@@ -41,8 +42,6 @@ public class ReadingBookmarkController {
 
     @DeleteMapping("/bookmarks/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        return bookmarkService.delete(id)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+        return Responses.deleted(bookmarkService.delete(id), "Bookmark", id);
     }
 }

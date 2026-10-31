@@ -3,6 +3,7 @@ package com.bookscoreideas.controller;
 import com.bookscoreideas.dto.ChapterDto;
 import com.bookscoreideas.dto.ChapterRequest;
 import com.bookscoreideas.service.ChapterService;
+import com.bookscoreideas.web.Responses;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,20 +28,18 @@ public class ChapterController {
     @PostMapping
     public ResponseEntity<ChapterDto> createChapter(@PathVariable Long bookId,
                                                     @Valid @RequestBody ChapterRequest request) {
-        return ResponseEntity.of(chapterService.create(bookId, request));
+        return Responses.created(chapterService.create(bookId, request), "Book", bookId);
     }
 
     @PutMapping("/{chapterId}")
     public ResponseEntity<ChapterDto> updateChapter(@PathVariable Long bookId,
                                                     @PathVariable Long chapterId,
                                                     @Valid @RequestBody ChapterRequest request) {
-        return ResponseEntity.of(chapterService.update(bookId, chapterId, request));
+        return Responses.ok(chapterService.update(bookId, chapterId, request), "Chapter", chapterId);
     }
 
     @DeleteMapping("/{chapterId}")
     public ResponseEntity<Void> deleteChapter(@PathVariable Long bookId, @PathVariable Long chapterId) {
-        return chapterService.delete(bookId, chapterId)
-                ? ResponseEntity.ok().build()
-                : ResponseEntity.notFound().build();
+        return Responses.deleted(chapterService.delete(bookId, chapterId), "Chapter", chapterId);
     }
 }

@@ -50,11 +50,11 @@ class ChapterExplanationLoadingTest extends IntegrationTest {
         putJson("/api/chapters/" + first + "/explanation", Map.of("content", "<p>one</p>"));
         putJson("/api/chapters/" + second + "/explanation", Map.of("content", "<p>two</p>"));
 
-        mockMvc.perform(delete("/api/books/" + book + "/chapters/" + first)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + book + "/chapters/" + first)).andExpect(status().isNoContent());
         assertThat(explanationRepository.findByChapterId(first)).isEmpty();
         assertThat(explanationRepository.findByChapterId(second)).isPresent();
 
-        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isNoContent());
         assertThat(explanationRepository.findByChapterId(second)).isEmpty();
     }
 }

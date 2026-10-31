@@ -1,6 +1,7 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.service.BookExportService;
+import com.bookscoreideas.web.Responses;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,6 @@ public class BookExportController {
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> exportBook(@PathVariable Long bookId) {
-        return ResponseEntity.of(exportService.export(bookId));
+        return Responses.ok(exportService.export(bookId), "Book", bookId);
     }
 }

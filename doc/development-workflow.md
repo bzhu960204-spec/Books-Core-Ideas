@@ -2,6 +2,7 @@
 
 > 2026-10-31 整理自改进评审（[improvement-review](improvement-review/README.md)）过程中形成的做法。
 > 原则：**数据安全第一**；每个改动都要能证明"修好了"或"没改坏"。
+> 接口约定（状态码、错误格式、请求体）见 [api-conventions.md](api-conventions.md)。
 
 ## 1. 数据安全
 

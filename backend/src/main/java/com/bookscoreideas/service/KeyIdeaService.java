@@ -6,6 +6,7 @@ import com.bookscoreideas.dto.KeyIdeaRequest;
 import com.bookscoreideas.entity.KeyIdea;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.KeyIdeaRepository;
+import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class KeyIdeaService {
 
     @Transactional(readOnly = true)
     public List<KeyIdeaDto> list(Long chapterId) {
+        NotFoundException.requireExists(chapterRepository.existsById(chapterId), "Chapter", chapterId);
         return keyIdeaRepository.findByChapterIdOrderByOrderIndexAsc(chapterId).stream().map(KeyIdeaDto::from).toList();
     }
 

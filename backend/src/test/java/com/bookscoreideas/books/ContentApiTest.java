@@ -53,7 +53,7 @@ class ContentApiTest extends IntegrationTest {
         assertThat(updated.get("highlighted").asBoolean()).isFalse();
         assertThat(updated.get("example").isNull()).isTrue();
 
-        mockMvc.perform(delete(base + "/" + id)).andExpect(status().isOk());
+        mockMvc.perform(delete(base + "/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(get(base)).andExpect(jsonPath("$.length()").value(1));
     }
 
@@ -72,7 +72,7 @@ class ContentApiTest extends IntegrationTest {
         assertThat(updated.get("content").asText()).isEqualTo("edited");
         assertThat(updated.get("note").isNull()).isTrue();
 
-        mockMvc.perform(delete(base + "/" + id)).andExpect(status().isOk());
+        mockMvc.perform(delete(base + "/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(get(base)).andExpect(jsonPath("$.length()").value(0));
     }
 
