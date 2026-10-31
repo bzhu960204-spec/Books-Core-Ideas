@@ -2,7 +2,7 @@
 // sanitized before it is inspected or inserted (SEC-01).
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
 import { looksLikeMarkdown, markdownToHtml } from '../../utils/markdownPaste';
-import { dropOversizeImages, readImageFiles, tagMarkdownCards, transformCopilotCodeBlocks } from './pasteTransforms';
+import { dropOversizeImages, readImageFiles, stripPastedTextStyles, tagMarkdownCards, transformCopilotCodeBlocks } from './pasteTransforms';
 
 /**
  * editorProps.handlePaste. `mode` is the toolbar's paste mode ('auto' | 'rich' |
@@ -14,7 +14,7 @@ export function handlePaste(view, event, { editor, mode, onCopilotBlocks }) {
   const text = event.clipboardData?.getData('text/plain') ?? '';
   // Clipboard HTML is untrusted (AI answers, web pages): sanitize before
   // any of the paths below inspect or insert it.
-  const html = sanitizeHtml(event.clipboardData?.getData('text/html') ?? '');
+  const html = stripPastedTextStyles(sanitizeHtml(event.clipboardData?.getData('text/html') ?? ''));
 
   // A bare image (screenshot) has no HTML flavor; copied web/Word/Excel content
   // with an <img> goes through the HTML paths below instead.
@@ -82,4 +82,4 @@ export function handleDrop(view, event, editor) {
 
 // Native pastes (handlePaste returned false) reach ProseMirror's own parser
 // with the raw clipboard HTML, so sanitize here too.
-export const transformPastedHTML = html => dropOversizeImages(sanitizeHtml(html));
+export const transformPastedHTML = html => dropOversizeImages(stripPastedTextStyles(sanitizeHtml(html)));

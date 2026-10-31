@@ -16,7 +16,7 @@
 
 > **进展（2026-10-31）**：后端测试骨架已建立——[IntegrationTest](../../backend/src/test/java/com/bookscoreideas/support/IntegrationTest.java) 基类（`@SpringBootTest` + MockMvc + `test` profile，随机内存库、`ddl-auto=validate`），首批 3 个测试覆盖空库/老库迁移。运行：`cd backend; mvn test`。
 > 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`）和 `@testing-library/react`（组件测试，FE-02 引入）。现有纯函数测试 `sanitizeHtml`、`markdownPaste`（BUG-11），组件测试 `RichTextEditor`、`ChapterImageViewer`（BUG-12）、各编辑表单、讲解和书评 Modal、`ExcerptReader`、迁移弹窗预览（BE-08），共 41 个；CI 中前端测试为阻断步骤。
-> 之后：FE-03 / FE-08 加入 fetch 层假后端（[fakeBackend.js](../../frontend/src/test/fakeBackend.js)）和页面测试；FE-01 拆分前先写了详情页、讲解弹窗、编辑器的特征测试，拆出的纯函数也有了单测。现为 120 个。
+> 之后：FE-03 / FE-08 加入 fetch 层假后端（[fakeBackend.js](../../frontend/src/test/fakeBackend.js)）和页面测试；FE-01 拆分前先写了详情页、讲解弹窗、编辑器的特征测试，拆出的纯函数也有了单测。现为 126 个。
 
 **现状**：`backend/src/test` 不存在（虽然 pom 已引入 `spring-boot-starter-test`）；前端没有测试框架。本次发现的 BUG-01~05 都是一个最基础的集成测试就能拦住的。
 

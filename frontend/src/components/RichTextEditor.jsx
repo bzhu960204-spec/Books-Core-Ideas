@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import LinkFixPrompt from './LinkFixPrompt';
 import { analyzeHtmlLinks } from '../utils/linkFix';
 import { normalizeReviewContent } from '../utils/reviewContent';
-import { FontSize, ResizableImage } from './richText/extensions';
+import { FontSize, ResizableImage, SpanTextStyle } from './richText/extensions';
 import { handleDrop, handlePaste, transformPastedHTML } from './richText/pasteHandlers';
 import { useCodeBlockRepairs, useRepairCounts } from './richText/useCodeBlockRepairs';
 import SelectionBubbleMenu from './richText/SelectionBubbleMenu';
@@ -51,7 +51,8 @@ export default function RichTextEditor({ value, onChange, placeholder, autoFocus
         link: { autolink: false, linkOnPaste: false },
       }),
       // FontFamily, FontSize and Color style the textStyle mark, which StarterKit v3
-      // does NOT include, so they currently do nothing (BUG-16).
+      // does not include (BUG-16); pasted colours, sizes and fonts are stripped.
+      SpanTextStyle,
       FontFamily,
       FontSize,
       Color,

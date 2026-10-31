@@ -222,8 +222,7 @@ describe('RichTextEditor value and toolbar', () => {
     fireEvent.click(within(second).getByTitle('Align center'));
     expect(lastHtml(onChange)).toBe('<h2 style="text-align: center;"><strong>Hello</strong></h2><p style="text-align: center;"></p>');
 
-    // Font family / size / colour need the textStyle mark, which no extension
-    // registers (BUG-16), so they are not exercised here.
+    // Font family / size / colour: see "RichTextEditor text style (BUG-16)".
     selectAll(pm);
     fireEvent.click(within(second).getByTitle('Clear formatting'));
     expect(lastHtml(onChange)).toBe('<p>Hello</p><p></p>');
@@ -263,5 +262,59 @@ describe('RichTextEditor value and toolbar', () => {
     expect(pm2.querySelector('a').getAttribute('href')).toBe('https://example.com/report.pdf');
     expect(pm2.textContent).not.toContain('[[');
     expect(pm).not.toBe(pm2);
+  });
+});
+describe('RichTextEditor text style (BUG-16)', () => {
+  // Regression: no extension registered the textStyle mark, so these controls threw.
+  it('applies font size, colour and font family to the selection', async () => {
+    const { pm, onChange } = await renderEditor({ value: '<p>Hello</p>' });
+    fireEvent.click(more());
+    const second = screen.getByRole('toolbar', { name: 'More formatting' });
+
+    selectAll(pm);
+    fireEvent.change(within(second).getByTitle('Font Size'), { target: { value: '18px' } });
+    selectAll(pm);
+    fireEvent.click(within(second).getByTitle('#ef4444'));
+    selectAll(pm);
+    fireEvent.change(within(second).getByTitle('Font Family'), { target: { value: 'Menlo, Consolas, monospace' } });
+
+    const span = pm.querySelector('span');
+    expect([span.style.fontSize, span.style.color, span.style.fontFamily]).toEqual(['18px', 'rgb(239, 68, 68)', 'Menlo, Consolas, monospace']);
+    expect(lastHtml(onChange)).toMatch(/^<p><span style="[^"]*font-size: 18px[^"]*">Hello<\/span><\/p>$/);
+
+    selectAll(pm);
+    fireEvent.change(within(second).getByTitle('Font Size'), { target: { value: '' } });
+    selectAll(pm);
+    fireEvent.click(within(second).getByTitle('Clear color'));
+    selectAll(pm);
+    fireEvent.change(within(second).getByTitle('Font Family'), { target: { value: '' } });
+    expect(lastHtml(onChange)).toBe('<p>Hello</p>');
+  });
+
+  it('keeps saved text styles when the content is opened again', async () => {
+    const value = '<p><span style="color: rgb(239, 68, 68); font-size: 18px;">Red</span> plain</p>';
+    const { pm } = await renderEditor({ value });
+    const span = pm.querySelector('span');
+    expect([span?.textContent, span?.style.color, span?.style.fontSize]).toEqual(['Red', 'rgb(239, 68, 68)', '18px']);
+  });
+
+  // Pasting keeps working as before: bold / italic written as inline styles still
+  // count, but colours, sizes and fonts of the source page are not taken over.
+  it('drops the colour, size and font of pasted text but keeps its formatting', async () => {
+    const html = '<p><span style="color: rgb(255, 0, 0); font-size: 30px; font-family: Arial; font-weight: 700">Red</span>'
+      + ' and <span style="font-style: italic; color: blue">blue</span> and <span style="font: 12px Arial">small</span></p>';
+    const { pm, onChange } = await renderEditor();
+    paste(pm, { html, text: 'Red and blue and small' });
+    expect(lastHtml(onChange)).toBe('<p><strong>Red</strong> and <em>blue</em> and small</p>');
+  });
+
+  it('drops them from a rich paste that carries a Markdown card too', async () => {
+    const { pm, onChange } = await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Rich' }));
+    paste(pm, {
+      html: `<p><span style="color: red">Before the card</span></p><img src="${PNG}"><p>After the card</p>`,
+      text: 'Before the card\n# Card\nAfter the card',
+    });
+    expect(lastHtml(onChange)).toMatch(/^<p>Before the card<\/p><img src="data:image\/png[^"]*" data-markdown-source="%23%20Card"><p>After the card<\/p>/);
   });
 });

@@ -2,6 +2,28 @@
 // apart from the size notice; used by pasteHandlers and useCodeBlockRepairs.
 import { repairEscapedCodeLines } from './codeRepairs';
 
+// Pasted text keeps its formatting (bold, italic, … also when written as inline
+// styles) but not the source's colour, font size or font: those belong to the
+// editor's own controls, and a page's colours may be unreadable in another theme.
+// Declarations are removed as text, the way ProseMirror reads styles for bold /
+// italic, so what those see is unchanged (CSSOM would re-serialize a `font`
+// shorthand into longhands such as font-weight).
+const PASTED_TEXT_STYLE_RE = /\b(?:color|font(?:-size|-family)?)\s*:/i;
+const DROPPED_DECLARATION = /^\s*(?:color|font|font-size|font-family)\s*:/i;
+
+export function stripPastedTextStyles(html) {
+  if (!html || !PASTED_TEXT_STYLE_RE.test(html)) return html;
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  for (const el of doc.body.querySelectorAll('[style]')) {
+    const declarations = el.getAttribute('style').split(/;(?![^(]*\))/);
+    const kept = declarations.filter(d => !DROPPED_DECLARATION.test(d));
+    if (kept.length === declarations.length) continue;
+    if (kept.some(d => d.trim())) el.setAttribute('style', kept.join(';'));
+    else el.removeAttribute('style');
+  }
+  return doc.body.innerHTML;
+}
+
 // ── Copilot rich-answer pseudo-code blocks ────────────────────────────────────
 // Copilot's rich (HTML) answers render code as a run of one-line <div><span>
 // rows bounded by empty <p>s — not a <pre>, so it pastes as loose paragraphs.

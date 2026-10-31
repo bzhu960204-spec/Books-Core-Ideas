@@ -1,7 +1,21 @@
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
+import { TextStyle } from '@tiptap/extension-text-style';
 import ResizableImageView from './ResizableImageView';
+
+const hasTextStyle = (el) => !!(el.style.color || el.style.fontFamily || el.style.fontSize);
+
+// The textStyle mark that FontFamily, FontSize and Color style (StarterKit v3 does
+// not include it: BUG-16). It only takes spans that carry one of those styles; the
+// stock rule takes every span with a style attribute and would wrap pasted text in
+// empty <span>s. Pasted colours, sizes and fonts are removed before parsing
+// (stripPastedTextStyles), so they reach here only from these controls.
+export const SpanTextStyle = TextStyle.extend({
+  parseHTML() {
+    return [{ tag: 'span', consuming: false, getAttrs: el => (hasTextStyle(el) ? {} : false) }];
+  },
+});
 
 // Custom extension: adds a `fontSize` attribute to the textStyle mark so the
 // font-size dropdown can read/write inline `style="font-size: …"`.

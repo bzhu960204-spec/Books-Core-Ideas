@@ -20,7 +20,7 @@
 | BUG-13 | 🟠 P1 | 新建章节 / Part / 想法 / 摘录时请求带 `id`，会覆盖并挪走其他书里的那一行（✅ 已修复） | ✅ 实测 |
 | BUG-14 | 🟠 P1 | PARTS 书中未分组的章节，在 JSON 导出和 ZIP 迁移归档中都会被丢掉（✅ 已修复） | ✅ 实测 |
 | BUG-15 | ⚪ P3 | 讲解阅读器中"撤销保存段落"失败时，错误提示不会显示（✅ 已修复） | 🔍 代码确认 + 组件测试 |
-| BUG-16 | 🟡 P2 | 编辑器的字体、字号、文字颜色控件无效并抛错；粘贴内容中的这些内联样式被丢弃 | ✅ 实测 |
+| BUG-16 | 🟡 P2 | 编辑器的字体、字号、文字颜色控件无效并抛错；粘贴内容中的这些内联样式被丢弃（✅ 已修复：控件生效，粘贴行为不变） | ✅ 实测 |
 
 ---
 
@@ -284,7 +284,19 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 <a id="bug-16"></a>
 ## BUG-16 · 字体、字号、文字颜色控件无效，粘贴的这些样式被丢弃 🟡
 
-> 2026-11-01 为 FE-01 写特征测试时发现，并在浏览器中（真实数据副本）确认。未修复：修复方式会改变粘贴行为，需要先决定。
+> 2026-11-01 为 FE-01 写特征测试时发现，并在浏览器中（真实数据副本）确认。
+
+> **✅ 已修复（2026-11-01，按最佳判断选择下面的选项 2）**：三个控件生效；粘贴结果与原来相同。
+> - 选择理由：控件是用户明确的操作，应当生效；而粘贴（主要来自 AI 回答和网页）一直不带颜色、字号、字体，现有内容都是这样。原样保留会带入原网页的配色，在深色主题下可能看不清。
+> - 做法：
+>   - [extensions.js](../../frontend/src/components/richText/extensions.js) 注册 `SpanTextStyle`（扩展自 `TextStyle`），**只**匹配带有颜色、字号或字体的 `<span>`。原版会匹配任何带 style 的 span，粘贴的文字会被包上空的 `<span>`；
+>   - [pasteTransforms.js](../../frontend/src/components/richText/pasteTransforms.js) 新增 `stripPastedTextStyles`：粘贴的 HTML（三条粘贴路径都经过它）去掉 `color`、`font`、`font-size`、`font-family` 声明。按文本逐条删除，与 ProseMirror 读取样式的方式相同，所以 `font-weight: 700`、`font-style: italic` 仍然变成粗体、斜体；如果用 CSSOM 删除，`font` 简写会被重新序列化成 `font-weight` 等长写，结果会变。
+> - 测试（前端 120 → 126）：
+>   - 回归测试（修复前失败）：选中文字设置字号、颜色、字体后生效，改回默认后 HTML 恢复为 `<p>Hello</p>`；保存的这类样式重新打开后仍在；
+>   - 特征测试（修复前后都通过）：粘贴带颜色、字号、字体、`font` 简写以及粗体/斜体内联样式的 HTML，结果都是 `<p><strong>Red</strong> and <em>blue</em> and small</p>`；Rich 模式下带 Markdown 卡片截图的粘贴同样去掉颜色；
+>   - `stripPastedTextStyles` 单测 2 个（保留 `text-align`、`font-weight`、`background-color` 和 data URL 中的分号；不含这些声明的 HTML 原样返回）。
+> - 浏览器验证（Chromium，真实数据副本）：粘贴带颜色和字体的 HTML 得到 `<p><strong>Red bold</strong> then <em>blue italic</em></p>`；选中后设置 22px 和蓝色，保存后阅读视图中为蓝色，重新编辑时样式仍在；无报错。
+> - 已保存的数据不受影响：54 篇讲解和书评中没有带样式的 `<span>`，所以打开编辑时的结果与修复前相同。
 
 **现象**：
 - 编辑器"更多"工具栏中的字体、字号、文字颜色（色板、取色器）选中文字后点击，没有任何效果，控制台报错 `There is no mark type named 'textStyle'`。
@@ -294,7 +306,7 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 
 **影响**：真实数据中检查了全部 54 篇讲解和书评，没有任何内联颜色、字号、字体样式，所以没有已保存的数据受影响（这些样式从来没能保存下来）。
 
-**修复选项**（待决定）：
+**修复选项**（选择了 2）：
 1. 注册 `TextStyle`：控件生效；粘贴时也会保留网页里的颜色、字号、字体（例如从深色网页粘贴的白色文字也会保留）。
 2. 注册 `TextStyle`，但粘贴时去掉内联的颜色、字号、字体：控件生效，粘贴结果与现在相同。
 3. 删除这三个控件，保持现状。

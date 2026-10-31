@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { dropOversizeImages, tagMarkdownCards, transformCopilotCodeBlocks } from './pasteTransforms';
+import { dropOversizeImages, stripPastedTextStyles, tagMarkdownCards, transformCopilotCodeBlocks } from './pasteTransforms';
 import { repairEscapedCodeLines } from './codeRepairs';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -50,6 +50,21 @@ describe('tagMarkdownCards', () => {
     expect(tagMarkdownCards(html, '')).toBe(html);
     expect(tagMarkdownCards('<p>no image</p>', 'text')).toBe('<p>no image</p>');
     expect(tagMarkdownCards(`<p>Intro</p><img src="${PNG}"><p>Outro</p>`, 'Different words entirely')).toBe(`<p>Intro</p><img src="${PNG}"><p>Outro</p>`);
+  });
+});
+
+describe('stripPastedTextStyles', () => {
+  it('removes colour, size and font declarations and keeps the rest as written', () => {
+    const html = '<p style="text-align: center; color: red"><span style="font: italic 12px Arial; font-weight: 700; background-color: yellow">a</span>'
+      + '<span style="color:blue">b</span><mark style="background-image: url(data:image/png;base64,AA==)">c</mark></p>';
+    expect(stripPastedTextStyles(html)).toBe(
+      '<p style="text-align: center"><span style=" font-weight: 700; background-color: yellow">a</span>'
+      + '<span>b</span><mark style="background-image: url(data:image/png;base64,AA==)">c</mark></p>');
+  });
+
+  it('returns HTML without such declarations untouched', () => {
+    const html = '<p data-pm-slice="1 1 []"><b style="font-weight:700">x</b></p><!--EndFragment-->';
+    expect(stripPastedTextStyles(html)).toBe(html);
   });
 });
 
