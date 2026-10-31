@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080/api';
+// Same-origin by default: the prod jar serves /api, and in dev Vite proxies it
+// (see vite.config.js). VITE_API_BASE can still point at an absolute URL.
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 async function apiFetch(url, options) {
   const res = await fetch(url, options);
