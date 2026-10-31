@@ -1,7 +1,7 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.IdeaSearchResult;
-import com.bookscoreideas.repository.KeyIdeaRepository;
+import com.bookscoreideas.service.KeyIdeaService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,10 +10,10 @@ import java.util.List;
 @RequestMapping("/api/ideas")
 public class GlobalIdeaController {
 
-    private final KeyIdeaRepository keyIdeaRepository;
+    private final KeyIdeaService keyIdeaService;
 
-    public GlobalIdeaController(KeyIdeaRepository keyIdeaRepository) {
-        this.keyIdeaRepository = keyIdeaRepository;
+    public GlobalIdeaController(KeyIdeaService keyIdeaService) {
+        this.keyIdeaService = keyIdeaService;
     }
 
     @GetMapping
@@ -21,6 +21,6 @@ public class GlobalIdeaController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long bookId,
             @RequestParam(required = false) String tag) {
-        return keyIdeaRepository.searchIdeas(q, bookId, tag);
+        return keyIdeaService.search(q, bookId, tag);
     }
 }

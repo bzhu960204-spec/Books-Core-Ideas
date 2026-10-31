@@ -1,7 +1,7 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.ExcerptSearchResult;
-import com.bookscoreideas.repository.ExcerptRepository;
+import com.bookscoreideas.service.ExcerptService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,16 +10,16 @@ import java.util.List;
 @RequestMapping("/api/excerpts")
 public class GlobalExcerptController {
 
-    private final ExcerptRepository excerptRepository;
+    private final ExcerptService excerptService;
 
-    public GlobalExcerptController(ExcerptRepository excerptRepository) {
-        this.excerptRepository = excerptRepository;
+    public GlobalExcerptController(ExcerptService excerptService) {
+        this.excerptService = excerptService;
     }
 
     @GetMapping
     public List<ExcerptSearchResult> searchExcerpts(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Long bookId) {
-        return excerptRepository.searchExcerpts(q, bookId);
+        return excerptService.search(q, bookId);
     }
 }
