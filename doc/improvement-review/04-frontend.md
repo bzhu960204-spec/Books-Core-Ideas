@@ -43,7 +43,7 @@
 | `react-hooks/set-state-in-effect` | 18 | effect 内同步 setState，多数是"挂载即加载"模式 |
 | `react-refresh/only-export-components` | 5 | 组件文件同时导出常量/函数（如 `ThemeContext.jsx`），破坏 HMR |
 | `react-hooks/refs` "Cannot access refs during render" | 4 | `RichTextEditor` 中 `xxxRef.current = state` 写在 render 里 |
-| `no-unused-vars` / `no-useless-escape` / `no-control-regex` | 4 | 小问题 |
+| `no-unused-vars` / `no-useless-escape` / `no-control-regex` | 4 | 小问题（BUG-11 修复时去掉了 `markdownToHtml` 的 `\u0000` 占位符，当前共 **30 errors**） |
 | 警告（`exhaustive-deps` ×2、无用的 eslint-disable ×1） | 3 | `BookDetailPage` `loadBook`、`ChapterImageViewer` `idx` |
 
 **建议**：先修真实问题（refs、deps、unused），"挂载加载"类在 FE-03 引入数据层后自然消失；然后把 `npm run lint` 纳入 CI（ENG-02），保持 0 error。

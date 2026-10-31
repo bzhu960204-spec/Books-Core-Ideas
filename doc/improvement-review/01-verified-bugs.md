@@ -15,6 +15,7 @@
 | BUG-08 | 🟡 P2 | 删除书后，书单（Collection）成员行残留（✅ 已修复） | 🔍 代码确认 |
 | BUG-09 | ⚪ P3 | `POST /api/books` 携带 `id` 时 500 | ✅ 实测 |
 | BUG-10 | ⚪ P3 | 图片上传：序号计算偏差 & 静默吞异常 | 🔍 代码确认 |
+| BUG-11 | 🟡 P2 | 编辑器按 Markdown 粘贴时，```` ``` ```` 代码块原样变成段落文字（✅ 已修复） | ✅ 实测 |
 
 ---
 
@@ -180,3 +181,19 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 - `catch (IOException e) { /* skip */ }` 没有日志，也不告诉前端哪个文件失败了。
 
 **建议**：用"已保存数"计数；记录日志并在响应中返回失败列表。
+
+---
+
+<a id="bug-11"></a>
+## BUG-11 · Markdown 粘贴：代码块不变成代码块 🟡
+
+> **✅ 已修复（2026-10-31）**
+> - 粘贴转换函数移到 [markdownPaste.js](../../frontend/src/utils/markdownPaste.js)（`looksLikeMarkdown`、`markdownToHtml`），[RichTextEditor.jsx](../../frontend/src/components/RichTextEditor.jsx) 改为引用（顺带推进 FE-01 的拆分）。
+> - 公式保护从"先暂存、事后放回"改为独立 `Marked` 实例上的 `$…$` / `$$…$$` 扩展：围栏代码交给 marked 正常渲染（保留 `language-xxx`，编辑器显示语言），扩展在代码块和行内代码里不会生效，所以代码里的 `$HOME` 等不受影响。去掉 marked 给代码末尾加的 `\n`，否则编辑器里会多出一个空行（已在浏览器中确认）。
+> - 顺带修复了同一机制导致的问题：公式里含 `<` 时（如 `$a<b$`），原样放回的文本会被当成 HTML 标签，导致文字丢失。现在会先转义。
+> - 测试：[markdownPaste.test.js](../../frontend/src/utils/markdownPaste.test.js)（6 个）。未修复时其中 4 个失败（3 个代码块用例 + 公式 `<` 用例），2 个保护现有行为的用例（公式不被强调规则破坏、Markdown 识别）修复前后都通过。
+> - 浏览器验证（临时库，18083/15173）：在 Auto 模式下粘贴含标题、行内公式、行内代码、带语言和不带语言的代码块、列表的 Markdown，结果均正确；代码缩进、`<`、`$HOME` 原样保留。
+
+**现象**：在编辑器里粘贴 AI 回答等 Markdown 纯文本（Auto 模式识别为 Markdown，或 MD 模式）时，标题、列表都会正常转换，但 ```` ```lang … ``` ```` 代码块会变成一个包含反引号原文的普通段落（`<p>```js …```</p>`），换行和缩进也会被编辑器合并掉。
+
+**根因**：原 `markdownToHtml` 为了不让 marked 的行内规则破坏公式，把公式和**围栏代码**都替换成占位符，渲染后再把**原始文本**放回去。代码块因此根本没经过 marked，也就不会被转成 `<pre><code>`。

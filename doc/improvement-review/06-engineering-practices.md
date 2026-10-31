@@ -15,7 +15,7 @@
 ## ENG-01 · 前后端零测试 🔴
 
 > **进展（2026-10-31）**：后端测试骨架已建立——[IntegrationTest](../../backend/src/test/java/com/bookscoreideas/support/IntegrationTest.java) 基类（`@SpringBootTest` + MockMvc + `test` profile，随机内存库、`ddl-auto=validate`），首批 3 个测试覆盖空库/老库迁移。运行：`cd backend; mvn test`。
-> 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`），首个测试为 `sanitizeHtml.test.js`；CI 中前端测试为阻断步骤。
+> 前端：已引入 Vitest + jsdom（`npm test`，配置在 `vite.config.js`），现有 `sanitizeHtml.test.js`、`markdownPaste.test.js`（BUG-11）；CI 中前端测试为阻断步骤。
 
 **现状**：`backend/src/test` 不存在（虽然 pom 已引入 `spring-boot-starter-test`）；前端没有测试框架。本次发现的 BUG-01~05 都是一个最基础的集成测试就能拦住的。
 

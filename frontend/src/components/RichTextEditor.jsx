@@ -14,6 +14,7 @@ import { marked } from 'marked';
 import LinkFixPrompt from './LinkFixPrompt';
 import { analyzeHtmlLinks } from '../utils/linkFix';
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+import { looksLikeMarkdown, markdownToHtml } from '../utils/markdownPaste';
 
 // Custom extension: adds a `fontSize` attribute to the textStyle mark so the
 // font-size dropdown can read/write inline `style="font-size: …"`.
@@ -48,33 +49,6 @@ const FontSize = Extension.create({
     };
   },
 });
-
-// ── Markdown paste support ────────────────────────────────────────────────────
-// Heuristics: does this plain text look like Markdown source worth converting?
-const FENCED_CODE_RE = /(^|\n)\s*```/;
-const MD_FEATURE_RE = /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s|\d+\.\s|>\s)|(\*\*|__).+?(\*\*|__)|\[[^\]]+\]\([^)]+\)|(^|\n)\|.+\|/;
-
-function looksLikeMarkdown(text) {
-  return FENCED_CODE_RE.test(text) || MD_FEATURE_RE.test(text);
-}
-
-// Convert Markdown → HTML while protecting math ($…$, $$…$$) and fenced code
-// from being mangled by Markdown inline rules.
-function markdownToHtml(src) {
-  const stash = [];
-  const keep = (s) => {
-    const token = `\u0000MD${stash.length}\u0000`;
-    stash.push(s);
-    return token;
-  };
-  let text = src.replace(/\r\n/g, '\n');
-  text = text.replace(/```[\s\S]*?```/g, m => keep(m));
-  text = text.replace(/\$\$[\s\S]*?\$\$/g, m => keep(m));
-  text = text.replace(/\$[^\n$]+?\$/g, m => keep(m));
-  let html = marked.parse(text, { breaks: false, gfm: true, async: false });
-  html = html.replace(/\u0000MD(\d+)\u0000/g, (_, i) => stash[Number(i)] ?? '');
-  return html;
-}
 
 // ── Copilot rich-answer pseudo-code blocks ────────────────────────────────────
 // Copilot's rich (HTML) answers render code as a run of one-line <div><span>
