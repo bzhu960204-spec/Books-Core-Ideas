@@ -25,6 +25,15 @@ Data lives in `backend/data/` (H2 database + uploaded images). Take a manual sna
 
 `restore-data.ps1` first saves the current data as `*-pre-restore.zip`, so you can undo a restore. `backups/` is git-ignored.
 
+## Tests & CI
+
+```powershell
+cd backend;  mvn test          # integration tests on an isolated in-memory H2 (never touches backend/data)
+cd frontend; npm run lint; npm run build
+```
+
+GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same on every push to `main` and on pull requests.
+
 ---
 
 ## JSON Import Formats

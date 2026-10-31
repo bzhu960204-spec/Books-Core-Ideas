@@ -53,7 +53,7 @@
 | 顺序 | ID | 事项 |
 |---|---|---|
 | 1.1 | ENG-01 | 后端集成测试骨架 + 阶段 0 的回归测试 |
-| 1.2 | ENG-02 | GitHub Actions CI |
+| 1.2 | ENG-02 | ✅ GitHub Actions CI |
 | 1.3 | FE-02 | ESLint 清零 |
 | 1.4 | BE-04 / BUG-07 | 全局异常处理（ProblemDetail） |
 | 1.5 | BUG-05 | 子资源归属校验 |
@@ -125,7 +125,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ⬜ | npm audit：3 high，含 prosemirror-view 粘贴 XSS，建议提前 |
 | ENG-01 | P0 | 测试 | 1 | 🔄 | 后端骨架 + 迁移测试已就绪；每个修复附回归测试 |
-| ENG-02 | P1 | CI | 1 | ⬜ | |
+| ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 暂不阻断（待 FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |
 | ENG-05 | P2 | 文档更新 | 4 | ⬜ | 每阶段顺带更新相关文档 |

@@ -32,6 +32,9 @@
 <a id="eng-02"></a>
 ## ENG-02 · 没有 CI 🟠
 
+> **✅ 已完成（2026-10-31）**：[.github/workflows/ci.yml](../../.github/workflows/ci.yml)——push 到 `main` 及 PR 时运行；后端 `mvn -B verify`（JDK 17），前端 `npm ci` → `lint` → `build`（Node 24）。lint 暂为 `continue-on-error`，FE-02 清零后改为阻断。
+> 验证：actionlint 1.7.12 无告警；在干净 worktree 中原样执行各命令均符合预期（npm ci ✅、build ✅、mvn verify 16/16 ✅）。尚未在 GitHub 上实际运行（需推送后确认）。
+
 仓库没有 `.github/workflows`。
 
 **建议**：一个 GitHub Actions 工作流，在 push/PR 时运行：
