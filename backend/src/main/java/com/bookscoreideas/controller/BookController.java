@@ -1,8 +1,8 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.dto.CreateBookRequest;
 import com.bookscoreideas.dto.UpdateBookRequest;
-import com.bookscoreideas.entity.Book;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.service.BookService;
 import jakarta.validation.Valid;
@@ -24,8 +24,8 @@ public class BookController {
     }
 
     @GetMapping
-    public List<Book> getAllBooks() {
-        return bookRepository.findAll();
+    public List<BookDto> getAllBooks() {
+        return bookService.list();
     }
 
     @GetMapping("/categories")
@@ -34,19 +34,19 @@ public class BookController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Book> getBook(@PathVariable Long id) {
-        return bookRepository.findById(id)
+    public ResponseEntity<BookDto> getBook(@PathVariable Long id) {
+        return bookService.get(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public Book createBook(@Valid @RequestBody CreateBookRequest request) {
+    public BookDto createBook(@Valid @RequestBody CreateBookRequest request) {
         return bookService.create(request);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Book> updateBook(@PathVariable Long id, @Valid @RequestBody UpdateBookRequest request) {
+    public ResponseEntity<BookDto> updateBook(@PathVariable Long id, @Valid @RequestBody UpdateBookRequest request) {
         return bookService.update(id, request)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

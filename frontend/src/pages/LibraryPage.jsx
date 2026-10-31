@@ -335,7 +335,7 @@ export default function LibraryPage() {
                     >★</span>
                   ))}
                 </div>
-                <span className="book-list-meta">{book.chapters?.length || 0} ch.</span>
+                <span className="book-list-meta">{book.chapterCount ?? 0} ch.</span>
                 <div className="book-list-actions" onClick={e => e.stopPropagation()}>
                   <button className="btn-icon" title="Collect" onClick={() => setCollectTarget(book)}>🗂️</button>
                   <button className="btn-icon" title="Edit" onClick={() => { setEditBook(book); setShowForm(true); }}>✏️</button>
@@ -397,7 +397,7 @@ export default function LibraryPage() {
                 </div>
                 {book.description && <div className="book-card-desc">{book.description}</div>}
                 <div className="book-card-meta">
-                  <span>{book.chapters?.length || 0} chapters</span>
+                  <span>{book.chapterCount ?? 0} chapters</span>
                   <span style={{ display: 'flex', gap: '0.25rem' }}>
                     <button
                       className="btn-icon"

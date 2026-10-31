@@ -33,6 +33,14 @@
 <a id="be-02"></a>
 ## BE-02 · 实体直接作为 API 出入参 🟠
 
+> **✅ 已完成（2026-10-31，范围限于 `/api/books`，其他资源留给 BE-03）**，分 2 个提交：
+> 1. `ae796a8` 请求 DTO：[CreateBookRequest](../../backend/src/main/java/com/bookscoreideas/dto/CreateBookRequest.java) / [UpdateBookRequest](../../backend/src/main/java/com/bookscoreideas/dto/UpdateBookRequest.java)，映射移到 [BookService](../../backend/src/main/java/com/bookscoreideas/service/BookService.java)，顺带修复 **BUG-09**（实为静默覆盖，严重度上调）。
+> 2. 响应 DTO：列表、详情、新建、更新以及书单的 `/book-collections/{id}/books` 统一返回 [BookDto](../../backend/src/main/java/com/bookscoreideas/dto/BookDto.java)，即**全部标量字段 + `chapterCount`**，不再带 `chapters`。保留全部标量字段是因为前端会用 `{...book, rating}` 整体回传给 PUT。最初计划拆成 Summary/Detail 两个 DTO，但两者字段完全相同，于是合成一个。`chapterCount` 用一条 `GROUP BY` 查询算出。前端 3 处 `book.chapters?.length` 改为 `book.chapterCount`。
+> - **效果**（备份库副本，24 本书 / 479 章 / 1285 条想法）：`GET /api/books` 响应体从 **757,737 → 25,637 字节（−97%）**，预热后耗时 **约 800 → 44 ms**；SQL 条数不再随书本数量增长。
+> - **一致性**：对比改动前后共 29 个响应文件、56 个书籍对象，除 `chapters` → `chapterCount` 外**零差异**；界面上 24 本书显示的章节数与旧数据逐本一致。浏览器验证：在书库改评分、在详情页改阅读状态，PUT 往返后只有目标字段变化（描述等字段不丢失）；书单视图、按 Part 组织的书的详情页均正常。
+> - 测试：[BookRequestTest](../../backend/src/test/java/com/bookscoreideas/books/BookRequestTest.java)（5 个）、[BookResponseTest](../../backend/src/test/java/com/bookscoreideas/books/BookResponseTest.java)（6 个，其中 N+1 回归用 Hibernate statistics 统计 SQL 条数；改动前 5 个失败，"列表回传 PUT 不丢字段"这个保护用例前后都通过）。
+> - 未做（按决定推迟）：`spring.jpa.open-in-view=false` 推迟到 BE-01（`ChapterController` 等接口还依赖序列化时的懒加载）；状态码统一留给 BE-03；`Book` 实体上的 `chapters` 集合仍保留（用于级联删除），只是不再出现在 API 中。
+
 **现状**：
 - `Book.chapters` 没有 `@JsonIgnore`，于是 **`GET /api/books` 返回每本书的全部章节 + 全部 keyIdeas**（已实测响应中含 `"chapters":`）。书库、想法库、摘录库、书评库、阅读历史 5 个页面都调用 `bookApi.getAll()`，每次都下载整个库的内容，且每本书触发懒加载查询（N+1）。
 - 入参也是实体：客户端可以提交 `id`、`chapters` 等不该由客户端控制的字段（BUG-09）。

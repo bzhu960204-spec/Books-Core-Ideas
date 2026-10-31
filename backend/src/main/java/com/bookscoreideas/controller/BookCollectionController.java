@@ -2,11 +2,11 @@ package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.BookCollectionRequest;
 import com.bookscoreideas.dto.BookCollectionResponse;
-import com.bookscoreideas.entity.Book;
+import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.entity.BookCollection;
 import com.bookscoreideas.service.BookCollectionService;
+import com.bookscoreideas.service.BookService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,9 +22,11 @@ import java.util.stream.Collectors;
 public class BookCollectionController {
 
     private final BookCollectionService service;
+    private final BookService bookService;
 
-    public BookCollectionController(BookCollectionService service) {
+    public BookCollectionController(BookCollectionService service, BookService bookService) {
         this.service = service;
+        this.bookService = bookService;
     }
 
     @GetMapping
@@ -62,11 +64,10 @@ public class BookCollectionController {
     }
 
     @GetMapping("/{id}/books")
-    @Transactional(readOnly = true)
-    public List<Book> booksIn(
+    public List<BookDto> booksIn(
             @PathVariable Long id,
             @RequestParam(name = "includeDescendants", defaultValue = "false") boolean includeDescendants) {
-        return service.booksIn(id, includeDescendants);
+        return bookService.toDtos(service.booksIn(id, includeDescendants));
     }
 
     @GetMapping("/for-book/{bookId}")

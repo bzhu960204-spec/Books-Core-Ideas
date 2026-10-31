@@ -336,7 +336,7 @@ export default function CollectionsExplorer() {
                                 {'★'.repeat(b.rating)}<span className="book-compact-rating-dim">{'★'.repeat(5 - b.rating)}</span>
                               </span>
                             )}
-                            <span className="coll-book-row-chapters">{b.chapters?.length || 0} chapters</span>
+                            <span className="coll-book-row-chapters">{b.chapterCount ?? 0} chapters</span>
                           </div>
                         </div>
                         <button
