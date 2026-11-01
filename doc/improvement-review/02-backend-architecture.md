@@ -254,3 +254,5 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 [pom.xml](../../backend/pom.xml) 使用 `spring-boot-starter-parent 3.2.5`，该版本线已过开源支持期，不再接收安全补丁（包括 Tomcat、Jackson、H2 等传递依赖）。
 
 **建议**：升级到当前受支持的 Spring Boot 版本线（升级前先补测试，见 ENG-01）；同时引入 Maven Wrapper（ENG-04）。
+
+> 升级时顺带检查：`ContentDisposition` 对非 ASCII 文件名生成的兜底 `filename=` 参数，引号是否已转义（见 [SEC-02](05-security.md#sec-02)）。

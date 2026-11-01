@@ -40,6 +40,7 @@
 - 一律是带 Bean Validation 的 record（`@Valid`），不用 `Map`，也不直接用实体。
   - 客户端发来的 `id` 等不可编辑字段会被忽略（BUG-09 / BUG-13）。
 - 文本长度上限 = 数据库列宽。枚举类字段的允许值集中在 [BookValues](../backend/src/main/java/com/bookscoreideas/dto/BookValues.java)。
+- 上传的章节图片只接受 PNG / JPEG / GIF / WebP，按**文件内容**判断，不看客户端声明的类型或扩展名（SEC-02，[ImageType](../backend/src/main/java/com/bookscoreideas/service/ImageType.java)）。下载时同样按文件内容决定 `Content-Type`，并带上 `nosniff` 和 `sandbox` CSP。
 - 更新是"整体替换"（`PUT /api/books/{id}`：省略的字段会被清空）。例外是书评：null 表示"不改"。
 - 从页面截取的上下文（标记的 `prefix` / `suffix`）和标记批注会被截断而不是拒绝，因为长度不由用户控制。
 

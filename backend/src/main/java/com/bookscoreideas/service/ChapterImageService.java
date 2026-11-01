@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +23,11 @@ import java.util.UUID;
 @Service
 public class ChapterImageService {
 
-    /** An image file ready to be served. */
-    public record StoredImage(Path path, String contentType, String originalName) {
+    /**
+     * An image file ready to be served.
+     * @param type what the file's bytes actually are; empty if not a supported image
+     */
+    public record StoredImage(Path path, Optional<ImageType> type, String originalName) {
     }
 
     private final ChapterImageRepository imageRepository;
@@ -44,7 +49,8 @@ public class ChapterImageService {
     }
 
     /**
-     * Stores every non-empty image file; other files are skipped.
+     * Stores every file that is a supported image (by its bytes, {@link ImageType}); other
+     * files are skipped.
      * @return empty if the chapter does not exist
      */
     @Transactional
@@ -56,17 +62,19 @@ public class ChapterImageService {
                 MultipartFile file = files[i];
                 if (file.isEmpty()) continue;
 
-                String contentType = file.getContentType();
-                if (contentType == null || !contentType.startsWith("image/")) continue;
+                try (InputStream in = new BufferedInputStream(file.getInputStream())) {
+                    in.mark(ImageType.HEADER_LENGTH);
+                    Optional<ImageType> type = ImageType.detect(in.readNBytes(ImageType.HEADER_LENGTH));
+                    in.reset();
+                    if (type.isEmpty()) continue;
 
-                String filename = UUID.randomUUID() + extensionOf(file.getOriginalFilename());
-                try (InputStream in = file.getInputStream()) {
+                    String filename = UUID.randomUUID() + type.get().extension();
                     if (!storage.store(filename, in)) continue;
 
                     ChapterImage image = new ChapterImage();
                     image.setFilename(filename);
                     image.setOriginalName(file.getOriginalFilename());
-                    image.setContentType(contentType);
+                    image.setContentType(type.get().contentType());
                     image.setOrderIndex(currentCount + i + 1);
                     image.setChapter(chapter);
                     saved.add(ChapterImageDto.from(imageRepository.save(image)));
@@ -78,12 +86,24 @@ public class ChapterImageService {
         });
     }
 
-    /** @return empty if the image is not in this chapter or its file is missing */
+    /**
+     * The type is detected from the file itself, not taken from the row: rows stored before
+     * SEC-02 or imported from an archive may claim anything.
+     * @return empty if the image is not in this chapter or its file is missing
+     */
     @Transactional(readOnly = true)
     public Optional<StoredImage> open(Long chapterId, Long imageId) {
         return imageRepository.findByIdAndChapterId(imageId, chapterId)
                 .flatMap(image -> storage.existing(image.getFilename())
-                        .map(path -> new StoredImage(path, image.getContentType(), image.getOriginalName())));
+                        .map(path -> new StoredImage(path, detect(path), image.getOriginalName())));
+    }
+
+    private static Optional<ImageType> detect(Path path) {
+        try {
+            return ImageType.detect(path);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /** The file itself is removed after commit by ChapterImageFileCleanup. @return false if not in this chapter */
@@ -93,11 +113,5 @@ public class ChapterImageService {
             imageRepository.delete(image);
             return true;
         }).orElse(false);
-    }
-
-    private static String extensionOf(String filename) {
-        if (filename == null) return "";
-        int dotIndex = filename.lastIndexOf('.');
-        return dotIndex >= 0 ? filename.substring(dotIndex) : "";
     }
 }

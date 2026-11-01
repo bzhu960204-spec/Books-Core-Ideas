@@ -124,7 +124,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/gif,image/webp"
                 multiple
                 style={{ display: 'none' }}
                 onChange={(e) => handleUpload(e.target.files)}

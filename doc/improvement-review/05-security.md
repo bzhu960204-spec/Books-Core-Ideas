@@ -38,6 +38,38 @@
 <a id="sec-02"></a>
 ## SEC-02 · 图片上传与下载 🟡
 
+> **✅ 已修复（2026-11-01）**：上传和下载都只认文件内容，不再相信客户端声明的类型或文件名。
+>
+> **设计决定**（简单项，按最佳判断）
+> 1. **白名单**：PNG / JPEG / GIF / WebP，即上传界面原本就写着的 "Supports JPG, PNG, GIF, WebP"。不包括 SVG（可以带脚本）。
+> 2. **按文件头判断类型**：新增 [ImageType](../../backend/src/main/java/com/bookscoreideas/service/ImageType.java)。
+>    - 客户端的 Content-Type 和扩展名一律不用。保存的扩展名和 `contentType` 都由检测结果决定，所以 `photo.png` 里实际是 JPEG 时，会保存为 `.jpg` / `image/jpeg`。
+>    - `originalName` 仍按原样保存，只用于显示。
+>    - 不是这四种图片的文件，和以前一样**跳过**；返回失败列表属于紧接着的 [BUG-10](01-verified-bugs.md#bug-10)。
+> 3. **下载时从磁盘上的文件重新判断类型**，不使用库里存的 `contentType`。这样也能覆盖 SEC-02 之前上传的行，以及迁移导入的行（导入时的校验在 [SEC-04](#sec-04)）。
+>    - 能识别的图片：`inline` + 真实类型；
+>    - 其他文件：`application/octet-stream` + `attachment`，只能下载，浏览器不会渲染。
+> 4. **图片响应一律带上**：
+>    - `X-Content-Type-Options: nosniff`；
+>    - `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`。即使图片被当成页面直接打开，也不能执行脚本。放行内联样式是为了保留浏览器自带看图页的样式（居中、深色背景），内联样式本身无法执行脚本。
+> 5. **`Content-Disposition`** 改用 Spring 的 `ContentDisposition` 生成：
+>    - ASCII 文件名的输出与以前完全相同（`inline; filename="page.png"`）；
+>    - 非 ASCII 文件名由 Spring 生成 `filename*=UTF-8''…`（RFC 5987），另加一个 RFC 2047 格式的 `filename="=?UTF-8?Q?…?="` 作为兜底。注意：Spring 6.1 不会转义兜底参数中的引号。浏览器优先使用 `filename*`，所以不影响结果；BE-10 升级后再看一次；
+>    - 引号、反斜杠会被转义；控制字符（包括换行）会被去掉，防止注入响应头。
+> 6. **前端**：上传控件的 `accept` 从 `image/*` 改为这四种类型。服务端才是真正的限制，这一项只是让选择文件时少一些误选。
+>
+> **测试** [ImageTypeSafetyTest](../../backend/src/test/java/com/bookscoreideas/books/ImageTypeSafetyTest.java)，共 14 个：
+> - 四种格式按真实类型保存和返回，包括"声明为 octet-stream、没有扩展名"和"扩展名与内容不符"两种情况；
+> - SVG、伪装成 PNG 的 HTML 被跳过；
+> - 响应头 nosniff / CSP；
+> - 旧行（直接写入库和磁盘）声称是 `image/svg+xml` 时，作为附件、以 octet-stream 返回；
+> - 文件名中的中文与引号、反斜杠与分号、CRLF 都能还原，且响应头中没有换行。
+>
+> 修复前 9 个失败，其余 5 个是修复前后都应通过的行为（例如正常 PNG、`text/html` 被跳过）。现有的 `ImageApiTest`（包括逐字比较 `Content-Disposition`）不用修改，照常通过。后端共 187 个测试通过。
+>
+> **验证**
+> - 真实数据副本：改动前后 2,748 个 GET 响应零差异，各表不变。真实库只有 5 张 PNG，而且文件不在本机，所以改动前后都是 404。
+> - 浏览器（副本 + Vite）：在上传控件中同时选择一张真实 PNG 和一个带 `<script>` 的 SVG。只保存了 PNG，正常显示（240×120），响应头符合预期。在新标签页直接打开图片地址时也正常显示；VS Code 浏览器注入的脚本被 `sandbox` 拦下。
 [ChapterImageController](../../backend/src/main/java/com/bookscoreideas/controller/ChapterImageController.java)：
 - 仅检查客户端声明的 `Content-Type` 以 `image/` 开头，扩展名直接取自原始文件名 → 可上传 `image/svg+xml`（可含脚本）。下载时按存储的 Content-Type `inline` 返回，在 prod 单端口模式下与应用**同源**，直接打开该图片 URL 即可执行脚本。迁移导入会原样保留归档里的 `contentType`。
 - 第 102 行 `"inline; filename=\"" + image.getOriginalName() + "\""` 直接拼接用户可控文件名（含引号/非 ASCII 时头部错误）。
