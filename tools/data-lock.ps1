@@ -3,6 +3,8 @@
 # H2 leaves <db>.lock.db behind when the JVM is killed, so the lock file alone
 # does not prove the database is in use. What does: the running H2 process keeps
 # <db>.mv.db open, so nobody else can open it exclusively.
+# (Only AUTO_SERVER made H2 write that lock file; the app dropped it in SEC-03, so
+# a lock file now can only be a leftover from an older version.)
 
 function Get-DataLockState([string]$DataDir) {
   <# Returns 'in-use' (a process has a database file open), 'stale' (lock file

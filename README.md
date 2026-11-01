@@ -11,11 +11,11 @@ start-dev.cmd
 .\start-dev.ps1
 ```
 
-Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`.
+Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`. Both accept connections from this machine only (there is no login).
 
 ## Data Backup & Restore
 
-Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while a process has the database open. A `booksdb.lock.db` left behind by a killed app (e.g. after `stop-dev.ps1`) is recognised as stale and ignored with a warning, so `-Force` is no longer needed (it is accepted but ignored).
+Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while a process has the database open. A `booksdb.lock.db` left behind by an older version of the app is recognised as stale and ignored with a warning (current versions no longer write it), so `-Force` is no longer needed (it is accepted but ignored).
 
 ```powershell
 .\stop-dev.ps1

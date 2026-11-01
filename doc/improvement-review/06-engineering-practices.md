@@ -93,6 +93,6 @@ frontend: npm ci && npm run lint && npm test && npm run build   (在 frontend/ �
 <a id="eng-06"></a>
 ## ENG-06 · 启动/停止脚本的小问题 ⚪
 
-- `stop-dev.ps1` 按端口（8080/5173）强杀进程：若 start-dev 因端口占用而自动换了端口，stop-dev 会杀错进程或杀不到（start-prod 已用 `.bci-prod-state.json` 记录实际端口，dev 可借鉴）。强杀还会让 H2 留下陈旧的 `booksdb.lock.db`；~~这曾让备份脚本误判"应用运行中"而拒绝~~（✅ 2026-10-31 已修复：备份/恢复脚本改为检测数据库文件是否真的被打开，见 [DB-05 补充](03-database-and-data-safety.md#db-05)）。
+- `stop-dev.ps1` 按端口（8080/5173）强杀进程：若 start-dev 因端口占用而自动换了端口，stop-dev 会杀错进程或杀不到（start-prod 已用 `.bci-prod-state.json` 记录实际端口，dev 可借鉴）。强杀还会让 H2 留下陈旧的 `booksdb.lock.db`；~~这曾让备份脚本误判"应用运行中"而拒绝~~（✅ 2026-10-31 已修复：备份/恢复脚本改为检测数据库文件是否真的被打开，见 [DB-05 补充](03-database-and-data-safety.md#db-05)；✅ 2026-11-01 根源也已去掉：锁文件只在 `AUTO_SERVER` 下才会生成，[SEC-03 补充](05-security.md#sec-03) 去掉了它）。
 - 启动就绪检测靠"端口在监听"，不代表应用已可用；可引入 `spring-boot-starter-actuator` 的 `/actuator/health`（仅暴露 health）。
 - `start-dev.ps1` 与 `start-prod.ps1` 中端口探测函数重复实现两遍。

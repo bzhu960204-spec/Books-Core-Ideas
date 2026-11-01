@@ -65,6 +65,13 @@
 > - 后端 167 个测试通过；前端 lint 0 / 181 个测试通过。
 > - 真实数据副本：改动前后 2,748 个 GET 响应零差异，12 张表不变。
 > - 手动：prod 方式（prod profile + 前端 dist）和 dev 方式（无 profile 的后端 + 不带 `--host` 的 Vite）都在副本上运行。用本机局域网 IP（10.0.0.31）连接 18083、18084、15173 均被拒绝；prod 的 `/h2-console/` 为 404，dev 为 200；浏览器通过 `http://localhost:…` 打开书籍详情页正常。
+>
+> **补充（2026-11-01，BE-09 开工时发现）：数据库自己也在监听局域网**
+> - **问题**：真实库的连接串带 `AUTO_SERVER=TRUE`。H2 因此在**所有网卡**上开一个随机 TCP 端口，供其他进程共用这个库，并在 `booksdb.lock.db` 中写下 `server=10.0.0.31:<端口>`。外部要连接，还需要锁文件中的随机 id，加上 `sa` / 空密码。风险不高，但违背"只接受本机连接"。前面的验证都覆盖了连接串，所以没有发现。
+> - **决定**（用户确认）：去掉 `AUTO_SERVER`，不改成"只绑定 127.0.0.1"。仓库中没有任何地方依赖它。它唯一的用处是让两个进程（例如同时运行的 dev 和 prod）共用一个库；现在第二个进程会报 "Database may be already in use" 并拒绝启动，这对数据更安全。
+> - **顺带解决的问题**：只有 `AUTO_SERVER` 会让 H2 使用 `booksdb.lock.db` 锁文件。去掉后，H2 直接锁住 `.mv.db`，进程退出（包括被强杀）时由操作系统释放。所以 `stop-dev.ps1` 强杀后**不再留下陈旧锁**（[DB-05 补充](03-database-and-data-safety.md#db-05)、[ENG-06](06-engineering-practices.md#eng-06)）。备份/恢复脚本判断"正在使用"的依据是 `.mv.db` 能否独占打开，所以不受影响。真实库目录中现有的旧锁文件会继续被识别为陈旧锁，应用停止时可以删掉。
+> - **测试**：`NetworkExposureTest.theDatabaseOpensNoNetworkPort`（第 3 个）读取 `application.properties` 中真实的连接串，只把路径换成临时目录，打开数据库后断言 H2 没有登记 TCP 服务。修复前失败（`server` 为 `10.0.0.31:…`）；临时恢复 `AUTO_SERVER` 后再次失败，去掉后通过。后端 168 个测试通过。
+> - **验证**：在临时目录中放一份最新备份的副本，jar **不覆盖连接串**启动，也就是使用真实的默认连接串。V8/V9 迁移成功；进程只监听 `127.0.0.1:18083`；没有生成锁文件，备份脚本判断为 `in-use`；第二个实例报 "already in use" 并退出；强杀后判断为 `free`。GET 响应不受影响：对比工具本来就覆盖连接串，所以没有重跑对比。
 
 **现状**：
 - Spring Boot 默认监听 `0.0.0.0`，`application.properties` 未设置 `server.address`；`start-dev.ps1` 用 `vite --host 0.0.0.0` 启动前端。

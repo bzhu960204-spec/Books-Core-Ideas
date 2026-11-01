@@ -2,11 +2,13 @@ package com.bookscoreideas.web;
 
 import com.bookscoreideas.BooksCoreIdeasApplication;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -17,9 +19,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +34,8 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * SEC-03: the app has no login, so only this machine may reach it, and the H2 Console
- * (which can read and change every table) is a dev-only tool.
+ * (which can read and change every table) is a dev-only tool. The database itself must
+ * not listen on the network either.
  *
  * Starts the real application on a real port, configured the way start-dev / start-prod
  * start it, except for an in-memory database. Not an IntegrationTest: that uses the test
@@ -53,6 +60,31 @@ class NetworkExposureTest {
 
             assertReachableOnlyFromLoopback(port);
             assertThat(get(port, "/h2-console/").statusCode()).isEqualTo(404);
+        }
+    }
+
+    @Test
+    void theDatabaseOpensNoNetworkPort(@TempDir Path dir) throws Exception {
+        Properties config = new Properties();
+        try (InputStream in = getClass().getResourceAsStream("/application.properties")) {
+            config.load(in);
+        }
+        String realUrl = config.getProperty("spring.datasource.url");
+        String url = realUrl.replace("./data/booksdb", dir.toString().replace('\\', '/') + "/booksdb");
+        assertThat(url).as("the real database URL, pointed at a temporary directory").isNotEqualTo(realUrl);
+
+        try (Connection ignored = DriverManager.getConnection(url, "sa", "")) {
+            // With AUTO_SERVER, H2 locks the database through this file and records its TCP
+            // server here ("server=<LAN address>:<port>"; it listens on every adapter).
+            // Without it, H2 locks the database file itself and writes no lock file.
+            Path lockFile = dir.resolve("booksdb.lock.db");
+            Properties lock = new Properties();
+            if (Files.exists(lockFile)) {
+                try (InputStream in = Files.newInputStream(lockFile)) {
+                    lock.load(in);
+                }
+            }
+            assertThat(lock.getProperty("server")).isNull();
         }
     }
 
