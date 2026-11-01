@@ -195,6 +195,42 @@ PUBLIC.BOOK_REVIEWS FOREIGN KEY(BOOK_ID) REFERENCES PUBLIC.BOOKS(ID)"
 <a id="bug-10"></a>
 ## BUG-10 · 图片上传：序号偏差 & 静默吞异常 ⚪
 
+> **✅ 已修复（2026-11-01）**
+>
+> **调查中补充发现**：除了评审提到的"跳过的文件造成序号空洞"，旧公式"现有张数 + 循环下标 + 1"还有一个问题：**删掉中间一张后再上传，新图片会和已有图片序号重复**。例如有 1、2、3，删掉 2 后张数为 2，新图片得到 3。浏览器中实测也是这样。
+>
+> **设计决定**（按最佳判断）
+> 1. **序号**：新图片排在该章节现有最大序号之后（新增 `ChapterImageRepository.maxOrderIndex`），只按实际保存的张数递增。原来的 `countByChapterId` 不再有用处，已删除。
+> 2. **响应改为上传报告**：`{ "images": [...], "skipped": [{ "name", "reason" }] }`（[ImageUploadDto](../../backend/src/main/java/com/bookscoreideas/dto/ImageUploadDto.java)），与迁移导入返回逐本报告的做法一致。
+>    - 至少保存一张时返回 **201**；一张都没保存时返回 **200**，因为没有新建资源，跳过的文件都在 `skipped` 中。
+>    - 原因是用户能看懂的一句话：`empty file` / `not a PNG, JPEG, GIF or WebP image` / `could not be saved`。
+> 3. **写文件失败**：记 WARN 日志（含文件名、章节、异常），删掉写了一半的文件，在 `skipped` 中报告为 `could not be saved`，不再静默吞掉。
+> 4. **不留孤儿文件**：
+>    - 本次写入的文件登记了"事务未提交就删除"（`ChapterImageStorage.deleteIfRolledBack`），任何意外错误导致回滚时文件都会被清掉。修复前，回滚后磁盘上会留下文件。
+>    - `originalName` 超过列宽 255 时**截断**，不再让整个请求失败。修复前返回 409，并留下孤儿文件。文件名来自客户端，不是用户在表单里输入的，所以与标记的 prefix/suffix 一样截断（见 [api-conventions.md](../api-conventions.md)）。
+> 5. **前端**：[ChapterImageViewer](../../frontend/src/components/ChapterImageViewer.jsx) 读取报告。
+>    - 有跳过的文件时显示 toast，如 "Skipped 2 files — notes.txt (not a PNG, …); empty.png (empty file)"；
+>    - 保存了至少一张就切到浏览模式；一张都没保存时提示 "No image was uploaded — …"，并留在上传模式。
+>
+> **测试**
+> - [ImageUploadReportTest](../../backend/src/test/java/com/bookscoreideas/books/ImageUploadReportTest.java)，6 个，修复前全部失败：
+>   - 混合上传的序号连续，跳过的文件和原因都在报告中；
+>   - 删除后再上传，序号接在最后；
+>   - 什么都没保存时返回 200；
+>   - 写文件失败时记日志、报告，不留半个文件；
+>   - 整个请求回滚后不留文件；
+>   - 超长文件名被截断。
+> - 为了确认序号断言本身有效，把服务临时改回旧公式再运行：两个断言分别得到 `[1, 4]`（空洞）和 `[3]`（重复），均失败。
+> - 其他测试中有 5 处读取旧响应格式（数组），已改为读取 `images` 字段。后端共 193 个测试通过。
+> - 前端 `ChapterImageViewer.test.jsx` 新增 2 个，修复前失败。前端共 183 个测试通过，lint 0 / 0，构建通过。
+>
+> **验证**
+> - 真实数据副本：改动前后 2,748 个 GET 响应零差异，各表不变。
+> - 浏览器（副本 + Vite）：
+>   - 同时上传 2 张 PNG、1 个 txt、1 个 SVG：保存的两张序号为 1、2，toast 列出两个被跳过的文件和原因；
+>   - 删掉第一张后再上传：新图片序号为 3，旧公式会得到 2，与已有图片重复；
+>   - 只上传 SVG：返回 200，提示 "No image was uploaded"，留在上传模式。
+
 [ChapterImageController.uploadImages](../../backend/src/main/java/com/bookscoreideas/controller/ChapterImageController.java)：
 - `orderIndex = currentCount + i + 1` 用的是循环下标，被跳过的文件（空文件 / 非图片）会造成序号空洞；
 - `catch (IOException e) { /* skip */ }` 没有日志，也不告诉前端哪个文件失败了。

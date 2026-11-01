@@ -62,7 +62,7 @@ class ApiConventionsTest extends IntegrationTest {
         putJson("/api/chapters/" + chapter + "/explanation", Map.of("content", "x"));
         long image = objectMapper.readTree(mockMvc.perform(multipart("/api/chapters/" + chapter + "/images")
                         .file(new MockMultipartFile("files", "a.png", "image/png", PNG)))
-                .andReturn().getResponse().getContentAsString()).get(0).get("id").asLong();
+                .andReturn().getResponse().getContentAsString()).get("images").get(0).get("id").asLong();
         long folder = postForId("/api/book-collections", Map.of("name", "Deletes " + book));
 
         for (String url : new String[]{

@@ -166,9 +166,10 @@ class ImageTypeSafetyTest extends IntegrationTest {
         return "/api/chapters/" + chapter + "/images";
     }
 
+    /** The saved images of the upload report (BUG-10). */
     private JsonNode upload(String url, MockMultipartFile file) throws Exception {
         return objectMapper.readTree(mockMvc.perform(multipart(url).file(file))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+                .andExpect(status().is2xxSuccessful()).andReturn().getResponse().getContentAsString()).get("images");
     }
 
     private MockHttpServletResponse download(String base, long id) throws Exception {

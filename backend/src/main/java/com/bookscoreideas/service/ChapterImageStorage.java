@@ -86,7 +86,22 @@ public class ChapterImageStorage {
         }
     }
 
-    private void deleteNow(String filename) {
+    /**
+     * Deletes a newly written file if the current transaction rolls back, so a failed
+     * upload leaves no file without a database row. Without a transaction, does nothing.
+     */
+    public void deleteIfRolledBack(String filename) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) return;
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) deleteNow(filename);
+            }
+        });
+    }
+
+    /** Deletes a file right away, e.g. one left half-written by a failed write. */
+    public void deleteNow(String filename) {
         resolve(filename).ifPresent(path -> {
             try {
                 Files.deleteIfExists(path);

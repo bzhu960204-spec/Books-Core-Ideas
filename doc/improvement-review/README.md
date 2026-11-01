@@ -85,7 +85,7 @@
 | 4.1 | SEC-03 | ✅ 仅监听本机（127.0.0.1，Vite 去掉 `--host`）；prod profile 关闭 H2 Console |
 | 4.2 | BE-09 | ✅ 配置分环境：默认即安全，dev / prod profile，CORS 显式开启 |
 | 4.3 | SEC-02 | ✅ 图片类型白名单 + 魔数校验、`nosniff`、`ContentDisposition` |
-| 4.4 | BUG-10 | 图片上传序号 / 失败上报（同一方法，紧跟 SEC-02） |
+| 4.4 | BUG-10 | ✅ 图片上传序号 / 失败上报（同一方法，紧跟 SEC-02） |
 | 4.5 | SEC-04 | 迁移导入复用 SEC-02 的白名单，扩展名白名单 |
 | 4.6 | BE-07 | 导入改为临时文件 + `ZipFile`，不再整包读入内存 |
 | 4.7 | ENG-04 | Maven Wrapper、Node/Java 版本约束（为 BE-10 固定构建环境） |
@@ -111,7 +111,7 @@
 | BUG-07 | P2 | 404/400 被当成 500 | 1 | ✅ | 随 BE-04 |
 | BUG-08 | P2 | 删书后书单成员残留 | 0 | ✅ | 删书时同事务清除成员行 |
 | BUG-09 | P1 | POST 带 id 500 / 静默覆盖 | 2 | ✅ | 随 BE-02 请求 DTO；严重度由 P3 上调（无 500 时会直接覆盖）；BookRequestTest |
-| BUG-10 | P3 | 图片上传序号/吞异常 | 4 | ⬜ | |
+| BUG-10 | P3 | 图片上传序号/吞异常 | 4 | ✅ | 序号接在最大值之后（另发现：删除后再上传会重复）；上传报告 `{images, skipped}`（201/200）；写失败记日志并报告、删半个文件；回滚不留文件；超长文件名截断；前端 toast 列出跳过的文件；回归测试 8 个（修复前失败）；副本零差异；浏览器验证 |
 | BUG-11 | P2 | Markdown 粘贴代码块不转换 | — | ✅ | 评审后发现；公式改用 marked 扩展 + markdownPaste.test.js |
 | BUG-12 | P2 | 删除最后一张章节图片后崩溃 | — | ✅ | FE-02 中由 exhaustive-deps 警告发现；ChapterImageViewer.test.jsx |
 | BUG-13 | P1 | 子资源新建带 id 会覆盖/挪走数据 | 2 | ✅ | BUG-09 同源（章节/Part/想法/摘录）；ChildCreateIgnoresClientIdTest |
@@ -150,7 +150,7 @@
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；补充：去掉 H2 `AUTO_SERVER`（数据库曾对局域网开端口；顺带不再留陈旧锁）；NetworkExposureTest 3 个（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 187 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型）+ 前端 Vitest 181 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 193 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告）+ 前端 Vitest 183 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

@@ -10,8 +10,11 @@ import java.util.Optional;
 
 public interface ChapterImageRepository extends JpaRepository<ChapterImage, Long> {
     List<ChapterImage> findByChapterIdOrderByOrderIndexAsc(Long chapterId);
-    int countByChapterId(Long chapterId);
     Optional<ChapterImage> findByIdAndChapterId(Long id, Long chapterId);
+
+    /** The highest position in the chapter, 0 without images: new images go after it. */
+    @Query("SELECT COALESCE(MAX(i.orderIndex), 0) FROM ChapterImage i WHERE i.chapter.id = :chapterId")
+    int maxOrderIndex(@Param("chapterId") Long chapterId);
 
     /** Rows of [chapterId, imageCount] for a book's chapters; chapters without images are absent. */
     @Query("SELECT i.chapter.id, COUNT(i) FROM ChapterImage i WHERE i.chapter.book.id = :bookId GROUP BY i.chapter.id")

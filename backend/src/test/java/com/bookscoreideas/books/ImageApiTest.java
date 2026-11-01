@@ -111,7 +111,7 @@ class ImageApiTest extends IntegrationTest {
         var request = multipart(url);
         for (MockMultipartFile f : files) request.file(f);
         return objectMapper.readTree(mockMvc.perform(request).andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString());
+                .andReturn().getResponse().getContentAsString()).get("images");
     }
 
     private static List<String> fieldNames(JsonNode node) {

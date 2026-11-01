@@ -111,7 +111,7 @@ class ParentOwnershipTest extends IntegrationTest {
                         .file(new MockMultipartFile("files", "a.png", "image/png", PNG)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        long imageId = objectMapper.readTree(body).get(0).get("id").asLong();
+        long imageId = objectMapper.readTree(body).get("images").get(0).get("id").asLong();
 
         mockMvc.perform(get("/api/chapters/" + chapterB + "/images/" + imageId + "/data"))
                 .andExpect(status().isNotFound());

@@ -7,7 +7,7 @@
 | 情况 | 状态码 | 例子 |
 |---|---|---|
 | 读取 / 更新成功 | 200 + 资源 | `GET /api/books/{id}`、`PUT /api/books/{id}`、`PATCH /api/marks/{id}` |
-| 新建成功 | **201** + 新建的资源（不带 `Location` 头：多数子资源没有单独的 GET） | `POST /api/books`、`POST /api/chapters/{id}/ideas`、`POST /api/chapters/{id}/images`（返回本次上传的列表） |
+| 新建成功 | **201** + 新建的资源（不带 `Location` 头：多数子资源没有单独的 GET） | `POST /api/books`、`POST /api/chapters/{id}/ideas` |
 | 删除成功 | **204**，无响应体 | `DELETE /api/books/{id}` |
 | 资源不存在，或父资源不存在（如 `/books/999/chapters`） | **404** ProblemDetail | `{"status":404,"detail":"Book not found: 999"}` |
 | 可选的单个资源为空：资源本身不存在，但这是正常状态 | **204** | 章节还没有讲解：`GET /api/chapters/{id}/explanation`；书还没有书签：`GET /api/books/{id}/bookmarks/latest` |
@@ -20,6 +20,7 @@
 - 把书加入书单 `POST /api/book-collections/{id}/books/{bookId}`：这是建立关联，不是新建资源，返回 204；
 - 讲解的 `PUT /api/chapters/{id}/explanation` 是 upsert，返回 200；
 - 迁移导出、导入、预览返回 200：导入的响应是逐本书的报告，其中可能有跳过或失败的书。
+- 章节图片上传 `POST /api/chapters/{id}/images`（BUG-10）同样返回报告：`{ "images": [新建的图片], "skipped": [{ "name", "reason" }] }`。至少保存一张时为 **201**，一张都没保存时为 **200**。`reason` 是给用户看的一句话。
 - JSON 导入（FE-08）：每个请求**一个事务**，任何一处不合法都不会留下任何数据。
   - `POST /api/books/import`：`{ "books": [...] }`，返回 **201** 和新建的书（`BookDto` 列表，顺序与请求相同）；
   - `POST /api/books/{id}/import`：`{ "mode": "ADD"|"REPLACE", "parts": [...], "chapters": [...] }`，导入已有书的结构；
@@ -42,7 +43,7 @@
 - 文本长度上限 = 数据库列宽。枚举类字段的允许值集中在 [BookValues](../backend/src/main/java/com/bookscoreideas/dto/BookValues.java)。
 - 上传的章节图片只接受 PNG / JPEG / GIF / WebP，按**文件内容**判断，不看客户端声明的类型或扩展名（SEC-02，[ImageType](../backend/src/main/java/com/bookscoreideas/service/ImageType.java)）。下载时同样按文件内容决定 `Content-Type`，并带上 `nosniff` 和 `sandbox` CSP。
 - 更新是"整体替换"（`PUT /api/books/{id}`：省略的字段会被清空）。例外是书评：null 表示"不改"。
-- 从页面截取的上下文（标记的 `prefix` / `suffix`）和标记批注会被截断而不是拒绝，因为长度不由用户控制。
+- 从页面截取的上下文（标记的 `prefix` / `suffix`）和标记批注会被截断而不是拒绝，因为长度不由用户控制。上传图片的原始文件名同理（超过 255 截断）。
 
 ## 响应体
 

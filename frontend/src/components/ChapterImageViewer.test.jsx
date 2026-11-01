@@ -114,4 +114,40 @@ describe('ChapterImageViewer', () => {
 
     expect((await screen.findByRole('alert')).textContent).toContain('Could not upload the images — Maximum upload size exceeded');
   });
+
+  // Regression (BUG-10): files the server did not save were dropped without a word.
+  it('names the skipped files and shows the saved ones', async () => {
+    chapterImageApi.getAll.mockResolvedValueOnce([]).mockResolvedValue([img(1)]);
+    chapterImageApi.upload.mockResolvedValueOnce({
+      images: [img(1)],
+      skipped: [
+        { name: 'notes.txt', reason: 'not a PNG, JPEG, GIF or WebP image' },
+        { name: 'empty.png', reason: 'empty file' },
+      ],
+    });
+    renderViewer();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload Images' }));
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [new File(['x'], 'a.png')] } });
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Skipped 2 files — notes.txt (not a PNG, JPEG, GIF or WebP image); empty.png (empty file)');
+    expect(await screen.findByText('image-1.png')).toBeTruthy();
+  });
+
+  it('stays in upload mode when no file was saved', async () => {
+    chapterImageApi.getAll.mockResolvedValue([]);
+    chapterImageApi.upload.mockResolvedValueOnce({
+      images: [],
+      skipped: [{ name: 'logo.svg', reason: 'not a PNG, JPEG, GIF or WebP image' }],
+    });
+    renderViewer();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload Images' }));
+    fireEvent.change(document.querySelector('input[type="file"]'), { target: { files: [new File(['x'], 'logo.svg')] } });
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'No image was uploaded — logo.svg (not a PNG, JPEG, GIF or WebP image)');
+    expect(screen.getByText(/Drag & drop images here/)).toBeTruthy();
+  });
 });

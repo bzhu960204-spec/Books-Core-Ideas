@@ -1,6 +1,7 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.ChapterImageDto;
+import com.bookscoreideas.dto.ImageUploadDto;
 import com.bookscoreideas.service.ChapterImageService;
 import com.bookscoreideas.service.ChapterImageService.StoredImage;
 import com.bookscoreideas.web.NotFoundException;
@@ -32,10 +33,13 @@ public class ChapterImageController {
         return imageService.list(chapterId);
     }
 
+    /** 201 with the report if anything was saved; 200 if nothing was (every file is in {@code skipped}). */
     @PostMapping
-    public ResponseEntity<List<ChapterImageDto>> uploadImages(@PathVariable Long chapterId,
-                                                              @RequestParam("files") MultipartFile[] files) {
-        return Responses.created(imageService.upload(chapterId, files), "Chapter", chapterId);
+    public ResponseEntity<ImageUploadDto> uploadImages(@PathVariable Long chapterId,
+                                                       @RequestParam("files") MultipartFile[] files) {
+        ImageUploadDto report = imageService.upload(chapterId, files)
+                .orElseThrow(() -> NotFoundException.of("Chapter", chapterId));
+        return report.images().isEmpty() ? ResponseEntity.ok(report) : Responses.created(report);
     }
 
     /**

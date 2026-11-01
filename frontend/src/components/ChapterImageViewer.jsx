@@ -4,9 +4,16 @@ import { chapterImageApi } from '../api';
 import { useChapterImages, useRefresh } from '../queries';
 import ConfirmDialog from './ConfirmDialog';
 import LoadError from './feedback/LoadError';
-import { attempt, reportError } from './feedback/toast';
+import { attempt, reportError, showToast } from './feedback/toast';
 
 const NO_IMAGES = [];
+
+/** BUG-10: the upload report names every file the server did not save, with the reason. */
+function skippedMessage(saved, skipped) {
+  const files = skipped.map(f => `${f.name} (${f.reason})`).join('; ');
+  if (saved.length === 0) return `No image was uploaded — ${files}`;
+  return `Skipped ${skipped.length} ${skipped.length === 1 ? 'file' : 'files'} — ${files}`;
+}
 
 /**
  * Full-screen chapter image viewer with upload & browse modes.
@@ -38,10 +45,10 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
     if (!files || files.length === 0) return;
     setUploading(true);
     try {
-      await chapterImageApi.upload(chapterId, files);
+      const { images: saved, skipped } = await chapterImageApi.upload(chapterId, files);
       await refresh();
-      // Switch to browse mode after upload
-      setMode('browse');
+      if (skipped.length > 0) showToast(skippedMessage(saved, skipped), 'error');
+      if (saved.length > 0) setMode('browse');
     } catch (err) {
       reportError('Could not upload the images', err);
     } finally {

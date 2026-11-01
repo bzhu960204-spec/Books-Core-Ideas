@@ -155,7 +155,7 @@ class DeletionCascadeTest extends IntegrationTest {
                         .file(new MockMultipartFile("files", "pic.png", "image/png", PNG)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        JsonNode images = objectMapper.readTree(body);
+        JsonNode images = objectMapper.readTree(body).get("images");
         assertThat(images).hasSize(1);
         return images.get(0);
     }

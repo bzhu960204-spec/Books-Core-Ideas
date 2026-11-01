@@ -1,10 +1,14 @@
 package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.ChapterImageDto;
+import com.bookscoreideas.dto.ImageUploadDto;
+import com.bookscoreideas.dto.ImageUploadDto.SkippedFile;
 import com.bookscoreideas.entity.ChapterImage;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.web.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +26,11 @@ import java.util.UUID;
 /** Uploaded chapter images: database rows here, files via {@link ChapterImageStorage}. */
 @Service
 public class ChapterImageService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChapterImageService.class);
+
+    /** Width of chapter_images.original_name. The name comes from the client's file, so it is cut, not rejected. */
+    private static final int MAX_NAME_LENGTH = 255;
 
     /**
      * An image file ready to be served.
@@ -49,41 +58,62 @@ public class ChapterImageService {
     }
 
     /**
-     * Stores every file that is a supported image (by its bytes, {@link ImageType}); other
-     * files are skipped.
+     * Stores every file that is a supported image (by its bytes, {@link ImageType}) after the
+     * chapter's last image, numbered consecutively; reports every other file with the reason.
      * @return empty if the chapter does not exist
      */
     @Transactional
-    public Optional<List<ChapterImageDto>> upload(Long chapterId, MultipartFile[] files) {
+    public Optional<ImageUploadDto> upload(Long chapterId, MultipartFile[] files) {
         return chapterRepository.findById(chapterId).map(chapter -> {
             List<ChapterImageDto> saved = new ArrayList<>();
-            int currentCount = imageRepository.countByChapterId(chapterId);
-            for (int i = 0; i < files.length; i++) {
-                MultipartFile file = files[i];
-                if (file.isEmpty()) continue;
-
-                try (InputStream in = new BufferedInputStream(file.getInputStream())) {
-                    in.mark(ImageType.HEADER_LENGTH);
-                    Optional<ImageType> type = ImageType.detect(in.readNBytes(ImageType.HEADER_LENGTH));
-                    in.reset();
-                    if (type.isEmpty()) continue;
-
-                    String filename = UUID.randomUUID() + type.get().extension();
-                    if (!storage.store(filename, in)) continue;
-
-                    ChapterImage image = new ChapterImage();
-                    image.setFilename(filename);
-                    image.setOriginalName(file.getOriginalFilename());
-                    image.setContentType(type.get().contentType());
-                    image.setOrderIndex(currentCount + i + 1);
-                    image.setChapter(chapter);
-                    saved.add(ChapterImageDto.from(imageRepository.save(image)));
-                } catch (IOException e) {
-                    // skip failed files (BUG-10: should be logged and reported)
+            List<SkippedFile> skipped = new ArrayList<>();
+            int nextIndex = imageRepository.maxOrderIndex(chapterId) + 1;
+            for (MultipartFile file : files) {
+                String name = file.getOriginalFilename();
+                if (file.isEmpty()) {
+                    skipped.add(new SkippedFile(name, SkippedFile.EMPTY));
+                    continue;
                 }
+                Optional<StoredFile> stored = store(chapterId, file, skipped);
+                if (stored.isEmpty()) continue;
+
+                ChapterImage image = new ChapterImage();
+                image.setFilename(stored.get().filename());
+                image.setOriginalName(name == null ? null : name.substring(0, Math.min(name.length(), MAX_NAME_LENGTH)));
+                image.setContentType(stored.get().type().contentType());
+                image.setOrderIndex(nextIndex++);
+                image.setChapter(chapter);
+                saved.add(ChapterImageDto.from(imageRepository.save(image)));
             }
-            return saved;
+            return new ImageUploadDto(saved, skipped);
         });
+    }
+
+    private record StoredFile(String filename, ImageType type) {
+    }
+
+    /** Writes the file if it is a supported image; otherwise adds it to {@code skipped}. */
+    private Optional<StoredFile> store(Long chapterId, MultipartFile file, List<SkippedFile> skipped) {
+        String name = file.getOriginalFilename();
+        String filename = null;
+        try (InputStream in = new BufferedInputStream(file.getInputStream())) {
+            in.mark(ImageType.HEADER_LENGTH);
+            Optional<ImageType> type = ImageType.detect(in.readNBytes(ImageType.HEADER_LENGTH));
+            in.reset();
+            if (type.isEmpty()) {
+                skipped.add(new SkippedFile(name, SkippedFile.NOT_AN_IMAGE));
+                return Optional.empty();
+            }
+            filename = UUID.randomUUID() + type.get().extension();
+            if (!storage.store(filename, in)) throw new IOException("invalid file name " + filename);
+            storage.deleteIfRolledBack(filename);
+            return Optional.of(new StoredFile(filename, type.get()));
+        } catch (IOException e) {
+            log.warn("Could not save uploaded image \"{}\" for chapter {}", name, chapterId, e);
+            if (filename != null) storage.deleteNow(filename);
+            skipped.add(new SkippedFile(name, SkippedFile.NOT_SAVED));
+            return Optional.empty();
+        }
     }
 
     /**
