@@ -23,14 +23,23 @@ $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 New-Item -ItemType Directory $OutDir -Force | Out-Null
 
+# The Maven Wrapper (ENG-04) when the checkout has it; refs from before it use mvn on PATH.
+function Invoke-Package([string]$BackendDir) {
+  Push-Location $BackendDir
+  try {
+    $mvn = if (Test-Path '.\mvnw.cmd') { '.\mvnw.cmd' } else { 'mvn' }
+    & $mvn -q -DskipTests package | Out-Host
+    if ($LASTEXITCODE) { throw "build failed in $BackendDir" }
+  } finally { Pop-Location }
+}
+
 if ($Ref) {
   $sha = (git -C $repo rev-parse --short $Ref).Trim()
   $wt = Join-Path $env:TEMP "bci-wt-$sha"
   if (Test-Path $wt) { git -C $repo worktree remove --force $wt }
   git -C $repo worktree add --detach $wt $sha | Out-Null
   try {
-    Push-Location (Join-Path $wt 'backend')
-    try { mvn -q -DskipTests package; if ($LASTEXITCODE) { throw "build failed for $Ref" } } finally { Pop-Location }
+    Invoke-Package (Join-Path $wt 'backend')
     $jar = Join-Path $OutDir "$sha.jar"
     Copy-Item (Get-ChildItem (Join-Path $wt 'backend\target\*.jar') | Select-Object -First 1).FullName $jar -Force
   } finally {
@@ -40,8 +49,7 @@ if ($Ref) {
   if (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue) {
     throw 'Port 8080 is in use (dev backend running?). Stop it first: packaging rewrites backend\target.'
   }
-  Push-Location (Join-Path $repo 'backend')
-  try { mvn -q -DskipTests package; if ($LASTEXITCODE) { throw 'build failed' } } finally { Pop-Location }
+  Invoke-Package (Join-Path $repo 'backend')
   $jar = Join-Path $OutDir 'working-tree.jar'
   Copy-Item (Get-ChildItem (Join-Path $repo 'backend\target\*.jar') | Select-Object -First 1).FullName $jar -Force
 }

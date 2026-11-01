@@ -1,0 +1,4 @@
+# The Maven Wrapper scripts must keep their line endings on every checkout:
+# a CRLF mvnw breaks under sh/Git Bash, and cmd.exe expects CRLF in mvnw.cmd.
+backend/mvnw text eol=lf
+backend/mvnw.cmd text eol=crlf

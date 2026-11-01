@@ -13,6 +13,8 @@ start-dev.cmd
 
 Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`. Both accept connections from this machine only (there is no login).
 
+**Requirements:** JDK 17+ and Node.js 22.13+ / 24 / 26+ (`frontend/.nvmrc` pins 24). Maven is not needed: `backend/mvnw.cmd` (the Maven Wrapper) downloads the pinned version. If `JAVA_HOME` points to an older JDK, put the path of a JDK 17+ in a `.java-home` file in the repository root; the start and build scripts use it.
+
 ## Data Backup & Restore
 
 Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while a process has the database open. A `booksdb.lock.db` left behind by an older version of the app is recognised as stale and ignored with a warning (current versions no longer write it), so `-Force` is no longer needed (it is accepted but ignored).
@@ -29,7 +31,7 @@ Scenario tests for both scripts: `powershell -NoProfile -File tools\tests\data-s
 ## Tests & CI
 
 ```powershell
-cd backend;  mvn test          # integration tests on an isolated in-memory H2 (never touches backend/data)
+cd backend;  .\mvnw.cmd test   # integration tests on an isolated in-memory H2 (never touches backend/data)
 cd frontend; npm test; npm run lint; npm run build   # Vitest unit + component tests (jsdom); lint fails on any warning
 ```
 

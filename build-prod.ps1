@@ -17,6 +17,11 @@ $frontendDir = Join-Path $scriptRoot 'frontend'
 if (-not (Test-Path $backendDir)) { throw "Backend directory not found: $backendDir" }
 if (-not (Test-Path $frontendDir)) { throw "Frontend directory not found: $frontendDir" }
 
+# Java 17+ for the Maven build (optional override in .java-home; see tools\java-env.ps1).
+. (Join-Path $scriptRoot 'tools\java-env.ps1')
+Set-ProjectJavaHome $scriptRoot
+Assert-ProjectJava $scriptRoot | Out-Null
+
 if (-not $SkipFrontend) {
   Write-Host "Building frontend..."
   Push-Location $frontendDir
@@ -37,7 +42,7 @@ if (-not $SkipFrontend) {
 Write-Host "Packaging backend fat jar..."
 Push-Location $backendDir
 try {
-  & mvn -q -DskipTests clean package
+  & .\mvnw.cmd -q -DskipTests clean package
   if ($LASTEXITCODE -ne 0) { throw "Backend package failed" }
 } finally {
   Pop-Location

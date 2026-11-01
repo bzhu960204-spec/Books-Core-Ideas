@@ -54,6 +54,12 @@ $frontendDir = Join-Path $scriptRoot 'frontend'
 if (-not (Test-Path $backendDir))  { throw "Backend directory not found: $backendDir" }
 if (-not (Test-Path $frontendDir)) { throw "Frontend directory not found: $frontendDir" }
 
+# Java 17+ for mvnw spring-boot:run (optional override in .java-home; see tools\java-env.ps1).
+# The backend job below inherits JAVA_HOME and PATH from this process.
+. (Join-Path $scriptRoot 'tools\java-env.ps1')
+Set-ProjectJavaHome $scriptRoot
+Assert-ProjectJava $scriptRoot | Out-Null
+
 if ($StopExisting) {
   Stop-ListeningProcessByPort -Port $BackendPort
   Stop-ListeningProcessByPort -Port $FrontendPort
@@ -83,7 +89,7 @@ $backendJob = Start-Job -Name 'bci-backend' -ScriptBlock {
   # dev profile = H2 Console (application-dev.properties). No CORS: the frontend reaches
   # the backend through the Vite proxy, same-origin.
   $env:SPRING_PROFILES_ACTIVE = 'dev'
-  & mvn spring-boot:run 2>&1 | ForEach-Object { $_.ToString() }
+  & .\mvnw.cmd spring-boot:run 2>&1 | ForEach-Object { $_.ToString() }
 } -ArgumentList $backendDir, $BackendPort
 
 # --- Wait for backend ---

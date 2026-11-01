@@ -13,7 +13,7 @@
   `--spring.datasource.url=jdbc:h2:file:<临时目录>/booksdb --app.upload.dir=<临时目录>/images`
   - 端口用 18083/18084（Vite 用 15173），不和日常 dev 的 8080/5173 冲突。
   - 应用只监听 `127.0.0.1`（SEC-03）。脚本和工具访问它时写 `http://127.0.0.1:<端口>`，不要写 `localhost`：在 Windows 上，`localhost` 会先尝试 `::1`，每个请求要多等约 2 秒。浏览器不受影响。
-- **dev 带 devtools**：`backend/target/classes` 一变化就会自动重启，并**对真实库执行 Flyway 迁移**。所以在本仓库执行 `mvn`（compile/test/package）之前，先确认 8080 上没有服务在运行。
+- **dev 带 devtools**：`backend/target/classes` 一变化就会自动重启，并**对真实库执行 Flyway 迁移**。所以在本仓库执行 Maven（`mvnw.cmd` compile/test/package）之前，先确认 8080 上没有服务在运行。
   - [tools/rehearsal/build-jar.ps1](../tools/rehearsal/build-jar.ps1) `-Ref <提交>` 在临时 git worktree 中构建，不碰 `backend/target`。
 - **涉及数据库结构的改动**，按顺序：
   1. 停掉应用（`stop-dev.ps1`）；
@@ -42,7 +42,7 @@
 - **懒加载的组件和页面**（FE-04）：首次出现时是异步的，测试中用 `findBy…`，不要用 `getBy…`；否则测试会依赖"前面的测试已加载过这个模块"。整页的首次加载给 5 秒左右的超时，但它不能超过测试本身的超时（默认也是 5 秒）：需要更长时（如 `App.test.jsx` 中 10 秒），用 `vi.setConfig({ testTimeout })` 一并放宽。可以用 `npx.cmd vitest run --sequence.shuffle` 检查测试之间是否有顺序依赖。
 - **失败场景**（FE-05）：`installFakeBackend({ fail: (method, path) => 500 | 'network' | null })` 让指定请求返回 ProblemDetail 错误或网络失败。要断言 toast，就在被测组件旁一起渲染 `<Toaster />`（toast 用 `role="alert"`），并在 `afterEach` 中调用 `clearToasts()`：toast 存储是模块级状态。
 - 命令：
-  - 后端：`cd backend; mvn test`
+  - 后端：`cd backend; .\mvnw.cmd test`（Maven Wrapper，ENG-04：不需要另装 Maven，版本固定为 3.9.16）
   - 前端：`cd frontend; npm.cmd test; npm.cmd run lint; npm.cmd run build`（lint 有任何警告都会失败，CI 中会阻断）
   - 备份/恢复脚本：`powershell -NoProfile -File tools\tests\data-scripts.test.ps1`
 
@@ -105,6 +105,11 @@ cd $env:TEMP\bci-wt-<sha>\frontend; $env:VITE_API_PROXY_TARGET='http://127.0.0.1
 
 - 不支持 `&&`、`||`；用 `;` 加 `if ($?) { … }`。
 - `npm` / `npx` 要写成 `npm.cmd` / `npx.cmd`。
+- **构建环境**（ENG-04）：
+  - Java 17+：Maven 的 enforcer 会检查；start-dev / start-prod / build-prod 启动前也会检查（[tools/java-env.ps1](../tools/java-env.ps1)）。`JAVA_HOME` 指向旧版本时，在仓库根放一个 `.java-home` 文件（内容为 JDK 路径，git 已忽略），脚本只在自己的进程中使用它。
+  - Node：`frontend/package.json` 的 `engines` 写明支持的版本（`^22.13.0 || ^24.0.0 || >=26.0.0`），`frontend/.nvmrc` 是本机和 CI 使用的版本（24）。`frontend/.npmrc` 设置了 `engine-strict`，版本不符时 `npm install` / `npm ci` 直接拒绝。
+  - Maven 的 JVM 警告会写到 stderr，PS 5.1 下退出码可能看起来不对；以 `target/surefire-reports/TEST-*.xml` 为准。
+- 脚本中把带空格的命令交给 `cmd /c` 时引号容易出错；启动 `.ps1` 用 `powershell -NoProfile -ExecutionPolicy Bypass -File <脚本> <参数>`，与 `start-*.cmd` 相同。
 - 写文件使用**无 BOM 的 UTF-8**（`[IO.File]::WriteAllText($p, $s, (New-Object Text.UTF8Encoding $false))`）。`.ps1` 文件尽量只用 ASCII 字符：PS 5.1 会把无 BOM 的文件按 ANSI 读取。
 - PS 5.1 调用原生程序时会丢弃空字符串参数 `''`。所以 H2 的 `Shell -password ''` 会失效；改用 `RunScript` / `Script` 工具，这两个工具的密码默认为空。
 - 直接查询 H2 文件：`java -cp ~/.m2/repository/com/h2database/h2/2.2.224/h2-2.2.224.jar org.h2.tools.RunScript -url jdbc:h2:file:<目录>/booksdb -user sa -script q.sql -showResults`（只对已停止的库或副本操作）。

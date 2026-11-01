@@ -56,7 +56,7 @@
 
 ## 4. 测试（防回归）
 
-`backend/src/test/`，运行：`cd backend; mvn test`
+`backend/src/test/`，运行：`cd backend; .\mvnw.cmd test`
 
 - `application-test.properties`：每个 Spring 上下文使用独立的随机内存库；与生产一样 `ddl-auto=validate`。
 - `FreshDatabaseMigrationTest`：空库上全部迁移成功、无待执行迁移，并做一次建书/读书的 API 冒烟。
@@ -86,5 +86,5 @@
 - **直接查询 H2 文件**：用 `~/.m2/repository/com/h2database/h2/2.2.224/h2-2.2.224.jar`（库为 H2 2.2 格式），
   例如 `java -cp <h2.jar> org.h2.tools.RunScript -url jdbc:h2:file:<dir>/booksdb -user sa -script q.sql -showResults`。
   务必在应用停止时操作，或操作备份的副本。
-- **Java 版本**：项目需要 Java 17；若 `JAVA_HOME` 指向旧版本，`mvn` 会报 `bad major version`。
-  `start-prod.ps1` 支持在仓库根放 `.java-home` 文件指定 JDK 路径。
+- **Java 版本**：项目需要 Java 17；若 `JAVA_HOME` 指向旧版本，Maven 的 enforcer 会直接报 "Java 17 or newer is required"。
+  start-dev / start-prod / build-prod 支持在仓库根放 `.java-home` 文件指定 JDK 路径（ENG-04）。

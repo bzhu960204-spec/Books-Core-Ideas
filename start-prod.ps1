@@ -42,16 +42,9 @@ $distDir = Join-Path $frontendDir 'dist'
 
 if (-not (Test-Path $backendDir)) { throw "Backend directory not found: $backendDir" }
 
-# ── Optional Java override ────────────────────────────────────────────────────
-$javaHomeFile = Join-Path $scriptRoot '.java-home'
-if (Test-Path $javaHomeFile) {
-  $jh = (Get-Content $javaHomeFile -Raw).Trim()
-  if ($jh) {
-    $env:JAVA_HOME = $jh
-    $env:Path = "$jh\bin;$env:Path"
-    Write-Host "[java] JAVA_HOME -> $jh"
-  }
-}
+# -- Java 17+ (optional override in .java-home; see tools\java-env.ps1) --------
+. (Join-Path $scriptRoot 'tools\java-env.ps1')
+Set-ProjectJavaHome $scriptRoot
 
 # ── Load .env (optional; same convention as start-dev if present) ─────────────
 $envFile = Join-Path $scriptRoot ".env"
@@ -65,6 +58,9 @@ if (Test-Path $envFile) {
   }
   Write-Host "[env] Loaded .env file"
 }
+
+# Checked after .env, which could set JAVA_HOME too; both the build and the jar need it.
+$javaExe = Assert-ProjectJava $scriptRoot
 
 # ── Locate the fat jar; build if missing or -Rebuild ─────────────────────────
 function Get-Jar {
@@ -117,9 +113,6 @@ if (-not $NoBrowser) {
     }
   } -ArgumentList $Port | Out-Null
 }
-
-$javaExe = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME 'bin\java.exe' } else { 'java' }
-if ($env:JAVA_HOME -and -not (Test-Path $javaExe)) { $javaExe = 'java' }
 
 Write-Host ""
 Write-Host "==============================================="
