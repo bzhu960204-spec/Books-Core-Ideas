@@ -36,7 +36,7 @@ MigrationImporter  ← 单本书事务性落库（@Transactional）
 
 - **MigrationService**：无状态编排层，负责 ZIP 打包/解包、Jackson 序列化、格式版本检查、冲突检测、图片文件系统读写。
 - **BookArchiveBuilder**：把一本书及其拥有的全部数据读成 `BookArchiveDto`，是**唯一**遍历书籍树的地方。ZIP 迁移直接写出它；单本 JSON 导出（`GET /api/books/{id}/export`）把它映射成 JSON 导入格式（BE-06：原先两套导出各自遍历，字段也各自维护）。
-- **MigrationImporter**：独立组件，`persistBook` 标注 `@Transactional`，**每本书一个事务**——一本失败只回滚该本，不影响其余。图片字节不在事务内写盘，而是作为 `PendingImageWrite` 返回，待事务提交后再落盘，避免"数据库回滚但文件残留"。
+- **MigrationImporter**：独立组件，`persistBook` 标注 `@Transactional`，**每本书一个事务**——一本失败只回滚该本，不影响其余。图片文件在这个事务中写盘，并登记"回滚就删除"（`ChapterImageStorage.deleteIfRolledBack`），所以失败的书既不入库，也不留文件（BE-07）。
 
 ### 关键源码
 
@@ -157,9 +157,11 @@ books-export-2026-10-01.zip
 
 ## 6. 导入流程
 
+控制器先把上传存为系统临时目录中的 `bci-migration-*.zip`，处理完（包括出错时）删除。服务层用 `ZipFile` 打开它，按中央目录建立条目索引，**按需读取**条目，不把整个归档读进内存（BE-07）。
+
 ### 预览 `previewArchive`（只读）
 
-1. `readZip` 将归档解包进内存 `Map<path, bytes>`（带防护，见第 7 节）。
+1. 打开归档（带防护，见第 7 节）；只读取 `manifest.json` 和各本书的 `book.json`，不打开图片。
 2. `readManifest` 校验 `manifest.json` 存在、`books` 非空，且 `formatVersion` 不高于本应用支持的版本。
 3. 加载现有书库的 `(title, author)` 归一化键集合。
 4. 逐本解析 `book.json`，判定是否冲突（已存在或归档内重复），统计 `conflicts`，并标记每本是否含 AI 讲解，统计书评、书签、标记、书单的数量。
@@ -167,12 +169,12 @@ books-export-2026-10-01.zip
 
 ### 导入 `importArchive`
 
-1. 同样 `readZip` + `readManifest`（含格式版本检查）。
+1. 同样打开归档并 `readManifest`（含格式版本检查）。
 2. 逐本处理：
    - 解析 `book.json` 失败 → 计入 `failed`。
    - **冲突检测**：`bookKey = norm(title) + "\0" + norm(author)`（`norm` = trim + lowercase）。命中现有键 → `SKIPPED_CONFLICT`。
-   - 否则 `collectImages` 收集该书 `images/` 下文件，调用 `importer.persistBook(dto, images)` 在**独立事务**内落库。
-   - 事务成功后 `writeImages` 将 `PendingImageWrite` 写入 `uploadDir`（再次校验 `startsWith(uploadDir)` 防穿越），并把键加入已存在集合（防止同批次重复导入）。
+   - 否则调用 `importer.persistBook(dto, archive.imagesOf(path))` 在**独立事务**内落库；图片按 `<book.json 所在目录>/images/<filename>` 从归档中按需读取。
+   - 成功后把键加入已存在集合（防止同批次重复导入）；失败时记录警告日志并报告 `FAILED`。
 3. 返回 `ImportResultDto { booksImported, booksSkipped, booksFailed, details[] }`，`details` 中每条为 `ImportBookResultDto`，`status` ∈ `IMPORTED` / `SKIPPED_CONFLICT` / `FAILED`。
 
 ### 落库细节（`MigrationImporter.persistBook`）
@@ -182,14 +184,14 @@ books-export-2026-10-01.zip
 - 书评、讲解、书签、标记带上归档中的原始时间戳。实体的 `@PrePersist` 只在时间戳为空时才填"现在"；之后的修改仍由 `@PreUpdate` 更新。
 - 书单：对每条 `collectionPaths` 调用 `BookCollectionService.findOrCreatePath`，从根开始逐级查找同名子书单（名称去掉首尾空格），没有就新建，再把书加进去。这样导入的路径会**合并**进现有的树，不会重复建出同名书单。这一步在本书的同一事务内完成，失败时一起回滚。
 - 图片：为每个 `ChapterImage` **生成新的 `UUID + 扩展名`** 作为磁盘文件名，避免跨实例文件名冲突。扩展名和 `contentType` 由图片字节决定（SEC-04，与上传共用 `ImageType`），不使用归档中的文件名和 `contentType`。不是 PNG / JPEG / GIF / WebP 的文件，以及归档中缺少文件的图片，都不导入，并在这本书的结果 `message` 中逐一列出，例如 "Skipped 2 images: logo.svg (not a PNG, JPEG, GIF or WebP image); gone.png (missing from the archive)"。前端把它显示在书名下方。
-- 图片字节暂存于 `PendingImageWrite` 列表返回，事务提交后才写盘（写盘失败的处理见 [BE-07](improvement-review/02-backend-architecture.md#be-07)）。
+- 图片文件在本书的事务中**流式**写入 `uploadDir`（不经过内存中的字节数组），写入前登记"回滚就删除"，写到一半的文件也会删掉。任何一张图片读写失败，整本书回滚并报告 `FAILED`，例如 "Import failed: Could not import image b.png: disk full"，可以在处理好问题后重新导入（BE-07）。
 
 ## 7. 安全与健壮性
 
-- **Zip Bomb 防护**：解包时限制累计解压大小 `MAX_TOTAL_UNCOMPRESSED = 500 MB`、条目数 `MAX_ENTRIES = 50000`，超限抛 `IllegalArgumentException`。
+- **Zip Bomb 防护**：打开归档时检查条目数 `MAX_ENTRIES = 50000` 和各条目声明的解压大小之和 `MAX_TOTAL_UNCOMPRESSED = 500 MB`，超限返回 400，不导入任何书；读取时每个条目读出的字节不能超过它声明的大小，否则报"归档已损坏"（所在的书导入失败）。因此实际读出的总量同样不超过 500 MB。
 - **路径穿越防护**：导出读图与导入写图均 `normalize()` 后校验 `startsWith(uploadDir)`；条目名统一 `\` → `/`。
 - **图片类型**（SEC-04）：归档可能来自他人，所以按字节判断类型，只接受四种位图格式，存储名由 UUID 加检测出的扩展名组成，不包含归档中的任何字符。
-- **事务隔离**：每本书独立事务，单本失败不污染整体；图片先入库后落盘，保证一致性。
+- **事务隔离**：每本书独立事务，单本失败不污染整体；图片在事务中写盘、回滚即删除，保证数据库与文件一致。
 - **冲突幂等**：基于归一化 `(title, author)` 去重，重复导入不会产生副本。
 - **上传大小限制**：`application.properties` 中 `spring.servlet.multipart.max-file-size=200MB`、`max-request-size=220MB`，以容纳多书归档。
 

@@ -48,24 +48,13 @@ public class ChapterImageStorage {
     }
 
     /**
-     * Copies a new upload into the directory; fails if the file already exists.
+     * Copies a new file into the directory; fails if the file already exists.
      * @return false if the name would escape the upload directory
      */
     public boolean store(String filename, InputStream content) throws IOException {
         Optional<Path> target = resolve(filename);
         if (target.isEmpty()) return false;
         Files.copy(content, target.get());
-        return true;
-    }
-
-    /**
-     * Writes (or overwrites) a file, e.g. one restored from a migration archive.
-     * @return false if the name would escape the upload directory
-     */
-    public boolean write(String filename, byte[] bytes) throws IOException {
-        Optional<Path> target = resolve(filename);
-        if (target.isEmpty()) return false;
-        Files.write(target.get(), bytes);
         return true;
     }
 
@@ -88,7 +77,7 @@ public class ChapterImageStorage {
 
     /**
      * Deletes a newly written file if the current transaction rolls back, so a failed
-     * upload leaves no file without a database row. Without a transaction, does nothing.
+     * upload or import leaves no file without a database row. Without a transaction, does nothing.
      */
     public void deleteIfRolledBack(String filename) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) return;

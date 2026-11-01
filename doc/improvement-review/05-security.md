@@ -132,6 +132,7 @@
 >    - 前端 [BookMigrationModal](../../frontend/src/components/BookMigrationModal.jsx) 在导入结果中，把这条信息显示在书名下方。
 > 3. **`originalName` 超长时截断**：放到 `ChapterImage.fitOriginalName` 中，上传和导入共用。原来整本书会导入失败。
 > 4. **交给 BE-07**：图片文件在事务**提交后**才写盘。写盘失败时，这本书会被报告为 FAILED，但数据库里已经有了。这正是 BE-07 要改的代码（不再整包读入内存，改为按需读取、流式写盘），所以一起处理。
+>    - **已随 [BE-07](02-backend-architecture.md#be-07) 完成**：图片在事务中写盘，回滚即删除；写盘失败时整本书回滚并报告 FAILED。
 >
 > **测试** [MigrationImageSafetyTest](../../backend/src/test/java/com/bookscoreideas/migration/MigrationImageSafetyTest.java)：手工构造一个归档，包含以下 5 张图片：
 > - 声明为 `image/svg+xml` 的真实 PNG；

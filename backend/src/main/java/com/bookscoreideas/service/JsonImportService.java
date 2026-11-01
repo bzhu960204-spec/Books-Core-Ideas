@@ -75,7 +75,7 @@ public class JsonImportService {
     public List<BookDto> importBooks(BookImportRequest request) {
         List<Long> ids = new ArrayList<>();
         for (BookImport book : request.books()) {
-            ids.add(migrationImporter.persistBook(archive(book), Map.of()).bookId());
+            ids.add(migrationImporter.persistBook(archive(book), BookTreeWriter.ImageSource.NONE).bookId());
         }
         Map<Long, Book> created = bookRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(Book::getId, Function.identity()));
@@ -181,7 +181,8 @@ public class JsonImportService {
     }
 
     private void writeChapter(Book book, Part part, ChapterImport chapter, Counter count) {
-        treeWriter.writeChapter(book, part, chapter(chapter), Map.of(), new ArrayList<>(), new ArrayList<>());
+        treeWriter.writeChapter(book, part, chapter(chapter), BookTreeWriter.ImageSource.NONE,
+                new ArrayList<>(), new ArrayList<>());
         count.chapters++;
         count.ideas += orEmpty(chapter.keyIdeas()).size();
         count.excerpts += orEmpty(chapter.excerpts()).size();

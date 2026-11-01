@@ -27,10 +27,13 @@ import com.bookscoreideas.repository.PartRepository;
 import com.bookscoreideas.repository.ReadingBookmarkRepository;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,11 +54,13 @@ public class BookTreeWriter {
     private final ChapterImageRepository imageRepository;
     private final ReadingBookmarkRepository bookmarkRepository;
     private final ExplanationMarkRepository markRepository;
+    private final ChapterImageStorage storage;
 
     public BookTreeWriter(PartRepository partRepository, ChapterRepository chapterRepository,
                           KeyIdeaRepository keyIdeaRepository, ExcerptRepository excerptRepository,
                           ChapterExplanationRepository explanationRepository, ChapterImageRepository imageRepository,
-                          ReadingBookmarkRepository bookmarkRepository, ExplanationMarkRepository markRepository) {
+                          ReadingBookmarkRepository bookmarkRepository, ExplanationMarkRepository markRepository,
+                          ChapterImageStorage storage) {
         this.partRepository = partRepository;
         this.chapterRepository = chapterRepository;
         this.keyIdeaRepository = keyIdeaRepository;
@@ -64,6 +69,7 @@ public class BookTreeWriter {
         this.imageRepository = imageRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.markRepository = markRepository;
+        this.storage = storage;
     }
 
     /** The part itself; its chapters are written with {@link #writeChapter}. */
@@ -76,18 +82,28 @@ public class BookTreeWriter {
         return partRepository.save(part);
     }
 
+    /** The image files of an archive, opened by the name the archive's book.json gives them. */
+    @FunctionalInterface
+    public interface ImageSource {
+        ImageSource NONE = filename -> Optional.empty();
+
+        /** @return empty if the archive has no such file */
+        Optional<InputStream> open(String filename) throws IOException;
+    }
+
     /**
      * A chapter (in {@code part}, or ungrouped when null) with its ideas, excerpts,
-     * explanation, bookmarks, marks and images. Image rows are saved here; their bytes
-     * are added to {@code imageWrites} so the caller writes files only after commit.
+     * explanation, bookmarks, marks and images.
      * The archive may come from someone else (SEC-04): an image is imported only if its
      * bytes are a supported {@link ImageType}, which also decides the stored name and type;
      * every other image goes to {@code skippedImages}.
+     * Image files are streamed to disk here, inside the caller's transaction, and deleted
+     * again if it rolls back (BE-07). A file that cannot be read or written fails the
+     * chapter, and so the caller's transaction, with an {@link UncheckedIOException}.
+     * @param storedImages receives the stored name of every image file written
      */
-    public Chapter writeChapter(Book book, Part part, ChapterArchiveDto dto,
-                                Map<String, byte[]> imageBytesByFilename,
-                                List<MigrationImporter.PendingImageWrite> imageWrites,
-                                List<SkippedFile> skippedImages) {
+    public Chapter writeChapter(Book book, Part part, ChapterArchiveDto dto, ImageSource images,
+                                List<String> storedImages, List<SkippedFile> skippedImages) {
         Chapter chapter = new Chapter();
         chapter.setTitle(dto.title());
         chapter.setOrderIndex(dto.orderIndex());
@@ -145,29 +161,53 @@ public class BookTreeWriter {
             int idx = 1;
             for (ImageArchiveDto imgDto : dto.images()) {
                 String name = imgDto.originalName() != null ? imgDto.originalName() : imgDto.filename();
-                byte[] bytes = imgDto.filename() != null ? imageBytesByFilename.get(imgDto.filename()) : null;
-                if (bytes == null) {
-                    skippedImages.add(new SkippedFile(name, SkippedFile.MISSING));
-                    continue;
+                Optional<StoredFile> stored;
+                try {
+                    stored = storeImage(imgDto.filename(), name, images, skippedImages);
+                } catch (IOException e) {
+                    throw new UncheckedIOException("Could not import image " + name + ": " + e.getMessage(), e);
                 }
-                Optional<ImageType> type = ImageType.detect(bytes);
-                if (type.isEmpty()) {
-                    skippedImages.add(new SkippedFile(name, bytes.length == 0 ? SkippedFile.EMPTY : SkippedFile.NOT_AN_IMAGE));
-                    continue;
-                }
-                String newFilename = UUID.randomUUID() + type.get().extension();
+                if (stored.isEmpty()) continue;
                 ChapterImage image = new ChapterImage();
-                image.setFilename(newFilename);
+                image.setFilename(stored.get().filename());
                 image.setOriginalName(ChapterImage.fitOriginalName(imgDto.originalName()));
-                image.setContentType(type.get().contentType());
+                image.setContentType(stored.get().type().contentType());
                 image.setOrderIndex(imgDto.orderIndex() != null ? imgDto.orderIndex() : idx);
                 image.setChapter(chapter);
                 imageRepository.save(image);
-                imageWrites.add(new MigrationImporter.PendingImageWrite(newFilename, bytes));
+                storedImages.add(stored.get().filename());
                 idx++;
             }
         }
         return chapter;
+    }
+
+    private record StoredFile(String filename, ImageType type) {
+    }
+
+    /** Streams the archive's file to disk if it is a supported image; otherwise adds it to {@code skipped}. */
+    private Optional<StoredFile> storeImage(String archiveName, String name, ImageSource images,
+                                            List<SkippedFile> skipped) throws IOException {
+        Optional<InputStream> source = archiveName != null ? images.open(archiveName) : Optional.empty();
+        if (source.isEmpty()) {
+            skipped.add(new SkippedFile(name, SkippedFile.MISSING));
+            return Optional.empty();
+        }
+        try (InputStream in = new BufferedInputStream(source.get())) {
+            in.mark(ImageType.HEADER_LENGTH);
+            byte[] header = in.readNBytes(ImageType.HEADER_LENGTH);
+            in.reset();
+            Optional<ImageType> type = ImageType.detect(header);
+            if (type.isEmpty()) {
+                skipped.add(new SkippedFile(name, header.length == 0 ? SkippedFile.EMPTY : SkippedFile.NOT_AN_IMAGE));
+                return Optional.empty();
+            }
+            String filename = UUID.randomUUID() + type.get().extension();
+            // Registered before writing, so a half-written file goes too when the failure rolls back.
+            storage.deleteIfRolledBack(filename);
+            if (!storage.store(filename, in)) throw new IOException("invalid file name " + filename);
+            return Optional.of(new StoredFile(filename, type.get()));
+        }
     }
 
     public void writeIdea(Chapter chapter, KeyIdeaArchiveDto dto) {

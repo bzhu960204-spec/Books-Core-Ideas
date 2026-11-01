@@ -15,15 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.bookscoreideas.service.BookTreeWriter.parseDate;
 
 /**
  * Persists a single imported book inside its own transaction so that a failure
- * on one book rolls back only that book, not the whole archive. Image bytes are
- * returned (not written here) so that files only hit disk after a successful
- * commit. Called within an outer transaction (JSON import), it joins it instead.
+ * on one book rolls back only that book, not the whole archive. Image files are
+ * written within that transaction and deleted again if it rolls back (BE-07).
+ * Called within an outer transaction (JSON import), it joins it instead.
  */
 @Component
 public class MigrationImporter {
@@ -41,14 +40,12 @@ public class MigrationImporter {
         this.treeWriter = treeWriter;
     }
 
-    public record PendingImageWrite(String filename, byte[] bytes) {}
-
     /** @param skippedImages images in the archive that were not imported, with the reason (SEC-04) */
-    public record PersistOutcome(Long bookId, int chaptersImported, List<PendingImageWrite> imageWrites,
+    public record PersistOutcome(Long bookId, int chaptersImported, int imagesImported,
                                  List<SkippedFile> skippedImages) {}
 
     @Transactional
-    public PersistOutcome persistBook(BookArchiveDto dto, Map<String, byte[]> imageBytesByFilename) {
+    public PersistOutcome persistBook(BookArchiveDto dto, BookTreeWriter.ImageSource images) {
         Book book = new Book();
         book.setTitle(dto.title());
         book.setAuthor(dto.author());
@@ -66,7 +63,7 @@ public class MigrationImporter {
         book.setStructureType(isParts ? "PARTS" : "CHAPTERS");
         book = bookRepository.save(book);
 
-        List<PendingImageWrite> writes = new ArrayList<>();
+        List<String> storedImages = new ArrayList<>();
         List<SkippedFile> skippedImages = new ArrayList<>();
         int chapterCount = 0;
 
@@ -75,7 +72,7 @@ public class MigrationImporter {
                 Part part = treeWriter.writePart(book, partDto);
                 if (partDto.chapters() != null) {
                     for (ChapterArchiveDto chDto : partDto.chapters()) {
-                        treeWriter.writeChapter(book, part, chDto, imageBytesByFilename, writes, skippedImages);
+                        treeWriter.writeChapter(book, part, chDto, images, storedImages, skippedImages);
                         chapterCount++;
                     }
                 }
@@ -84,7 +81,7 @@ public class MigrationImporter {
         // Chapters outside any part: all of a CHAPTERS book's, or a PARTS book's ungrouped ones.
         if (dto.chapters() != null) {
             for (ChapterArchiveDto chDto : dto.chapters()) {
-                treeWriter.writeChapter(book, null, chDto, imageBytesByFilename, writes, skippedImages);
+                treeWriter.writeChapter(book, null, chDto, images, storedImages, skippedImages);
                 chapterCount++;
             }
         }
@@ -106,6 +103,6 @@ public class MigrationImporter {
             }
         }
 
-        return new PersistOutcome(book.getId(), chapterCount, writes, skippedImages);
+        return new PersistOutcome(book.getId(), chapterCount, storedImages.size(), skippedImages);
     }
 }

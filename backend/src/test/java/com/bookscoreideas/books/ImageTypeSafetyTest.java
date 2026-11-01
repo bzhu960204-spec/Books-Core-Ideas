@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.Map;
@@ -135,7 +136,7 @@ class ImageTypeSafetyTest extends IntegrationTest {
 
     private long storeDirectly(long chapterId, String originalName, String contentType, byte[] bytes) throws Exception {
         String filename = UUID.randomUUID() + ".bin";
-        storage.write(filename, bytes);
+        storage.store(filename, new ByteArrayInputStream(bytes));
         ChapterImage image = new ChapterImage();
         image.setFilename(filename);
         image.setOriginalName(originalName);

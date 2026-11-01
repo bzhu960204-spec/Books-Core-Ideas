@@ -169,6 +169,32 @@
 
 **建议**：先把上传落到临时文件，用 `java.util.zip.ZipFile` 按需读取条目；图片直接流式写盘。
 
+> **✅ 已完成（2026-11-01）**：导入和预览不再把归档读进内存；图片在每本书的事务中写盘，回滚就删除。接口和报告格式不变。
+>
+> **设计决定**（简单项，按最佳判断）
+> 1. **临时文件由控制器负责**：[MigrationController](../../backend/src/main/java/com/bookscoreideas/controller/MigrationController.java) 把上传 `transferTo` 到系统临时目录的 `bci-migration-*.zip`，处理完在 `finally` 中删除（包括 400 的情况）。Tomcat 本来就把 multipart 写在磁盘上，`transferTo(File)` 通常只是移动文件。服务层改为接收 `Path`，不依赖 Web 类型。
+> 2. **`ZipFile` 按需读取**：[MigrationService](../../backend/src/main/java/com/bookscoreideas/service/MigrationService.java) 的 `Archive` 按中央目录建立索引，只把 `manifest.json` 和当前这本书的 `book.json` 读进内存；预览完全不打开图片。条目名同样把 `\` 换成 `/`，图片仍按 `<book.json 所在目录>/images/<filename>` 精确查找，不做路径解析。
+> 3. **zip bomb 防护保持等效**：原来是"累计读出的字节"超过 500 MB 就拒绝。现在条目按需读取，所以改为两步：
+>    - 打开时检查条目数（50,000）和各条目**声明的**解压大小之和（500 MB），超限照旧返回 400 "Archive is too large to import."，一本书都不会导入。原来也是整个归档被拒绝。
+>    - 读取时，任何条目读出的字节都不能超过它声明的大小，否则报错 "…is larger than its declared size; the archive is corrupt."。所以实际读出的总量不会超过 500 MB，谎报大小的归档也拦得住。这样的条目会让所在的书导入失败（`FAILED`），其他书照常导入。
+> 4. **在事务中写盘，回滚就删除**（SEC-04 移交）：[BookTreeWriter](../../backend/src/main/java/com/bookscoreideas/service/BookTreeWriter.java) 读文件头判断类型，然后把条目流式写入图片目录，再保存图片行。写入**之前**就登记 `deleteIfRolledBack`，所以写到一半的文件也会在回滚时删掉。`PendingImageWrite` 和 `ChapterImageStorage.write(byte[])` 已删除。
+> 5. **写盘失败时整本书失败**，而不是像上传那样只跳过这张图片：本书回滚，已写的文件删除，报告 `FAILED`，`message` 为 "Import failed: Could not import image b.png: disk full"，并记录警告日志。理由：只跳过的话，会留下一本缺图片的书，而且这本书会因"同名已存在"挡住重新导入；整本失败则可以在处理好磁盘问题后直接重新导入。上传是用户当场选的文件，跳过并报告更合适，所以两者不同。
+> 6. 不是 ZIP 的文件仍然返回 "Not a valid migration archive: manifest.json is missing."，与原来相同（`ZipFile` 打开失败时给出同样的答复）。
+>
+> **测试** [MigrationImportFilesTest](../../backend/src/test/java/com/bookscoreideas/migration/MigrationImportFilesTest.java)（5 个）：
+> - 回归：一个归档两本书，第一本的第二张图片写到一半时抛出 "disk full"。断言第一本 `FAILED`、消息写明图片和原因、**数据库中没有这本书**、没有留下文件，第二本正常导入。修复前失败：书报告为 `FAILED`，却已经在书库里（当时用同样的方式模拟 `write`）。
+> - 书在图片写完后才失败（书单路径为空，书单在章节之后写入）：书不入库，已写的两张图片都被删除。修复前也通过（那时还没写文件），用来守住新的写盘时机。
+> - 条目实际解压出的字节多于声明的大小（改写中央目录中的大小）：这本书 `FAILED`，没有留下文件。修复前会正常导入。
+> - 声明的总大小超过 500 MB：预览和导入都返回 400，一本书都不导入。修复前会导入。
+> - 预览、导入和 400 之后，临时目录里都不留下 `bci-migration-*` 文件。
+> - 原有的迁移测试（`MigrationArchiveTest`、`MigrationImageSafetyTest`、`ImageApiTest`、`ApiConventionsTest` 中的错误格式、`JsonImportApiTest`）改动前后都通过。后端共 200 个测试通过。
+>
+> **验证**
+> - 真实数据副本：改动前后 2,748 个 GET 响应零差异，各表不变。
+> - 往返（`roundtrip.py`，真实数据副本 → 空库）：改动前后结果相同。ZIP 导入 24 本全部成功，JSON 导入 24 本往返完全相同，只有 book 195 的已知差异（5 张图片的文件不在本机）。
+> - 内存：生成一个 180 MB 的归档（60 张 3 MB 的不可压缩"PNG"），两个版本都用 `-Xmx160m` 在空库上启动，用 curl 先预览再导入。改动前两次都是 500（日志中 `OutOfMemoryError`），一个文件都没写；改动后预览 1 秒、导入 5 秒，都是 200，60 张图片全部写入，没有 OOM。之后临时目录中没有残留文件。
+> - 前端没有改动，接口不变，所以没有做浏览器验证；真实 Tomcat 的 multipart（`transferTo`）已由上面的 curl 覆盖。
+
 ---
 
 <a id="be-08"></a>
