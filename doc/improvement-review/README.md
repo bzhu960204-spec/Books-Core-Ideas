@@ -93,7 +93,7 @@
 | 4.9 | BE-10 | ✅ 升级 Spring Boot（先 3.5.x 清理弃用，再 4.x） |
 | 4.10 | DB-06 | ✅ DATE→TIMESTAMP、`readingStatus` 的 `''`→NULL 与枚举（`structureType` 一并改为枚举；分类不拆表） |
 | 4.11 | DB-04 | ⏸ 内联 base64 图片：真实数据中为 0，按方案 C 只加正文大小上限（20 MB），图片外置推迟 |
-| 4.12 | FE-07 | api.js 样板 |
+| 4.12 | FE-07 | ✅ api.js 样板（类型检查暂不引入） |
 | 4.13 | ENG-05 | 文档收尾（依赖前面各项的最终状态） |
 
 ## 进度追踪
@@ -143,14 +143,14 @@
 | FE-04 | P2 | 代码分割 | 3 | ✅ | 6 个页面 + 编辑器 + 导出/迁移弹窗懒加载；首屏 JS 1,249→311 KB（gzip 380→97），CSS 不变；旧 chunk 失效时自动刷新一次；TipTap 改为挂载后创建（懒加载后会被提前销毁）；开发模式新旧对比 122 屏相同 |
 | FE-05 | P2 | 错误处理与反馈 | 3 | ✅ | 自写 Toast（失败说明原因，表单/确认框保留输入可重试）+ 页面级/根级 ErrorBoundary（chunk 失败提示刷新，自动刷新时不闪错误界面）+ 404（未知地址、非数字 id、不存在的书）+ 统一 ConfirmDialog（去掉 alert/confirm，讲解和图片删除加确认）；正常界面 5 主题 × 18 场景新旧完全相同 |
 | FE-06 | P1 | jszip 依赖归位 | 0 | ✅ | |
-| FE-07 | P3 | api.js 样板 / 类型 | 4 | ⬜ | |
+| FE-07 | P3 | api.js 样板 / 类型 | 4 | ✅ | 统一经 `request()`，加 `get/post/put/patch/del/postForm/query` 小工具（286→186 行，导出接口不变）；导出 ZIP 不再单独处理错误（错误也带 status）；删除 2 个无人调用的函数；类型检查经评估暂不引入（理由见条目）；特征测试 60 个（改动前后都通过）+ 回归 1 个；新旧版本 90 个场景 / 305 屏相同，浏览器中 52 步写操作全部成功 |
 | FE-08 | P2 | JSON 导入移到后端 | 3 | ✅ | 3 个单事务导入接口（与 ZIP 迁移共用 BookTreeWriter）+ 前端 6 种导入各一个请求（utils/jsonImport.js）；真实数据 24 本 JSON 往返完全相同 |
 | SEC-01 | P1 | 富文本 XSS 清洗 | 3 | ✅ | DOMPurify：粘贴入口 + 显示出口 + 导出；真实数据零差异 |
 | SEC-02 | P2 | 图片类型白名单 | 4 | ✅ | PNG/JPEG/GIF/WebP 按文件头判断（上传、下载都是）；其他文件跳过，旧行作为附件下载；nosniff + sandbox CSP；`ContentDisposition`（ASCII 输出不变）；ImageTypeSafetyTest 14 个（修复前 9 个失败）；副本零差异；浏览器验证 |
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；补充：去掉 H2 `AUTO_SERVER`（数据库曾对局域网开端口；顺带不再留陈旧锁）；NetworkExposureTest 3 个（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ✅ | 归档图片按文件内容判断（复用 SEC-02），扩展名/类型由检测结果决定；跳过的图片（非图片、缺文件）写进导入报告并在前端显示；超长文件名截断；提交后写盘的问题移交 BE-07；回归测试修复前失败；副本零差异，往返结果与改动前相同；浏览器验证 |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 233 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键与 CHECK 约束、输入校验（含富文本大小上限）、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定、阅读状态与编辑时间）+ 前端 Vitest 189 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 233 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键与 CHECK 约束、输入校验（含富文本大小上限）、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定、阅读状态与编辑时间）+ 前端 Vitest 250 个（含 RTL 组件测试、fetch 层假后端、全部 API 调用的请求特征测试、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ✅ | Maven Wrapper（3.9.16 + SHA-256 校验）；enforcer 要求 Java 17+ / Maven 3.6.3+；`engines.node` + `.nvmrc`（CI 读取）+ `engine-strict`；`tools/java-env.ps1`：三个脚本都支持 `.java-home` 并预先检查 Java 版本；用 JRE 11 / Node 20 实测提示；start-dev / start-prod / build-prod 端到端验证 |

@@ -286,6 +286,38 @@
 
 **建议**：`const json = (method, body) => ({ method, headers: {...}, body: JSON.stringify(body) })` 之类的小工具；中长期可考虑 TypeScript（或至少 JSDoc 类型 + `// @ts-check`），从后端 DTO 生成类型更佳（如 springdoc-openapi → openapi-typescript）。
 
+> **✅ 已完成（2026-11-01，阶段 4.12）：去掉样板代码；类型检查暂不做**
+>
+> **设计决策**：
+> - **类型**（与用户确认）：暂不引入。考虑过的方案：
+>   - 手写 JSDoc 类型 + `// @ts-check` + CI 中的 `tsc --noEmit`：手写类型会与后端逐渐不一致；
+>   - springdoc-openapi + openapi-typescript 生成类型：后端要加依赖，还要有一个检查生成文件是否最新的 CI 步骤。
+>   - 目前接口契约已由后端的契约测试（ApiConventionsTest、InputValidationTest、JsonBindingTest 等）和前端的假后端 UI 测试覆盖，引入类型的收益不足以抵消工具链的成本。如果以后接口变动频繁，优先考虑生成类型。
+> - **样板代码**：
+>   - 所有请求都经过 `request()`，它负责拼 `API_BASE`、把错误响应转成带可读信息和 `status` 的 `Error`；`apiFetch()` 在此基础上解析 JSON，204 或空响应返回 null；
+>   - 在它之上是 `get` / `post` / `put` / `patch` / `del` / `postForm` 和 `query()`（只拼有值的参数）、`fileForm()`。
+>   - 导出的对象、函数名和参数都不变，调用方无需改动。
+> - **`migrationApi.exportBooks`** 改用 `request()`，不再自己处理错误。这是唯一的行为变化：导出失败的错误也带上 HTTP 状态码，与其他请求一致。信息不变，包括没有响应体时的 "Export failed"。
+> - **删除两个已无人调用的函数**：`bookmarkApi.latest`、`reviewApi.list`。FE-03 起它们的数据由详情聚合接口提供；后端接口保留。
+> - `api.js` 从 286 行减到 186 行。
+>
+> **测试**（[api.test.js](../../frontend/src/api.test.js)，前端 189 → 250）：
+> - 特征测试，改动前后都通过：
+>   - 54 个 JSON 请求逐一固定方法、URL（含查询参数的编码与省略规则）、请求头和请求体；
+>   - 读请求传递取消信号；204 和空响应返回 null；文件上传是 multipart、不带 JSON 头；图片 URL；
+>   - 导出：文件名取自 `Content-Disposition`，缺省时为 `books-export.zip`；错误信息与 "Export failed" 的兜底。
+> - 回归测试 1 个：导出失败带 `status`，改动前失败。
+>
+> **验证**：
+> - lint、构建通过。
+> - 新旧版本并排对比（真实数据副本 + 两个 Vite）：5 个主题 × 18 个场景、305 屏，DOM 和截图完全相同。第一次运行中 `botanical/libGrid` 不一致，单独重跑 3 次都相同，是外部封面图片的加载时序。
+> - 在浏览器中用新的 `api.js` 对副本执行全部写操作，52 步全部成功：
+>   - 书、Part、章节、想法、摘录、讲解、书签、标记、书评、书单的增删改；
+>   - 三种 JSON 导入；
+>   - 图片上传、下载、删除；
+>   - ZIP 导出后再预览。
+> - 几个查询在新旧版本中结果相同。
+
 ---
 
 <a id="fe-08"></a>

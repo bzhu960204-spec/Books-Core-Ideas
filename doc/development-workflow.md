@@ -92,7 +92,7 @@ cd $env:TEMP\bci-wt-<sha>\frontend; $env:VITE_API_PROXY_TARGET='http://127.0.0.1
 # 3) 当前工作区：同样代理到 18084，Vite 用 15173
 ```
 
-- 然后在浏览器中运行 [ui-compare.js](../tools/rehearsal/ui-compare.js)（Playwright 片段），它对 5 个主题 × 18 个场景比较 DOM 签名和逐屏截图，返回不一致的场景。
+- 然后在浏览器中运行 [ui-compare.js](../tools/rehearsal/ui-compare.js)（Playwright 片段），它对 5 个主题 × 18 个场景比较 DOM 签名和逐屏截图，返回不一致的场景。浏览器页面必须是**可见的**（例如用 `openBrowserPage` 新开一个）：页面不可见时 `page.screenshot` 会超时。
 - DOM 签名要包含**文本节点的边界**：`innerHTML` 相同时，文本节点合并或拆分仍会让字形产生次像素偏移。
 - 用"滚动窗口、逐屏截图"，不用整页截图：VS Code 内置浏览器的整页截图会以另一个宽度重新布局，结果不可靠。
 - Vite 热更新会给脚本加 `?t=` 时间戳，比较前去掉。书库页的封面是外部图片，偶发的不一致重跑即可判断是否只是加载时序。

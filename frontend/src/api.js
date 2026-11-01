@@ -29,256 +29,158 @@ async function send(url, options) {
   }
 }
 
-async function apiFetch(url, options) {
-  const res = await send(url, options);
+// Every call goes through here: a failed response becomes an Error with a readable
+// message and the HTTP status (`error.status`).
+async function request(path, options, fallback) {
+  const res = await send(`${API_BASE}${path}`, options);
   if (!res.ok) {
-    const error = new Error(await errorMessage(res));
+    const error = new Error(await errorMessage(res, fallback));
     error.status = res.status;
     throw error;
   }
+  return res;
+}
+
+// JSON response, or null for 204 / an empty body.
+async function apiFetch(path, options) {
+  const res = await request(path, options);
   if (res.status === 204 || res.headers.get('content-length') === '0') return null;
   return res.json();
 }
 
+const withJson = (method, body) => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
 // Reads take an optional { signal } so the data layer (queries.js) can cancel them.
+const get = (path, opts) => apiFetch(path, opts);
+// Without a body: a bare POST (e.g. adding a book to a collection).
+const post = (path, body) => apiFetch(path, body === undefined ? { method: 'POST' } : withJson('POST', body));
+const put = (path, body) => apiFetch(path, withJson('PUT', body));
+const patch = (path, body) => apiFetch(path, withJson('PATCH', body));
+const del = (path) => apiFetch(path, { method: 'DELETE' });
+const postForm = (path, form) => apiFetch(path, { method: 'POST', body: form });
+
+// "?a=1&b=2" from the params that are set (empty strings, null, 0 and false are left out).
+function query(params) {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, value]) => value)).toString();
+  return qs ? `?${qs}` : '';
+}
+
+function fileForm(field, files) {
+  const form = new FormData();
+  for (const file of files) form.append(field, file);
+  return form;
+}
+
 export const bookApi = {
-  getAll: (opts) => apiFetch(`${API_BASE}/books`, opts),
+  getAll: (opts) => get('/books', opts),
   // The book page in one request: book, parts, chapters with ideas/excerpts, bookmarks, marks.
-  detail: (id, opts) => apiFetch(`${API_BASE}/books/${id}/detail`, opts),
-  getCategories: (opts) => apiFetch(`${API_BASE}/books/categories`, opts),
-  create: (book) => apiFetch(`${API_BASE}/books`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(book),
-  }),
-  update: (id, book) => apiFetch(`${API_BASE}/books/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(book),
-  }),
-  delete: (id) => apiFetch(`${API_BASE}/books/${id}`, { method: 'DELETE' }),
-  export: (id) => apiFetch(`${API_BASE}/books/${id}/export`),
+  detail: (id, opts) => get(`/books/${id}/detail`, opts),
+  getCategories: (opts) => get('/books/categories', opts),
+  create: (book) => post('/books', book),
+  update: (id, book) => put(`/books/${id}`, book),
+  delete: (id) => del(`/books/${id}`),
+  export: (id) => get(`/books/${id}/export`),
 };
 
 export const chapterApi = {
-  create: (bookId, chapter) => apiFetch(`${API_BASE}/books/${bookId}/chapters`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(chapter),
-  }),
-  update: (bookId, chapterId, chapter) => apiFetch(`${API_BASE}/books/${bookId}/chapters/${chapterId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(chapter),
-  }),
-  delete: (bookId, chapterId) => apiFetch(`${API_BASE}/books/${bookId}/chapters/${chapterId}`, { method: 'DELETE' }),
+  create: (bookId, chapter) => post(`/books/${bookId}/chapters`, chapter),
+  update: (bookId, chapterId, chapter) => put(`/books/${bookId}/chapters/${chapterId}`, chapter),
+  delete: (bookId, chapterId) => del(`/books/${bookId}/chapters/${chapterId}`),
 };
 
 export const partApi = {
-  create: (bookId, part) => apiFetch(`${API_BASE}/books/${bookId}/parts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(part),
-  }),
-  update: (bookId, partId, part) => apiFetch(`${API_BASE}/books/${bookId}/parts/${partId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(part),
-  }),
-  delete: (bookId, partId) => apiFetch(`${API_BASE}/books/${bookId}/parts/${partId}`, { method: 'DELETE' }),
+  create: (bookId, part) => post(`/books/${bookId}/parts`, part),
+  update: (bookId, partId, part) => put(`/books/${bookId}/parts/${partId}`, part),
+  delete: (bookId, partId) => del(`/books/${bookId}/parts/${partId}`),
 };
 
 export const ideaApi = {
-  create: (chapterId, idea) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(idea),
-  }),
-  update: (chapterId, ideaId, idea) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas/${ideaId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(idea),
-  }),
-  delete: (chapterId, ideaId) => apiFetch(`${API_BASE}/chapters/${chapterId}/ideas/${ideaId}`, { method: 'DELETE' }),
+  create: (chapterId, idea) => post(`/chapters/${chapterId}/ideas`, idea),
+  update: (chapterId, ideaId, idea) => put(`/chapters/${chapterId}/ideas/${ideaId}`, idea),
+  delete: (chapterId, ideaId) => del(`/chapters/${chapterId}/ideas/${ideaId}`),
 };
 
 export const excerptApi = {
-  create: (chapterId, excerpt) => apiFetch(`${API_BASE}/chapters/${chapterId}/excerpts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(excerpt),
-  }),
-  update: (chapterId, excerptId, excerpt) => apiFetch(`${API_BASE}/chapters/${chapterId}/excerpts/${excerptId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(excerpt),
-  }),
-  delete: (chapterId, excerptId) => apiFetch(`${API_BASE}/chapters/${chapterId}/excerpts/${excerptId}`, { method: 'DELETE' }),
+  create: (chapterId, excerpt) => post(`/chapters/${chapterId}/excerpts`, excerpt),
+  update: (chapterId, excerptId, excerpt) => put(`/chapters/${chapterId}/excerpts/${excerptId}`, excerpt),
+  delete: (chapterId, excerptId) => del(`/chapters/${chapterId}/excerpts/${excerptId}`),
 };
 
 export const explanationApi = {
-  get: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`),
-  save: (chapterId, explanation) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(explanation),
-  }),
-  delete: (chapterId) => apiFetch(`${API_BASE}/chapters/${chapterId}/explanation`, { method: 'DELETE' }),
+  get: (chapterId) => get(`/chapters/${chapterId}/explanation`),
+  save: (chapterId, explanation) => put(`/chapters/${chapterId}/explanation`, explanation),
+  delete: (chapterId) => del(`/chapters/${chapterId}/explanation`),
 };
 
 // Manual reading bookmarks ("I read up to here") on chapter explanations.
 export const bookmarkApi = {
   create: (chapterId, { scrollRatio = null, note = '' } = {}) =>
-    apiFetch(`${API_BASE}/chapters/${chapterId}/bookmarks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scrollRatio, note }),
-    }),
-  latest: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/bookmarks/latest`),
-  list: (bookId = null, opts) => {
-    const qs = bookId ? `?bookId=${bookId}` : '';
-    return apiFetch(`${API_BASE}/bookmarks${qs}`, opts);
-  },
-  delete: (id) => apiFetch(`${API_BASE}/bookmarks/${id}`, { method: 'DELETE' }),
+    post(`/chapters/${chapterId}/bookmarks`, { scrollRatio, note }),
+  list: (bookId = null, opts) => get(`/bookmarks${query({ bookId })}`, opts),
+  delete: (id) => del(`/bookmarks/${id}`),
 };
 
 // Passages saved from chapter explanations (text + location), listed per book.
 export const markApi = {
-  create: (chapterId, mark) =>
-    apiFetch(`${API_BASE}/chapters/${chapterId}/marks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mark),
-    }),
-  updateNote: (id, note) =>
-    apiFetch(`${API_BASE}/marks/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ note }),
-    }),
-  delete: (id) => apiFetch(`${API_BASE}/marks/${id}`, { method: 'DELETE' }),
+  create: (chapterId, mark) => post(`/chapters/${chapterId}/marks`, mark),
+  updateNote: (id, note) => patch(`/marks/${id}`, { note }),
+  delete: (id) => del(`/marks/${id}`),
 };
 
 export const ideaBankApi = {
-  search: ({ q = '', bookId = null, tag = '' } = {}, opts) => {
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (bookId) params.set('bookId', bookId);
-    if (tag) params.set('tag', tag);
-    const qs = params.toString();
-    return apiFetch(`${API_BASE}/ideas${qs ? '?' + qs : ''}`, opts);
-  },
+  search: ({ q = '', bookId = null, tag = '' } = {}, opts) => get(`/ideas${query({ q, bookId, tag })}`, opts),
 };
 
 export const excerptBankApi = {
-  search: ({ q = '', bookId = null } = {}, opts) => {
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    if (bookId) params.set('bookId', bookId);
-    const qs = params.toString();
-    return apiFetch(`${API_BASE}/excerpts${qs ? '?' + qs : ''}`, opts);
-  },
+  search: ({ q = '', bookId = null } = {}, opts) => get(`/excerpts${query({ q, bookId })}`, opts),
 };
 
 export const chapterImageApi = {
-  getAll: (chapterId, opts) => apiFetch(`${API_BASE}/chapters/${chapterId}/images`, opts),
-  upload: (chapterId, files) => {
-    const formData = new FormData();
-    for (const file of files) {
-      formData.append('files', file);
-    }
-    return apiFetch(`${API_BASE}/chapters/${chapterId}/images`, {
-      method: 'POST',
-      body: formData,
-    });
-  },
-  delete: (chapterId, imageId) => apiFetch(`${API_BASE}/chapters/${chapterId}/images/${imageId}`, { method: 'DELETE' }),
+  getAll: (chapterId, opts) => get(`/chapters/${chapterId}/images`, opts),
+  upload: (chapterId, files) => postForm(`/chapters/${chapterId}/images`, fileForm('files', files)),
+  delete: (chapterId, imageId) => del(`/chapters/${chapterId}/images/${imageId}`),
   getUrl: (chapterId, imageId) => `${API_BASE}/chapters/${chapterId}/images/${imageId}/data`,
 };
 
 // JSON import (FE-08): each call is one server transaction; bodies come from utils/jsonImport.js.
 export const importApi = {
-  books: (body) => apiFetch(`${API_BASE}/books/import`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }),
-  structure: (bookId, body) => apiFetch(`${API_BASE}/books/${bookId}/import`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }),
-  content: (bookId, body) => apiFetch(`${API_BASE}/books/${bookId}/import/content`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }),
+  books: (body) => post('/books/import', body),
+  structure: (bookId, body) => post(`/books/${bookId}/import`, body),
+  content: (bookId, body) => post(`/books/${bookId}/import/content`, body),
 };
 
 export const migrationApi = {
   // Export selected books (or all when bookIds is empty) as a ZIP archive blob.
   exportBooks: async (bookIds) => {
-    const res = await send(`${API_BASE}/migration/export`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookIds: bookIds || [] }),
-    });
-    if (!res.ok) throw new Error(await errorMessage(res, 'Export failed'));
+    const res = await request('/migration/export', withJson('POST', { bookIds: bookIds || [] }), 'Export failed');
     const disposition = res.headers.get('content-disposition') || '';
     const match = /filename="?([^"]+)"?/.exec(disposition);
     return { blob: await res.blob(), filename: match ? match[1] : 'books-export.zip' };
   },
-  preview: (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return apiFetch(`${API_BASE}/migration/import/preview`, { method: 'POST', body: formData });
-  },
-  import: (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return apiFetch(`${API_BASE}/migration/import`, { method: 'POST', body: formData });
-  },
+  preview: (file) => postForm('/migration/import/preview', fileForm('file', [file])),
+  import: (file) => postForm('/migration/import', fileForm('file', [file])),
 };
 
 export const reviewApi = {
-  getAll: (opts) => apiFetch(`${API_BASE}/reviews`, opts),
-  list: (bookId) => apiFetch(`${API_BASE}/books/${bookId}/reviews`),
-  create: (bookId, review) => apiFetch(`${API_BASE}/books/${bookId}/reviews`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(review),
-  }),
-  update: (bookId, reviewId, review) => apiFetch(`${API_BASE}/books/${bookId}/reviews/${reviewId}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(review),
-  }),
-  delete: (bookId, reviewId) => apiFetch(`${API_BASE}/books/${bookId}/reviews/${reviewId}`, {
-    method: 'DELETE',
-  }),
+  getAll: (opts) => get('/reviews', opts),
+  create: (bookId, review) => post(`/books/${bookId}/reviews`, review),
+  update: (bookId, reviewId, review) => put(`/books/${bookId}/reviews/${reviewId}`, review),
+  delete: (bookId, reviewId) => del(`/books/${bookId}/reviews/${reviewId}`),
 };
 
 export const bookCollectionApi = {
-  list: (opts) => apiFetch(`${API_BASE}/book-collections`, opts),
-  create: (name, parentId = null, sortOrder) => apiFetch(`${API_BASE}/book-collections`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, parentId, sortOrder }),
-  }),
-  rename: (id, name) => apiFetch(`${API_BASE}/book-collections/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
-  }),
-  move: (id, parentId) => apiFetch(`${API_BASE}/book-collections/${id}/move`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ parentId }),
-  }),
-  remove: (id) => apiFetch(`${API_BASE}/book-collections/${id}`, { method: 'DELETE' }),
+  list: (opts) => get('/book-collections', opts),
+  create: (name, parentId = null, sortOrder) => post('/book-collections', { name, parentId, sortOrder }),
+  rename: (id, name) => put(`/book-collections/${id}`, { name }),
+  move: (id, parentId) => put(`/book-collections/${id}/move`, { parentId }),
+  remove: (id) => del(`/book-collections/${id}`),
   booksIn: (id, includeDescendants = false, opts) =>
-    apiFetch(`${API_BASE}/book-collections/${id}/books?includeDescendants=${includeDescendants}`, opts),
-  collectionsForBook: (bookId) => apiFetch(`${API_BASE}/book-collections/for-book/${bookId}`),
-  addBook: (id, bookId) => apiFetch(`${API_BASE}/book-collections/${id}/books/${bookId}`, { method: 'POST' }),
-  removeBook: (id, bookId) => apiFetch(`${API_BASE}/book-collections/${id}/books/${bookId}`, { method: 'DELETE' }),
+    get(`/book-collections/${id}/books?includeDescendants=${includeDescendants}`, opts),
+  collectionsForBook: (bookId) => get(`/book-collections/for-book/${bookId}`),
+  addBook: (id, bookId) => post(`/book-collections/${id}/books/${bookId}`),
+  removeBook: (id, bookId) => del(`/book-collections/${id}/books/${bookId}`),
 };
