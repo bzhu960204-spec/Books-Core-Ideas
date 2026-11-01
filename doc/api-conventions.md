@@ -49,3 +49,8 @@
 
 - 一律是 record DTO，不直接返回实体（BE-01 / BE-02）。
 - 新增 GET 接口时，同步更新真实数据对比工具 [capture_api.py](../tools/rehearsal/capture_api.py)。
+
+## `/api` 以外
+
+- `GET /actuator/health`（ENG-06）：只返回 `{"status":"UP"}`（数据库可连）或 `DOWN`，不含细节；其他 actuator 端点都不暴露（404）。start 脚本用它判断应用是否就绪。
+- prod 单端口模式下，其他未知路径返回前端的 `index.html`（客户端路由），但 `/api/`、`/h2-console`、`/actuator` 下的路径从不回退。

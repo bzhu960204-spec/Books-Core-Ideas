@@ -59,6 +59,7 @@ def save_zip(name, path):
 
 
 books = save('books', '/api/books')
+save('actuator-health', '/actuator/health')  # ENG-06: what the start scripts wait for
 save('categories', '/api/books/categories')
 save('reviews-all', '/api/reviews')
 save('bookmarks-all', '/api/bookmarks')

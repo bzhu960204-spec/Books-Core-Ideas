@@ -12,35 +12,16 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Test-PortFree {
-  param([int]$Port)
-  $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($conn) { return $false }
-  try {
-    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $Port)
-    $listener.Start()
-    $listener.Stop()
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Get-FreePort {
-  param([int]$StartPort, [int]$MaxTries = 50)
-  for ($i = 0; $i -lt $MaxTries; $i++) {
-    $candidate = $StartPort + $i
-    if (Test-PortFree -Port $candidate) { return $candidate }
-  }
-  throw "No free port found in range $StartPort..$($StartPort + $MaxTries - 1)"
-}
-
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendDir = Join-Path $scriptRoot 'backend'
 $frontendDir = Join-Path $scriptRoot 'frontend'
 $distDir = Join-Path $frontendDir 'dist'
 
 if (-not (Test-Path $backendDir)) { throw "Backend directory not found: $backendDir" }
+
+# Free ports, health check, run state (shared with start-dev; ENG-06).
+$appRun = Join-Path $scriptRoot 'tools\app-run.ps1'
+. $appRun
 
 # -- Java 17+ (optional override in .java-home; see tools\java-env.ps1) --------
 . (Join-Path $scriptRoot 'tools\java-env.ps1')
@@ -86,12 +67,9 @@ if ($Port -ne $requestedPort) {
   Write-Host "Port $requestedPort is in use, falling back to $Port"
 }
 
-# Persist the resolved port so it can be reused / stopped later.
+# Record this run (port, PID) for stop-prod.ps1.
 $stateFile = Join-Path $scriptRoot '.bci-prod-state.json'
-@{
-  port      = $Port
-  startedAt = (Get-Date).ToString('o')
-} | ConvertTo-Json | Set-Content -Path $stateFile -Encoding UTF8
+Save-RunState $stateFile @{ port = $Port }
 
 # ── Optional log file (console always streams regardless) ────────────────────
 $logFile = $null
@@ -102,16 +80,16 @@ if (-not $NoLogFile) {
   $logFile = Join-Path $logsDir "prod-$stamp.log"
 }
 
-# ── Open the browser once the port is listening (background) ─────────────────
+# -- Open the browser once the app is healthy (background) ---------------------
 if (-not $NoBrowser) {
   Start-Job -Name 'bci-prod-open' -ScriptBlock {
-    param([int]$Port)
+    param([string]$AppRun, [int]$Port)
+    . $AppRun
     for ($i = 0; $i -lt 180; $i++) {
-      $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-      if ($conn) { Start-Process "http://localhost:$Port"; break }
+      if (Test-AppHealthy $Port) { Start-Process "http://localhost:$Port"; break }
       Start-Sleep -Seconds 1
     }
-  } -ArgumentList $Port | Out-Null
+  } -ArgumentList $appRun, $Port | Out-Null
 }
 
 Write-Host ""
@@ -144,5 +122,5 @@ try {
 } finally {
   Pop-Location
   Get-Job -Name 'bci-prod-open' -ErrorAction SilentlyContinue | Remove-Job -Force -ErrorAction SilentlyContinue
-  if (Test-Path $stateFile) { Remove-Item $stateFile -ErrorAction SilentlyContinue }
+  Remove-RunState $stateFile
 }

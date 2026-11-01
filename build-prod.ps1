@@ -26,10 +26,11 @@ if (-not $SkipFrontend) {
   Write-Host "Building frontend..."
   Push-Location $frontendDir
   try {
-    if (-not (Test-Path 'node_modules')) { & npm install }
+    # npm.cmd, not npm: npm resolves to npm.ps1, which the execution policy may refuse to run.
+    if (-not (Test-Path 'node_modules')) { & npm.cmd install }
     # Bake same-origin API base so the packaged SPA talks to the single-port backend.
     $env:VITE_API_BASE = '/api'
-    & npm run build
+    & npm.cmd run build
     if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
   } finally {
     Remove-Item Env:VITE_API_BASE -ErrorAction SilentlyContinue

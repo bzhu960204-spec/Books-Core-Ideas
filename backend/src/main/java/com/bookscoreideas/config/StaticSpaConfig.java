@@ -54,7 +54,8 @@ public class StaticSpaConfig implements WebMvcConfigurer {
                         }
                         // Never hijack backend endpoints — let them 404 normally.
                         if (resourcePath.startsWith("api/")
-                                || resourcePath.startsWith("h2-console")) {
+                                || resourcePath.startsWith("h2-console")
+                                || resourcePath.startsWith("actuator")) {
                             return null;
                         }
                         // SPA fallback: unknown client routes load index.html.

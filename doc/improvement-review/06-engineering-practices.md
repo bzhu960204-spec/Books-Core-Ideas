@@ -133,3 +133,45 @@ frontend: npm ci && npm run lint && npm test && npm run build   (在 frontend/ �
   - `start-dev.cmd` 用 `-ExecutionPolicy Bypass` 启动，job 继承了这个策略，所以不受影响；README 写的第二种方式 `.\start-dev.ps1` 会出这个问题。
   - 另外，`Receive-Job -ErrorAction SilentlyContinue` 把 job 的错误吞掉了，界面上只会反复显示 "[!] Frontend process stopped unexpectedly."，看不到原因。
   - 建议：改用 `npx.cmd`，并显示 job 的错误。
+
+> **✅ 已完成（2026-11-01）**：stop 脚本按记录停止"本次启动的那一组进程"；start 脚本等后端健康检查 UP 后才算启动完成；两套端口函数合并；`npx` / `npm` 问题修复，job 的错误会显示出来。
+>
+> **设计决定**（简单项，按最佳判断）
+> 1. **健康检查用 `spring-boot-starter-actuator`**（评审建议）：
+>    - 只暴露 `/actuator/health`，返回体只有 `{"status":"UP"}`，不显示组件和细节；`/actuator` 索引页也关掉了。UP 要求数据库可连，比"端口在监听"更能说明应用可用，也能确认监听端口的是我们的应用。
+>    - prod 的 SPA 回退原来对任何未知路径返回 `index.html`，所以未暴露的 `/actuator/env` 等会得到 200 的页面。[StaticSpaConfig](../../backend/src/main/java/com/bookscoreideas/config/StaticSpaConfig.java) 把 `actuator` 加入排除列表，与 `api/`、`h2-console` 相同，这些路径照常返回 404。
+> 2. **start-dev 等后端 health UP，再等 Vite 能响应**，然后才显示 "Both services started"。
+>    - 后端 job 提前结束时立即报告，不再等满超时（以前等 120 秒）。等待上限改为 180 秒，因为首次运行时 Wrapper 要下载 Maven，还要编译。
+>    - Vite 加了 `--strictPort`：原来如果端口在检查之后被占用，Vite 会悄悄换一个端口，脚本却以为它在原来的端口上。
+>    - start-prod 改为 health UP 后才打开浏览器。
+> 3. **按记录停止进程**：
+>    - start-dev 把端口、自己的 PID 和进程启动时间写进 `.bci-dev-state.json`（git 已忽略）。start-prod 原有的 `.bci-prod-state.json` 也加上 PID 和启动时间。
+>    - stop-dev / stop-prod 找到记录中的进程后，停止它的**整个进程树**（job 宿主、mvnw、两个 JVM、Vite），不管它最后用的是哪个端口。比按端口杀进程更准确，也不会留下 mvnw 等中间进程。
+>    - 只有 PID 和启动时间**都**对上才算同一个进程，PID 被系统复用时不会误杀。收集进程树时，子进程的创建时间不能早于父进程，原因相同：`ParentProcessId` 可能指向已被复用的 PID。
+>    - 没有有效记录时退回原来的做法（停止监听 8080/5173 或记录中端口的进程），并提示。显式传 `-Ports` / `-Port` 时也按端口处理，保持原来的用法。
+>    - start-dev 的 `-StopExisting` 先按记录停止，再按端口停止。
+> 4. **公共函数**放在 [tools/app-run.ps1](../../tools/app-run.ps1)，像 `java-env.ps1` 一样点引用：`Test-PortFree` / `Get-FreePort`、`Test-AppHealthy`、运行记录的读写、`Stop-ProcessTree`、`Stop-PortListeners`。端口检查采用 start-prod 原来更严格的版本：没有监听，而且能真的绑定（Windows 会保留一些端口）。
+> 5. **`npx.cmd` / `npm.cmd`**：start-dev 和 build-prod 都改了（build-prod 直接运行时同样会被执行策略拒绝）。job 的输出连同错误一起显示，结束原因只报告一次（原来每 250 毫秒重复一遍）。
+>
+> **测试**
+> - 后端：
+>   - [HealthEndpointTest](../../backend/src/test/java/com/bookscoreideas/web/HealthEndpointTest.java)（7 个）：health 只返回 `{"status":"UP"}`；`/actuator`、`env`、`beans`、`info`、`configprops`、`health/db` 都是 404。
+>   - [SpaFallbackTest](../../backend/src/test/java/com/bookscoreideas/web/SpaFallbackTest.java)（5 个）：prod 单端口模式下，前端路由得到 `index.html`，`/actuator/health` 照常返回，`/api/…` 和未暴露的 actuator 端点是 404。
+>   - 改动前 4 个失败。只加 actuator、不改 SPA 排除时，`/actuator/env`、`/actuator/beans` 仍得到 `index.html`，`/actuator` 索引页仍是 200。
+>   - 后端共 212 个测试通过。
+> - 脚本：[tools/tests/app-run.test.ps1](../../tools/tests/app-run.test.ps1)（17 个场景），覆盖：
+>   - 端口：IPv4 占用、只在 `::1` 上占用（即 Vite 监听 `localhost` 的情况）、保留端口；
+>   - health：UP、DOWN、无人监听；
+>   - 运行记录：往返读写、PID 被复用、进程已退出、文件损坏、只删除自己的记录；
+>   - 进程树：完整停止，且不影响无关进程。
+>   - 其中"actuator 自己的媒体类型"一项，用改动前的 `Test-AppHealthy` 会失败：PS 5.1 把 `application/vnd.spring-boot.actuator.v3+json` 当作二进制，`.Content` 是字节数组。第一次端到端运行时，正是因为这一点，健康检查等满 180 秒也没有通过。
+>
+> **验证**（都在临时库上运行，测试进程独占打开真实库文件作为保险；真实库未改动）
+> - 直接运行 `.\start-dev.ps1`（不带 Bypass）：
+>   - 30 秒后后端 health UP，前端也起来了，经 Vite 代理的 `/api/books` 为 200；
+>   - **改动前的 stop-dev** 只看 8080/5173，报 "No listening process"，18083/15173 上的服务照常运行；
+>   - 新 stop-dev 停止了记录中的 14 个进程，端口释放，没有残留进程，记录文件已删除。
+> - 后端启动失败（无效的数据库 URL）：16 秒内显示 Spring 的异常和 "Backend process stopped unexpectedly"，只显示一次；之后照常启动前端，并提示后端不健康。stop-dev 清理干净。
+> - `start-prod -Rebuild`（不带 Bypass，所以也覆盖了 build-prod 的 `npm.cmd`）：44 秒内构建完成并 health UP；页面 200，`/actuator/env` 404；stop-prod 停止了记录中的 3 个进程，没有残留。
+> - 真实数据副本：2,749 个 GET 响应中只有新增的 `actuator-health` 不同（改动前 404，改动后 200 `{"status":"UP"}`）；各表不变。[capture_api.py](../../tools/rehearsal/capture_api.py) 已加入这个端点。
+> - 未验证：start-prod 打开浏览器的那一步（为了不在本机弹出浏览器，用了 `-NoBrowser`）。它调用的 `Test-AppHealthy` 已经过上面的验证。

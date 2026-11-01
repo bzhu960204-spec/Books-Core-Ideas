@@ -11,7 +11,7 @@ start-dev.cmd
 .\start-dev.ps1
 ```
 
-Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`. Both accept connections from this machine only (there is no login).
+Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`. Both accept connections from this machine only (there is no login). If a port is taken, the script picks the next free one and says so. It reports "Both services started" once the backend's `/actuator/health` is UP and Vite answers. Stop with Ctrl+C, or from another console with `.\stop-dev.ps1` (it stops exactly what start-dev started, whatever ports it ended up on). The single-port packaged mode works the same way: `start-prod.cmd` / `.\stop-prod.ps1`.
 
 **Requirements:** JDK 17+ and Node.js 22.13+ / 24 / 26+ (`frontend/.nvmrc` pins 24). Maven is not needed: `backend/mvnw.cmd` (the Maven Wrapper) downloads the pinned version. If `JAVA_HOME` points to an older JDK, put the path of a JDK 17+ in a `.java-home` file in the repository root; the start and build scripts use it.
 
@@ -26,7 +26,7 @@ Data lives in `backend/data/` (H2 database + uploaded images). Take a manual sna
 ```
 
 `restore-data.ps1` first saves the current data as `*-pre-restore.zip`, so you can undo a restore. `backups/` is git-ignored.
-Scenario tests for both scripts: `powershell -NoProfile -File tools\tests\data-scripts.test.ps1`.
+Scenario tests for both scripts: `powershell -NoProfile -File tools\tests\data-scripts.test.ps1`. For the helpers of the start/stop scripts: `powershell -NoProfile -File tools\tests\app-run.test.ps1`.
 
 ## Tests & CI
 
