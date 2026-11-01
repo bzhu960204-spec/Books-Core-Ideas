@@ -4,6 +4,7 @@ import com.bookscoreideas.dto.ExplanationDto;
 import com.bookscoreideas.dto.ExplanationRequest;
 import com.bookscoreideas.service.ExplanationService;
 import com.bookscoreideas.web.Responses;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +30,7 @@ public class ChapterExplanationController {
     // Upsert: one explanation per chapter, so PUT creates or updates in place (200).
     @PutMapping
     public ResponseEntity<ExplanationDto> saveExplanation(@PathVariable Long chapterId,
-                                                          @RequestBody ExplanationRequest body) {
+                                                          @Valid @RequestBody ExplanationRequest body) {
         String content = body.content() != null ? body.content() : "";
         return Responses.ok(explanationService.save(chapterId, content), "Chapter", chapterId);
     }

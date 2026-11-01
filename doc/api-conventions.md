@@ -51,6 +51,7 @@
   - 其他时间都是不带时区的 ISO 日期时间（Java `LocalDateTime.toString()`，小数位数不固定，整分时省略秒）：书评和讲解的 `updatedAt`、书签的 `createdAt`、标记和书单的 `createdAt` / `updatedAt`，例如 `2026-11-01T12:47:26.235039`、`2026-06-09T00:00`。书评和讲解在 DB-06 之前只存日期，这些旧值为当天 0 点，界面上只显示日期部分。
 - 枚举值（DB-06）：`readingStatus` 为 `WANT_TO_READ` / `READING` / `FINISHED`，未设置时响应中为 `null`；请求中 `""` 与 `null` 都表示未设置。`structureType` 为 `CHAPTERS` / `PARTS`。
 - 文本长度上限 = 数据库列宽。枚举类字段的允许值集中在 [BookValues](../backend/src/main/java/com/bookscoreideas/dto/BookValues.java)。
+- 书评和讲解的富文本正文（CLOB）上限 2,000 万字符（约 20 MB，[RichTextLimits](../backend/src/main/java/com/bookscoreideas/dto/RichTextLimits.java)，DB-04）。上限定得宽松，只为挡住意外（粘贴的图片以 base64 内联在正文中）。超过时返回 400：`content: must be at most 20 MB (pasted images take the most space)`。
 - 上传的章节图片只接受 PNG / JPEG / GIF / WebP，按**文件内容**判断，不看客户端声明的类型或扩展名（SEC-02，[ImageType](../backend/src/main/java/com/bookscoreideas/service/ImageType.java)）。下载时同样按文件内容决定 `Content-Type`，并带上 `nosniff` 和 `sandbox` CSP。
 - 更新是"整体替换"（`PUT /api/books/{id}`：省略的字段会被清空）。例外是书评：null 表示"不改"。
 - 从页面截取的上下文（标记的 `prefix` / `suffix`）和标记批注会被截断而不是拒绝，因为长度不由用户控制。上传图片的原始文件名同理（超过 255 截断）。

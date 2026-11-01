@@ -109,6 +109,34 @@
 
 **建议**：新增通用图片上传接口（复用 `ImageStorageService`，见 BE-06），编辑器粘贴图片时先上传、再插入 `/api/images/{id}` URL；提供一次性迁移任务把存量 base64 抽取成文件。
 
+> **⏸ 暂缓（2026-11-01，阶段 4.11）：只加内容大小上限，图片外置推迟**
+>
+> **开工前的盘点**（`before-db06-modeling` 备份的副本）：
+> - 真实数据中**没有任何内联图片**：51 条讲解（共 2.6M 字符，最大 13 万）、5 条书评、1,285 条想法、932 条摘录、479 个章节摘要中，`data:image` 和 `<img>` 都是 0。整库 9.3 MB。
+> - 只有书评和讲解用富文本编辑器。图片的来源有三个：工具栏"插入图片"、粘贴图片文件（单张 ≤ 5 MB）、从 AI 对话粘贴的 HTML 中"Markdown 卡片"的截图（接受代码块提示后会被替换为文字）。
+> - 书评和讲解的正文在服务端没有上限，只受 Jackson 3 的默认限制：单个字符串 1 亿字符，即一次保存最多约 100 MB。
+>
+> **方案选择**（与用户确认）：
+> - A（评审建议的完整方案）：上传接口 + 文件存储、引用跟踪和孤儿清理、迁移归档 v3、讲解导出时重新内联、存量抽取。改动面最大，还要改归档格式。
+> - B：编辑器在插入前缩放并重新编码图片，加服务端上限。
+> - **C（采用）**：只加服务端上限，记录现状，等真的开始用图片时再做 A 或 B。理由：目前数据里一张图片都没有，A 的成本（含归档格式变更）没有对应的收益；上限可以挡住最坏情况（例如一次粘贴了大量截图）。
+>
+> **做法**：
+> - `ExplanationRequest.content`、`ReviewRequest.content` 加 `@Size(max = 20,000,000)`（[RichTextLimits](../../backend/src/main/java/com/bookscoreideas/dto/RichTextLimits.java)）。讲解的 PUT 原来没有 `@Valid`，这次补上。超过时返回 400：`content: must be at most 20 MB (pasted images take the most space)`。
+> - 上限按用户要求定得宽松：约为目前最大正文的 150 倍；两张编辑器允许的最大图片（5 MB，内联后约 6.7 MB）加上文字仍然放得下。
+> - 只限制 API 写入。迁移归档导入不检查：归档里是已有的数据，拒绝等于丢数据；归档整体已有 500 MB 的 zip bomb 上限（BE-07）。
+>
+> **测试**：[InputValidationTest](../../backend/src/test/java/com/bookscoreideas/web/InputValidationTest.java) 新增 5 个：讲解 PUT、书评 POST / PUT 超过上限各一个，以及错误信息的原文，这 4 个改动前都失败（200/201）；正好 20,000,000 字符的边界用例改动前后都通过。后端 228 → 233。
+>
+> **验证**：
+> - 真实数据副本：2,749 个 GET 响应 `--strict` 零差异，各表不变。
+> - 浏览器（副本 + Vite）：在讲解编辑器中粘贴 4 张 4.9 MB 的图片（2,746 万字符）后保存：
+>   - 提示"Could not save the explanation — content: must be at most 20 MB (pasted images take the most space)"；
+>   - 编辑器保持打开，4 张图片都在，库中内容未改变。
+>   - 改为粘贴 2 张（1,376 万字符）后可以正常保存。
+>
+> **何时重新考虑**：书评或讲解中开始出现 `data:image`，或者数据库文件明显变大时，再做方案 A 或 B。检查用的 SQL 见上面的盘点，即 `CONTENT LIKE '%data:image%'`。
+
 ---
 
 <a id="db-05"></a>

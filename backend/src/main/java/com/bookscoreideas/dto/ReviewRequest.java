@@ -8,5 +8,5 @@ import jakarta.validation.constraints.Size;
  */
 public record ReviewRequest(
         @Size(max = 255) String title,
-        String content) {
+        @Size(max = RichTextLimits.MAX_CHARS, message = RichTextLimits.MAX_CHARS_MESSAGE) String content) {
 }

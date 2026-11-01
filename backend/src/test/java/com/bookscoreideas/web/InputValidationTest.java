@@ -3,6 +3,7 @@ package com.bookscoreideas.web;
 import com.bookscoreideas.support.IntegrationTest;
 import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -25,6 +26,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Now each is a 400 ProblemDetail naming the field, and boundary values still pass.
  */
 class InputValidationTest extends IntegrationTest {
+
+    /** Kept literal here (not the production constant) so the test pins the documented limit. */
+    private static final int RICH_TEXT_MAX = 20_000_000;
 
     private long book;
     private long chapter;
@@ -65,7 +69,11 @@ class InputValidationTest extends IntegrationTest {
                 Arguments.of("PUT", "/api/books/{book}/reviews/{review}", body("title", s(256), "content", "c"), "title"),
                 Arguments.of("POST", "/api/chapters/{chapter}/bookmarks", body("note", s(501)), "note"),
                 Arguments.of("POST", "/api/chapters/{chapter}/bookmarks", body("scrollRatio", "half"), "scrollRatio"),
-                Arguments.of("POST", "/api/chapters/{chapter}/marks", body("quote", "  "), "quote"));
+                Arguments.of("POST", "/api/chapters/{chapter}/marks", body("quote", "  "), "quote"),
+                // DB-04: rich-text bodies have a generous cap (inline images are what make them large).
+                Arguments.of("PUT", "/api/chapters/{chapter}/explanation", body("content", s(RICH_TEXT_MAX + 1)), "content"),
+                Arguments.of("POST", "/api/books/{book}/reviews", body("title", "r", "content", s(RICH_TEXT_MAX + 1)), "content"),
+                Arguments.of("PUT", "/api/books/{book}/reviews/{review}", body("content", s(RICH_TEXT_MAX + 1)), "content"));
     }
 
     @ParameterizedTest(name = "{0} {1} -> 400 on {3}")
@@ -90,7 +98,15 @@ class InputValidationTest extends IntegrationTest {
                         "source", s(300))),
                 Arguments.of("POST", "/api/chapters/{chapter}/bookmarks", body("scrollRatio", 0.5, "note", s(500))),
                 Arguments.of("POST", "/api/chapters/{chapter}/bookmarks", body()),
-                Arguments.of("POST", "/api/books/{book}/reviews", body("title", s(255), "content", s(5000))));
+                Arguments.of("POST", "/api/books/{book}/reviews", body("title", s(255), "content", s(5000))),
+                Arguments.of("PUT", "/api/chapters/{chapter}/explanation", body("content", s(RICH_TEXT_MAX))));
+    }
+
+    @Test
+    void oversizedRichTextSaysWhyInWordsTheUserUnderstands() throws Exception {
+        JsonNode problem = send("PUT", "/api/chapters/{chapter}/explanation", body("content", s(RICH_TEXT_MAX + 1)), 400);
+        assertThat(problem.get("detail").asString())
+                .isEqualTo("content: must be at most 20 MB (pasted images take the most space)");
     }
 
     @ParameterizedTest(name = "{0} {1} accepts boundary values")
