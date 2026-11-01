@@ -1,7 +1,7 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -48,14 +48,14 @@ class ReadingApiTest extends IntegrationTest {
         JsonNode saved = putJson(url, Map.of("content", "<p>v1</p>"));
         assertThat(fieldNames(saved)).containsExactlyInAnyOrder("id", "chapterId", "content", "updatedAt");
         assertThat(saved.get("chapterId").asLong()).isEqualTo(chapter);
-        assertThat(getJson(url).get("content").asText()).isEqualTo("<p>v1</p>");
+        assertThat(getJson(url).get("content").asString()).isEqualTo("<p>v1</p>");
         assertThat(getJson("/api/books/" + book + "/explanation-chapter-ids").get(0).asLong()).isEqualTo(chapter);
 
         jdbc.update("UPDATE chapter_explanations SET updated_at = DATE '2020-01-01' WHERE id = ?", saved.get("id").asLong());
         JsonNode updated = putJson(url, Map.of("content", "<p>v2</p>"));
         assertThat(updated.get("id").asLong()).isEqualTo(saved.get("id").asLong());
-        assertThat(updated.get("updatedAt").asText()).isEqualTo(LocalDate.now().toString());
-        assertThat(putJson(url, Map.of()).get("content").asText()).isEmpty();
+        assertThat(updated.get("updatedAt").asString()).isEqualTo(LocalDate.now().toString());
+        assertThat(putJson(url, Map.of()).get("content").asString()).isEmpty();
 
         putMissing("/api/chapters/999999/explanation", "{\"content\":\"x\"}");
 
@@ -76,9 +76,9 @@ class ReadingApiTest extends IntegrationTest {
 
         jdbc.update("UPDATE book_reviews SET updated_at = DATE '2020-01-01' WHERE id = ?", id);
         JsonNode updated = putJson(url + "/" + id, Map.of("title", "T2"));
-        assertThat(updated.get("title").asText()).isEqualTo("T2");
-        assertThat(updated.get("content").asText()).isEqualTo("<p>body</p>");
-        assertThat(updated.get("updatedAt").asText()).isEqualTo(LocalDate.now().toString());
+        assertThat(updated.get("title").asString()).isEqualTo("T2");
+        assertThat(updated.get("content").asString()).isEqualTo("<p>body</p>");
+        assertThat(updated.get("updatedAt").asString()).isEqualTo(LocalDate.now().toString());
 
         JsonNode list = getJson(url);
         assertThat(list).hasSize(2);
@@ -91,8 +91,8 @@ class ReadingApiTest extends IntegrationTest {
         JsonNode entry = find(bank, id);
         assertThat(fieldNames(entry)).containsExactlyInAnyOrder(
                 "id", "bookId", "bookTitle", "bookAuthor", "bookCoverUrl", "title", "content", "updatedAt");
-        assertThat(entry.get("bookAuthor").asText()).isEqualTo("Au");
-        assertThat(bank).noneMatch(r -> r.get("title").asText().equals("Empty") && r.get("bookId").asLong() == book);
+        assertThat(entry.get("bookAuthor").asString()).isEqualTo("Au");
+        assertThat(bank).noneMatch(r -> r.get("title").asString().equals("Empty") && r.get("bookId").asLong() == book);
 
         mockMvc.perform(delete(url + "/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(delete(url + "/" + id)).andExpect(status().isNotFound());
@@ -104,12 +104,12 @@ class ReadingApiTest extends IntegrationTest {
         JsonNode first = postJson("/api/chapters/" + chapter + "/bookmarks", Map.of("scrollRatio", 0.25, "note", "  start  "));
         assertThat(fieldNames(first)).containsExactlyInAnyOrder("id", "chapterId", "chapterTitle", "bookId", "bookTitle",
                 "bookAuthor", "bookCoverUrl", "scrollRatio", "note", "createdAt");
-        assertThat(first.get("note").asText()).isEqualTo("start");
-        assertThat(first.get("chapterTitle").asText()).isEqualTo("Ch");
+        assertThat(first.get("note").asString()).isEqualTo("start");
+        assertThat(first.get("chapterTitle").asString()).isEqualTo("Ch");
         // No ratio (null) and a blank note; a non-numeric ratio is a 400 (InputValidationTest, BE-05).
         JsonNode second = postJson("/api/chapters/" + chapter + "/bookmarks", Map.of("note", "   "));
         assertThat(second.get("scrollRatio").isNull()).isTrue();
-        assertThat(second.get("note").asText()).isEmpty();
+        assertThat(second.get("note").asString()).isEmpty();
 
         assertThat(getJson("/api/books/" + book + "/bookmarks/latest").get("id").asLong())
                 .isEqualTo(second.get("id").asLong());
@@ -141,18 +141,18 @@ class ReadingApiTest extends IntegrationTest {
         postJson("/api/chapters/" + chapter + "/marks", Map.of("quote", "first", "startOffset", 10));
         assertThat(fieldNames(created)).containsExactlyInAnyOrder("id", "bookId", "bookTitle", "chapterId", "chapterTitle",
                 "chapterOrderIndex", "quote", "prefix", "suffix", "startOffset", "endOffset", "note", "createdAt", "updatedAt");
-        assertThat(created.get("prefix").asText()).hasSize(200);
-        assertThat(created.get("note").asText()).hasSize(1000).startsWith("n");
-        assertThat(created.get("suffix").asText()).isEmpty();
+        assertThat(created.get("prefix").asString()).hasSize(200);
+        assertThat(created.get("note").asString()).hasSize(1000).startsWith("n");
+        assertThat(created.get("suffix").asString()).isEmpty();
 
         JsonNode byBook = getJson("/api/books/" + book + "/marks");
-        assertThat(byBook).extracting(m -> m.get("quote").asText()).containsExactly("first", "second", "later chapter");
+        assertThat(byBook).extracting(m -> m.get("quote").asString()).containsExactly("first", "second", "later chapter");
         assertThat(getJson("/api/chapters/" + chapter + "/marks")).hasSize(2);
 
         long id = created.get("id").asLong();
         JsonNode edited = patchJson("/api/marks/" + id, "{\"note\":\"  short  \"}");
-        assertThat(edited.get("note").asText()).isEqualTo("short");
-        assertThat(patchJson("/api/marks/" + id, "{\"note\":\"   \"}").get("note").asText()).isEmpty();
+        assertThat(edited.get("note").asString()).isEqualTo("short");
+        assertThat(patchJson("/api/marks/" + id, "{\"note\":\"   \"}").get("note").asString()).isEmpty();
         mockMvc.perform(patch("/api/marks/999999").contentType(APPLICATION_JSON).content("{}"))
                 .andExpect(status().isNotFound());
 
@@ -200,7 +200,7 @@ class ReadingApiTest extends IntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 

@@ -10,5 +10,5 @@ import java.util.List;
  * (the shape produced by the book's "Export JSON"). All are created in one transaction:
  * if any is invalid, none is created.
  */
-public record BookImportRequest(@NotEmpty @Valid List<BookImport> books) {
+public record BookImportRequest(@NotEmpty List<@Valid BookImport> books) {
 }

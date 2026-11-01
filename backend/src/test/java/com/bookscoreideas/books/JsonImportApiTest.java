@@ -1,7 +1,7 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -36,14 +36,14 @@ class JsonImportApiTest extends IntegrationTest {
                                 Map.of("content", "second passage", "orderIndex", 2))))))));
 
         assertThat(created).hasSize(1);
-        assertThat(created.get(0).get("title").asText()).isEqualTo("Imported");
+        assertThat(created.get(0).get("title").asString()).isEqualTo("Imported");
         assertThat(created.get(0).get("chapterCount").asLong()).isEqualTo(1);
         long chapter = getJson("/api/books/" + created.get(0).get("id").asLong() + "/chapters").get(0).get("id").asLong();
         JsonNode excerpts = getJson("/api/chapters/" + chapter + "/excerpts");
         assertThat(excerpts).hasSize(2);
-        assertThat(excerpts.get(0).get("content").asText()).isEqualTo("first passage");
-        assertThat(excerpts.get(0).get("source").asText()).isEqualTo("p.1");
-        assertThat(getJson("/api/chapters/" + chapter + "/ideas").get(0).get("example").asText()).isEqualTo("ex");
+        assertThat(excerpts.get(0).get("content").asString()).isEqualTo("first passage");
+        assertThat(excerpts.get(0).get("source").asString()).isEqualTo("p.1");
+        assertThat(getJson("/api/chapters/" + chapter + "/ideas").get(0).get("example").asString()).isEqualTo("ex");
     }
 
     @Test
@@ -70,7 +70,7 @@ class JsonImportApiTest extends IntegrationTest {
                 "chapters", List.of(Map.of("title", "Ungrouped"))))));
 
         long book = created.get(0).get("id").asLong();
-        assertThat(created.get(0).get("structureType").asText()).isEqualTo("PARTS");
+        assertThat(created.get(0).get("structureType").asString()).isEqualTo("PARTS");
         JsonNode chapters = getJson("/api/books/" + book + "/chapters");
         assertThat(chapters).hasSize(2);
         long partId = getJson("/api/books/" + book + "/parts").get(0).get("id").asLong();
@@ -165,7 +165,7 @@ class JsonImportApiTest extends IntegrationTest {
 
         assertThat(getJson("/api/chapters/" + one + "/ideas")).hasSize(1);
         assertThat(getJson("/api/chapters/" + ten + "/ideas")).isEmpty();
-        assertThat(getJson("/api/chapters/" + three + "/excerpts").get(0).get("content").asText()).isEqualTo("for three");
+        assertThat(getJson("/api/chapters/" + three + "/excerpts").get(0).get("content").asString()).isEqualTo("for three");
     }
 
     @Test
@@ -212,19 +212,19 @@ class JsonImportApiTest extends IntegrationTest {
     }
 
     private static JsonNode byTitle(JsonNode list, String title) {
-        for (JsonNode node : list) if (node.get("title").asText().equals(title)) return node;
+        for (JsonNode node : list) if (node.get("title").asString().equals(title)) return node;
         throw new AssertionError("no " + title);
     }
 
     private static List<String> titles(JsonNode list) {
         List<String> titles = new ArrayList<>();
-        list.forEach(node -> titles.add(node.get("title").asText()));
+        list.forEach(node -> titles.add(node.get("title").asString()));
         return titles;
     }
 
     private static List<String> contents(JsonNode list) {
         List<String> contents = new ArrayList<>();
-        list.forEach(node -> contents.add(node.get("content").asText()));
+        list.forEach(node -> contents.add(node.get("content").asString()));
         return contents;
     }
 

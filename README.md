@@ -358,6 +358,6 @@ Supports **Add New** (append) or **Replace All** (clear the named chapters' exis
 
 ## Tech Stack
 
-- **Backend:** Java 17, Spring Boot 3, Spring Data JPA, H2 (file-based)
+- **Backend:** Java 17, Spring Boot 4, Spring Data JPA, Flyway, H2 (file-based)
 - **Frontend:** React 18, Vite, React Router
 - **Database file:** `backend/data/booksdb.mv.db` (local, not committed to git)

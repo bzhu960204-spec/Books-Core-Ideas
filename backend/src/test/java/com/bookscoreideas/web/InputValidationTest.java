@@ -1,7 +1,7 @@
 package com.bookscoreideas.web;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -74,7 +74,7 @@ class InputValidationTest extends IntegrationTest {
             throws Exception {
         JsonNode problem = send(method, url, body, 400);
         assertThat(problem.get("status").asInt()).isEqualTo(400);
-        assertThat(problem.get("detail").asText()).contains(field);
+        assertThat(problem.get("detail").asString()).contains(field);
     }
 
     static Stream<Arguments> boundaries() {

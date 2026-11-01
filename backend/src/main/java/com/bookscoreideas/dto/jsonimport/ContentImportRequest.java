@@ -14,5 +14,5 @@ import java.util.List;
  */
 public record ContentImportRequest(
         @Pattern(regexp = ImportMode.PATTERN, message = ImportMode.MESSAGE) String mode,
-        @NotEmpty @Valid List<ChapterContentImport> chapters) {
+        @NotEmpty List<@Valid ChapterContentImport> chapters) {
 }

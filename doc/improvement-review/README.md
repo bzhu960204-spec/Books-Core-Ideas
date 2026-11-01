@@ -90,7 +90,7 @@
 | 4.6 | BE-07 | ✅ 导入改为临时文件 + `ZipFile`，不再整包读入内存 |
 | 4.7 | ENG-04 | ✅ Maven Wrapper、Node/Java 版本约束（为 BE-10 固定构建环境） |
 | 4.8 | ENG-06 | ✅ 脚本：dev 端口记录、健康检查、去重 |
-| 4.9 | BE-10 | 升级 Spring Boot（先 3.5.x 清理弃用，再 4.x） |
+| 4.9 | BE-10 | ✅ 升级 Spring Boot（先 3.5.x 清理弃用，再 4.x） |
 | 4.10 | DB-06 | DATE→TIMESTAMP、`readingStatus` 的 `''`→NULL 与枚举（涉及 schema，先备份） |
 | 4.11 | DB-04 | 内联 base64 图片（真实数据中目前为 0，开工前再定方案） |
 | 4.12 | FE-07 | api.js 样板 |
@@ -130,7 +130,7 @@
 | BE-07 | P2 | 导入整包入内存 | 4 | ✅ | 上传存为临时文件（用完即删），`ZipFile` 按需读取，图片流式写盘；zip bomb 防护改为"声明大小之和 ≤ 500 MB + 每个条目不超过声明大小"；图片在事务中写盘、回滚即删（SEC-04 移交），写盘失败时整本书失败；新测试 5 个（3 个修复前失败）；副本零差异，往返结果与改动前相同；`-Xmx160m` 导入 180 MB 归档：改动前 OOM，改动后成功 |
 | BE-08 | P1 | 迁移归档不完整 | 2 | ✅ | 格式 v2（书评/书签/标记/书单路径 + 原始时间戳）、兼容 v1、拒绝更新版本；真实数据整库往返完全相同 |
 | BE-09 | P3 | 配置分环境 | 4 | ✅ | 默认配置即安全配置（无 Console、无 CORS）+ dev profile（start-dev 启用，开 Console）+ prod profile；CORS 改为 `APP_CORS_ALLOWED_ORIGINS` 显式开启；devtools 并未打包（评审描述更正）；新测试 5 个（改动前失败）；副本零差异 |
-| BE-10 | P2 | 升级 Spring Boot | 4 | 🔄 | 第一步 3.5.16 ✅：`@SpyBean`→`@MockitoSpyBean`、删掉与基类冲突的异常处理、去掉多余的方言设置；`ContentDisposition` 兜底参数的引号已转义（新断言在 3.2.5 上失败）；副本零差异、往返不变、旧 jar 可回退。第二步 4.x 待做 |
+| BE-10 | P2 | 升级 Spring Boot | 4 | ✅ | 3.2.5 → 3.5.16 → 4.1.2，两步各自提交。3.5：`@MockitoSpyBean`、删掉与基类冲突的异常处理、`ContentDisposition` 兜底参数的引号已转义（新断言修复前失败）。4.1：新 starter、Jackson 3（只固定"null 标志 = false"和字段顺序两个默认值）、关闭新增的探针和 LiveReload；特征测试 7 个（升级前通过）；副本：表和 schema 不变，2,741 个响应原始文本逐字相同，其余 8 个已解释（ProblemDetail 省略 `type`、增补平面字符不再转义）；往返不变，旧 jar 可回退；dev / prod 端到端、浏览器验证 |
 | DB-01 | P0 | Schema 双源管理 | 0/2 | ✅ | V8 统一老库/空库结构 + 生产 `validate`；SchemaConvergenceTest（真实库结构夹具）；副本演练 2,724 响应零差异 |
 | DB-02 | P1 | 外键与级联 | 2 | ✅ | V9：级联 + 图片 RESTRICT + 补外键 + 复合外键保证 book_id 一致；ForeignKeyConstraintsTest；副本演练零差异 |
 | DB-03 | P3 | 删除 migrate.sql | 0 | ✅ | |
@@ -150,7 +150,7 @@
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；补充：去掉 H2 `AUTO_SERVER`（数据库曾对局域网开端口；顺带不再留陈旧锁）；NetworkExposureTest 3 个（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ✅ | 归档图片按文件内容判断（复用 SEC-02），扩展名/类型由检测结果决定；跳过的图片（非图片、缺文件）写进导入报告并在前端显示；超长文件名截断；提交后写盘的问题移交 BE-07；回归测试修复前失败；副本零差异，往返结果与改动前相同；浏览器验证 |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 212 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退）+ 前端 Vitest 184 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 219 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定）+ 前端 Vitest 184 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ✅ | Maven Wrapper（3.9.16 + SHA-256 校验）；enforcer 要求 Java 17+ / Maven 3.6.3+；`engines.node` + `.nvmrc`（CI 读取）+ `engine-strict`；`tools/java-env.ps1`：三个脚本都支持 `.java-home` 并预先检查 Java 版本；用 JRE 11 / Node 20 实测提示；start-dev / start-prod / build-prod 端到端验证 |

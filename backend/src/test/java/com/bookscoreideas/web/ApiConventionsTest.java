@@ -1,7 +1,7 @@
 package com.bookscoreideas.web;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -10,7 +10,11 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -129,7 +133,26 @@ class ApiConventionsTest extends IntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andReturn().getResponse().getContentAsString();
-        assertThat(objectMapper.readTree(body).get("detail").asText()).contains("manifest.json");
+        assertThat(objectMapper.readTree(body).get("detail").asString()).contains("manifest.json");
+    }
+
+    // BE-10: Jackson 3's parse errors are unchecked, so they no longer pass through the
+    // controller's catch (IOException); a broken manifest must still be a 400, not a 500.
+    @ParameterizedTest(name = "POST {0} with a manifest that is not JSON -> 400 ProblemDetail")
+    @ValueSource(strings = {"/api/migration/import", "/api/migration/import/preview"})
+    void aBrokenManifestIsA400(String url) throws Exception {
+        ByteArrayOutputStream zip = new ByteArrayOutputStream();
+        try (ZipOutputStream out = new ZipOutputStream(zip)) {
+            out.putNextEntry(new ZipEntry("manifest.json"));
+            out.write("{\"formatVersion\": 2, \"books\": [".getBytes(StandardCharsets.UTF_8));
+            out.closeEntry();
+        }
+        String body = mockMvc.perform(multipart(url)
+                        .file(new MockMultipartFile("file", "broken.zip", "application/zip", zip.toByteArray())))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(body).get("detail").asString()).startsWith("Could not read archive: ");
     }
 
     // Before, ResponseEntity.of/notFound() answered these with an empty 404 body.

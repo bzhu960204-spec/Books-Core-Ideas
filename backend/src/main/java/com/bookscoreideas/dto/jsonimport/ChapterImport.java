@@ -13,6 +13,6 @@ public record ChapterImport(
         @NotBlank @Size(max = 255) String title,
         Integer orderIndex,
         String summary,
-        @Valid List<KeyIdeaRequest> keyIdeas,
-        @Valid List<ExcerptRequest> excerpts) {
+        List<@Valid KeyIdeaRequest> keyIdeas,
+        List<@Valid ExcerptRequest> excerpts) {
 }

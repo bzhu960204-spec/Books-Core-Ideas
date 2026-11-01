@@ -2,7 +2,7 @@ package com.bookscoreideas.migration;
 
 import com.bookscoreideas.service.ChapterImageStorage;
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.mock.web.MockMultipartFile;
@@ -58,11 +58,11 @@ class MigrationImportFilesTest extends IntegrationTest {
 
         JsonNode details = importArchive(archive(book(broken, "a.png", "b.png"), book(next, "c.png"))).get("details");
 
-        assertThat(details.get(0).get("status").asText()).isEqualTo("FAILED");
+        assertThat(details.get(0).get("status").asString()).isEqualTo("FAILED");
         assertThat(bookTitles()).doesNotContain(broken);
         assertThat(newFiles(before)).containsExactly(storedFileOf(next));
-        assertThat(details.get(0).get("message").asText()).contains("b.png").contains("disk full");
-        assertThat(details.get(1).get("status").asText()).isEqualTo("IMPORTED");
+        assertThat(details.get(0).get("message").asString()).contains("b.png").contains("disk full");
+        assertThat(details.get(1).get("status").asString()).isEqualTo("IMPORTED");
         assertThat(details.get(1).get("imagesImported").asInt()).isEqualTo(1);
     }
 
@@ -75,8 +75,8 @@ class MigrationImportFilesTest extends IntegrationTest {
         JsonNode detail = importArchive(archive(new ArchivedBook(title, List.of("a.png", "b.png"), true)))
                 .get("details").get(0);
 
-        assertThat(detail.get("status").asText()).isEqualTo("FAILED");
-        assertThat(detail.get("message").asText()).contains("collection path is empty");
+        assertThat(detail.get("status").asString()).isEqualTo("FAILED");
+        assertThat(detail.get("message").asString()).contains("collection path is empty");
         assertThat(bookTitles()).doesNotContain(title);
         assertThat(newFiles(before)).isEmpty();
     }
@@ -93,8 +93,8 @@ class MigrationImportFilesTest extends IntegrationTest {
 
         JsonNode detail = importArchive(zip).get("details").get(0);
 
-        assertThat(detail.get("status").asText()).isEqualTo("FAILED");
-        assertThat(detail.get("message").asText()).contains("big.png").contains("larger than");
+        assertThat(detail.get("status").asString()).isEqualTo("FAILED");
+        assertThat(detail.get("message").asString()).contains("big.png").contains("larger than");
         assertThat(bookTitles()).doesNotContain(title);
         assertThat(newFiles(before)).isEmpty();
     }
@@ -107,7 +107,7 @@ class MigrationImportFilesTest extends IntegrationTest {
         for (String url : List.of("/api/migration/import/preview", "/api/migration/import")) {
             String body = mockMvc.perform(multipart(url).file(new MockMultipartFile("file", "big.zip", "application/zip", zip)))
                     .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
-            assertThat(objectMapper.readTree(body).get("detail").asText()).isEqualTo("Archive is too large to import.");
+            assertThat(objectMapper.readTree(body).get("detail").asString()).isEqualTo("Archive is too large to import.");
         }
         assertThat(bookTitles()).doesNotContain(title);
     }
@@ -198,15 +198,15 @@ class MigrationImportFilesTest extends IntegrationTest {
 
     private List<String> bookTitles() throws Exception {
         List<String> titles = new ArrayList<>();
-        getJson("/api/books").forEach(book -> titles.add(book.get("title").asText()));
+        getJson("/api/books").forEach(book -> titles.add(book.get("title").asString()));
         return titles;
     }
 
     private Path storedFileOf(String title) throws Exception {
         for (JsonNode book : getJson("/api/books")) {
-            if (!book.get("title").asText().equals(title)) continue;
+            if (!book.get("title").asString().equals(title)) continue;
             long chapter = getJson("/api/books/" + book.get("id").asLong() + "/chapters").get(0).get("id").asLong();
-            String filename = getJson("/api/chapters/" + chapter + "/images").get(0).get("filename").asText();
+            String filename = getJson("/api/chapters/" + chapter + "/images").get(0).get("filename").asString();
             return storage.resolve(filename).orElseThrow();
         }
         throw new AssertionError("book not imported: " + title);

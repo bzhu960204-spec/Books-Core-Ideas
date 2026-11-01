@@ -1,7 +1,7 @@
 package com.bookscoreideas.migration;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -71,11 +71,11 @@ class MigrationArchiveTest extends IntegrationTest {
         Map<String, byte[]> original = unzip(export(book));
         JsonNode manifest = objectMapper.readTree(original.get("manifest.json"));
         assertThat(manifest.get("formatVersion").asInt()).isEqualTo(2);
-        JsonNode exported = objectMapper.readTree(original.get(manifest.get("books").get(0).get("path").asText()));
+        JsonNode exported = objectMapper.readTree(original.get(manifest.get("books").get(0).get("path").asString()));
         assertThat(exported.get("reviews")).hasSize(1);
-        assertThat(exported.get("reviews").get(0).get("updatedAt").asText()).isEqualTo("2020-01-02");
+        assertThat(exported.get("reviews").get(0).get("updatedAt").asString()).isEqualTo("2020-01-02");
         JsonNode exportedCh1 = exported.get("parts").get(0).get("chapters").get(0);
-        assertThat(exportedCh1.get("explanation").get("updatedAt").asText()).isEqualTo("2020-02-03");
+        assertThat(exportedCh1.get("explanation").get("updatedAt").asString()).isEqualTo("2020-02-03");
         assertThat(exportedCh1.get("bookmarks")).hasSize(1);
         assertThat(exportedCh1.get("marks")).hasSize(1);
         assertThat(exported.get("parts").get(0).get("chapters").get(1).get("bookmarks")).hasSize(1);
@@ -90,19 +90,19 @@ class MigrationArchiveTest extends IntegrationTest {
 
         Map<String, byte[]> again = unzip(export(imported));
         JsonNode reexported = objectMapper.readTree(again.get(objectMapper.readTree(again.get("manifest.json"))
-                .get("books").get(0).get("path").asText()));
+                .get("books").get(0).get("path").asString()));
         assertThat(reexported).isEqualTo(exported);
 
         JsonNode history = getJson("/api/bookmarks?bookId=" + imported);
-        assertThat(history).extracting(b -> b.get("note").asText()).containsExactly("second", "first");
-        assertThat(history.get(1).get("createdAt").asText()).startsWith("2020-03-04T05:06:07");
+        assertThat(history).extracting(b -> b.get("note").asString()).containsExactly("second", "first");
+        assertThat(history.get(1).get("createdAt").asString()).startsWith("2020-03-04T05:06:07");
         JsonNode marks = getJson("/api/books/" + imported + "/marks");
-        assertThat(marks.get(0).get("quote").asText()).isEqualTo("beta");
+        assertThat(marks.get(0).get("quote").asString()).isEqualTo("beta");
         assertThat(marks.get(0).get("startOffset").asInt()).isEqualTo(6);
         assertThat(marks.get(0).get("bookId").asLong()).isEqualTo(imported);
         JsonNode folders = getJson("/api/book-collections");
-        assertThat(folders).filteredOn(f -> f.get("name").asText().equals(shelf)).hasSize(1);
-        assertThat(folders).filteredOn(f -> f.get("name").asText().equals("Child")
+        assertThat(folders).filteredOn(f -> f.get("name").asString().equals(shelf)).hasSize(1);
+        assertThat(folders).filteredOn(f -> f.get("name").asString().equals("Child")
                 && f.get("parentId").asLong() == root).hasSize(1);
     }
 
@@ -148,8 +148,8 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(chapters).hasSize(1);
         assertThat(chapters.get(0).get("keyIdeas")).hasSize(1);
         JsonNode explanation = getJson("/api/chapters/" + chapters.get(0).get("id").asLong() + "/explanation");
-        assertThat(explanation.get("content").asText()).isEqualTo("<p>e</p>");
-        assertThat(explanation.get("updatedAt").asText()).isEqualTo("2021-05-06");
+        assertThat(explanation.get("content").asString()).isEqualTo("<p>e</p>");
+        assertThat(explanation.get("updatedAt").asString()).isEqualTo("2021-05-06");
         assertThat(getJson("/api/books/" + book + "/reviews")).isEmpty();
     }
 
@@ -171,9 +171,9 @@ class MigrationArchiveTest extends IntegrationTest {
         JsonNode chapters = getJson("/api/books/" + imported + "/chapters");
         assertThat(chapters).hasSize(2);
         JsonNode looseCopy = chapters.get(1);
-        assertThat(looseCopy.get("title").asText()).isEqualTo("Loose");
+        assertThat(looseCopy.get("title").asString()).isEqualTo("Loose");
         assertThat(looseCopy.get("partId").isNull()).isTrue();
-        assertThat(getJson("/api/chapters/" + looseCopy.get("id").asLong() + "/excerpts").get(0).get("content").asText())
+        assertThat(getJson("/api/chapters/" + looseCopy.get("id").asLong() + "/excerpts").get(0).get("content").asString())
                 .isEqualTo("kept");
         assertThat(chapters.get(0).get("partId").asLong())
                 .isEqualTo(getJson("/api/books/" + imported + "/parts").get(0).get("id").asLong());
@@ -189,7 +189,7 @@ class MigrationArchiveTest extends IntegrationTest {
                     .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
             assertThat(body).contains("format version 3");
         }
-        assertThat(getJson("/api/books")).noneMatch(b -> b.get("title").asText().equals(title));
+        assertThat(getJson("/api/books")).noneMatch(b -> b.get("title").asString().equals(title));
     }
 
     // ------------------------------------------------------------------ helpers
@@ -214,7 +214,7 @@ class MigrationArchiveTest extends IntegrationTest {
 
     private long bookIdByTitle(String title) throws Exception {
         for (JsonNode b : getJson("/api/books")) {
-            if (b.get("title").asText().equals(title)) return b.get("id").asLong();
+            if (b.get("title").asString().equals(title)) return b.get("id").asLong();
         }
         throw new AssertionError("no book titled " + title);
     }
@@ -230,7 +230,7 @@ class MigrationArchiveTest extends IntegrationTest {
         if (node == null) return paths;
         for (JsonNode path : node) {
             List<String> names = new ArrayList<>();
-            path.forEach(n -> names.add(n.asText()));
+            path.forEach(n -> names.add(n.asString()));
             paths.add(names);
         }
         return paths;

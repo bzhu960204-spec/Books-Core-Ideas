@@ -31,6 +31,7 @@
 
 所有错误都是 RFC 7807 `application/problem+json`，由 [GlobalExceptionHandler](../backend/src/main/java/com/bookscoreideas/web/GlobalExceptionHandler.java) 统一生成：
 
+- 字段：`title`、`status`、`detail`、`instance`。Spring Boot 4（BE-10）起不再输出 `"type": "about:blank"`：RFC 9457 规定省略 `type` 就表示 `about:blank`。
 - 服务层抛 `NotFoundException` → 404；抛 `IllegalArgumentException` → 400。
 - 控制器用 [Responses](../backend/src/main/java/com/bookscoreideas/web/Responses.java) 的 `ok` / `created` / `deleted` 生成成功响应；"不存在"由它们抛出，不再返回空体的 404。
 - 前端的 `api.js` 中，`errorMessage()` 优先显示 `detail`；连不上后端（`fetch` 失败，或开发代理返回空的 502/503/504）时统一为 `Cannot reach the server. Is the backend running?`。
@@ -40,6 +41,11 @@
 
 - 一律是带 Bean Validation 的 record（`@Valid`），不用 `Map`，也不直接用实体。
   - 客户端发来的 `id` 等不可编辑字段会被忽略（BUG-09 / BUG-13）。
+- JSON 绑定（Jackson 3，BE-10；[JsonBindingTest](../backend/src/test/java/com/bookscoreideas/web/JsonBindingTest.java)）：
+  - 未知字段忽略；
+  - 布尔标志（如 `highlighted`）省略或为 `null` 时按 `false` 处理；
+  - 请求体中第一个 JSON 值之后还有内容时返回 400（Jackson 2 会忽略多出的部分）；
+  - 响应字段按 record 中声明的顺序输出；日期为 ISO 字符串（`2026-01-02`）。
 - 文本长度上限 = 数据库列宽。枚举类字段的允许值集中在 [BookValues](../backend/src/main/java/com/bookscoreideas/dto/BookValues.java)。
 - 上传的章节图片只接受 PNG / JPEG / GIF / WebP，按**文件内容**判断，不看客户端声明的类型或扩展名（SEC-02，[ImageType](../backend/src/main/java/com/bookscoreideas/service/ImageType.java)）。下载时同样按文件内容决定 `Content-Type`，并带上 `nosniff` 和 `sandbox` CSP。
 - 更新是"整体替换"（`PUT /api/books/{id}`：省略的字段会被清空）。例外是书评：null 表示"不改"。
@@ -52,5 +58,5 @@
 
 ## `/api` 以外
 
-- `GET /actuator/health`（ENG-06）：只返回 `{"status":"UP"}`（数据库可连）或 `DOWN`，不含细节；其他 actuator 端点都不暴露（404）。start 脚本用它判断应用是否就绪。
+- `GET /actuator/health`（ENG-06）：只返回 `{"status":"UP"}`（数据库可连）或 `DOWN`，不含细节；其他 actuator 端点都不暴露（404），包括 Spring Boot 4 默认开启的 `/actuator/health/liveness`、`/readiness`（BE-10 中关闭）。start 脚本用它判断应用是否就绪。
 - prod 单端口模式下，其他未知路径返回前端的 `index.html`（客户端路由），但 `/api/`、`/h2-console`、`/actuator` 下的路径从不回退。

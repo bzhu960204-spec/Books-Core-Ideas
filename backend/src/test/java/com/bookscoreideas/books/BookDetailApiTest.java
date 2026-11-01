@@ -1,9 +1,9 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -64,7 +64,7 @@ class BookDetailApiTest extends IntegrationTest {
         ArrayNode expected = objectMapper.createArrayNode();
         for (JsonNode chapter : chapters) {
             long id = chapter.get("id").asLong();
-            ObjectNode c = chapter.deepCopy();
+            ObjectNode c = (ObjectNode) chapter.deepCopy();
             c.set("excerpts", getJson("/api/chapters/" + id + "/excerpts"));
             c.put("imageCount", getJson("/api/chapters/" + id + "/images").size());
             c.put("hasExplanation", explained.contains(id));
@@ -73,7 +73,7 @@ class BookDetailApiTest extends IntegrationTest {
         assertThat(detail.get("chapters")).isEqualTo(expected);
 
         JsonNode one = detail.get("chapters").get(0);
-        assertThat(one.get("excerpts").get(0).get("content").asText()).isEqualTo("earlier");
+        assertThat(one.get("excerpts").get(0).get("content").asString()).isEqualTo("earlier");
         assertThat(one.get("hasExplanation").asBoolean()).isTrue();
         assertThat(detail.get("chapters").get(1).get("imageCount").asLong()).isEqualTo(2);
     }
@@ -137,7 +137,7 @@ class BookDetailApiTest extends IntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 

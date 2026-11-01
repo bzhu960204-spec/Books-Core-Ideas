@@ -39,6 +39,10 @@
 - **修复缺陷**：附回归测试，并**先证明不带修复时测试会失败**。做法：先写测试并运行，或临时撤掉修复再运行。
 - **行为不变的重构**：写特征测试，要求**改动前后都通过**。
 - **查询次数类问题**（N+1、多余加载）：用 Hibernate statistics 断言，测试 profile 已开启 `generate_statistics`。参见 `ChapterApiTest`、`ChapterExplanationLoadingTest`。
+- **Spring Boot 4 下的写法**（BE-10）：
+  - 需要模拟失败时用 `@MockitoSpyBean`（Spring Framework），`@SpyBean` 已删除。只能 spy 具体类（如 `ChapterImageStorage`），对 Spring Data 仓库接口用 `doCallRealMethod` 会报错，要用 `invocation.callRealMethod()`。
+  - JSON 用 Jackson 3（`tools.jackson.*`；注解仍是 `com.fasterxml.jackson.annotation`）：`asString()` / `propertyNames()` / `isString()`，取代 `asText()` / `fieldNames()` / `isTextual()`。Jackson 3 的异常是非受检的，`catch (IOException)` 接不住解析错误。
+  - `@Valid` 写在类型参数上（`List<@Valid X>`）。
 - **懒加载的组件和页面**（FE-04）：首次出现时是异步的，测试中用 `findBy…`，不要用 `getBy…`；否则测试会依赖"前面的测试已加载过这个模块"。整页的首次加载给 5 秒左右的超时，但它不能超过测试本身的超时（默认也是 5 秒）：需要更长时（如 `App.test.jsx` 中 10 秒），用 `vi.setConfig({ testTimeout })` 一并放宽。可以用 `npx.cmd vitest run --sequence.shuffle` 检查测试之间是否有顺序依赖。
 - **失败场景**（FE-05）：`installFakeBackend({ fail: (method, path) => 500 | 'network' | null })` 让指定请求返回 ProblemDetail 错误或网络失败。要断言 toast，就在被测组件旁一起渲染 `<Toaster />`（toast 用 `role="alert"`），并在 `afterEach` 中调用 `clearToasts()`：toast 存储是模块级状态。
 - 命令：
@@ -65,7 +69,7 @@ python tools\rehearsal\compare_tables.py $env:TEMP\bci-rehearsal\orig\tables $en
   - 把最新的备份 zip（可用 `-Backup` 指定）解压到 `%TEMP%\bci-rehearsal\<Label>`，用覆盖参数启动 jar，Flyway 迁移因此会在副本上真实执行一遍；
   - `capture_api.py` 采集全部 GET 接口（含迁移 ZIP 导出的逐条目内容和图片字节的哈希）；
   - 停止应用后，把各表导出为 CSV，并导出 schema。
-- `compare_api.py`：逐条比较状态码与 JSON。`compare_tables.py`：按 ID 顺序逐行比较各表。
+- `compare_api.py`：逐条比较状态码与 JSON。加 `--strict` 时还要求原始文本相同（字段顺序、转义写法），用于 JSON 库升级之类的改动（BE-10）。`compare_tables.py`：按 ID 顺序逐行比较各表。
 - `check_detail.py <api 目录>`：检查每本书的 `GET /api/books/{id}/detail` 是否等于它取代的那些细粒度接口的组合（FE-03）。
 - `roundtrip.py <源> <空目标>`：两个实例都要在运行，源用真实数据副本，目标用空库。脚本把全部书分别经 ZIP 迁移和 JSON 导入（FE-08）导入目标，再导出比较。导入相关的改动用它验证。
 - 预期**有**变化的改动（例如新增字段）：对比结果中的差异必须全部能解释，并在评审文档中写明。

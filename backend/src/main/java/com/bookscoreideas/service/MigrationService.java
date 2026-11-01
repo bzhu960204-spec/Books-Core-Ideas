@@ -13,11 +13,11 @@ import com.bookscoreideas.dto.migration.ManifestEntryDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
 import com.bookscoreideas.entity.Book;
 import com.bookscoreideas.repository.BookRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.Closeable;
 import java.io.FilterInputStream;
@@ -61,11 +61,11 @@ public class MigrationService {
     private final BookRepository bookRepository;
     private final BookArchiveBuilder archiveBuilder;
     private final MigrationImporter importer;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper objectMapper;
     private final ChapterImageStorage imageStorage;
 
     public MigrationService(BookRepository bookRepository, BookArchiveBuilder archiveBuilder,
-                            MigrationImporter importer, ObjectMapper objectMapper,
+                            MigrationImporter importer, JsonMapper objectMapper,
                             ChapterImageStorage imageStorage) {
         this.bookRepository = bookRepository;
         this.archiveBuilder = archiveBuilder;

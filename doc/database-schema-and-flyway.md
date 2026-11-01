@@ -32,6 +32,8 @@
 
 应用里的删除仍走 JPA 级联（两者同时生效）。手动用 SQL 删书时，数据库会级联删除；但如果书中有图片，会被拒绝，此时请走 API。
 
+**H2 版本与规则名称**（BE-10）：没有写 `ON DELETE` 的外键（例如 V8 建的、V9 之前的外键），H2 2.2/2.3 报告为 `RESTRICT`，H2 2.4 起按 SQL 标准报告为 `NO ACTION`。两者在 H2 中行为相同：删除被引用的行会被立即拒绝。用 H2 2.2 迁移过的旧库文件，用 2.4 打开后，章节图片外键也显示为 `NO ACTION`；用 2.4 执行 V9 时，它显示为 `RESTRICT`。所以比较外键规则时，不要把这两个名字当作差异。
+
 **写服务层删除代码的注意点**：同一事务中，要先删子行再删父行。如果先删父行，数据库会级联把子行删掉，Hibernate 随后再删子行时影响 0 行，就会报错。`BookCollectionService.delete` 就是按这个顺序写的。
 
 ## 2. 两种数据库各自怎么走
@@ -86,5 +88,6 @@
 - **直接查询 H2 文件**：用 `~/.m2/repository/com/h2database/h2/<版本>/h2-<版本>.jar`，版本与 Spring Boot 管理的一致（BE-10 后不再是 2.2.224；新版本能打开旧格式的库），
   例如 `java -cp <h2.jar> org.h2.tools.RunScript -url jdbc:h2:file:<dir>/booksdb -user sa -script q.sql -showResults`。
   务必在应用停止时操作，或操作备份的副本。
+- **启动日志中的 `Using H2 2.4.240 which is newer than the version Flyway has been verified with`**：Flyway 12.4 的测试矩阵只到 H2 2.3.232，这是 Spring Boot 4.1 自己管理的组合。BE-10 已在真实数据副本上验证迁移和校验结果，可以忽略（3.2.5 时也有同类提示）。
 - **Java 版本**：项目需要 Java 17；若 `JAVA_HOME` 指向旧版本，Maven 的 enforcer 会直接报 "Java 17 or newer is required"。
   start-dev / start-prod / build-prod 支持在仓库根放 `.java-home` 文件指定 JDK 路径（ENG-04）。

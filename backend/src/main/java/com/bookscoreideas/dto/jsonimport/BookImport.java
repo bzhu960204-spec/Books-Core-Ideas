@@ -30,8 +30,8 @@ public record BookImport(
         LocalDate finishDate,
         Boolean chapterImagesEnabled,
         @Pattern(regexp = BookValues.STRUCTURE_TYPE, message = BookValues.STRUCTURE_TYPE_MESSAGE) String structureType,
-        @Valid List<PartImport> parts,
-        @Valid List<ChapterImport> chapters) {
+        List<@Valid PartImport> parts,
+        List<@Valid ChapterImport> chapters) {
 
     public boolean isPartsBook() {
         return parts != null || "PARTS".equals(structureType);

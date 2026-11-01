@@ -285,7 +285,7 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 
 > 升级时顺带检查：`ContentDisposition` 对非 ASCII 文件名生成的兜底 `filename=` 参数，引号是否已转义（见 [SEC-02](05-security.md#sec-02)）。
 
-> **🔄 进行中（2026-11-01）**：分两步，每步单独验证、单独提交。第一步 3.2.5 → **3.5.16** 已完成。
+> **✅ 已完成（2026-11-01）**：3.2.5 → 3.5.16 → **4.1.2**，分两步，每步单独验证、单独提交。API 行为不变；三处有意接受的输出差异见第二步的"验证"。
 >
 > **设计决定**（简单项，按最佳判断）
 > 1. **目标版本**：中间站 3.5.16（3.x 最后一条版本线的最新补丁），终点 4.1.2（当前最新的正式版；4.2 只有 RC）。先到 3.5 是为了在 Boot 3 内把弃用 API 清干净，再做 4.0 的不兼容改动，两步的问题不会混在一起。
@@ -299,8 +299,14 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 >    | Jackson | 2.15 | 2.21 | 3.1 |
 >    | Spring / Tomcat | 6.1 / 10.1 | 6.2 / 10.1 | 7.0 / 11.0 |
 >
->    前提是新版本能打开现有的库文件、迁移结果不变，每一步都在真实数据副本上演练确认。
+>    前提是新版本能打开现有的库文件、迁移结果不变，每一步都在真实数据副本上演练确认。Flyway 12.4 启动时会提示"只验证到 H2 2.3.232"，这是 Boot 4.1 自己选定的组合，不为消除提示而把 H2 降到 2.3；副本演练已确认迁移和校验正常。
 > 3. **升级前备份**：`backups\data-20261101-103024-before-be10-spring-boot.zip`。
+> 4. **Boot 4 的依赖写法**：使用按技术拆分的新 starter（`spring-boot-starter-webmvc`、`-flyway`、`-webmvc-test`，再加 `spring-boot-h2console` 模块），不用过渡用的 `spring-boot-starter-classic`。
+> 5. **JSON 采用 Jackson 3**，不用已弃用的 `spring-boot-jackson2` 模块，也不用 `spring.jackson.use-jackson2-defaults` 一揽子还原旧默认值。先补特征测试，再看哪些新默认值真的会改变 API，只固定这些：
+>    - `fail-on-null-for-primitives=false`：Jackson 3 中，缺少或为 null 的基本类型字段会报错。`highlighted` 省略时原来是 false，前端和导入的 JSON 都依赖这一点；升级后不设置这一项，大部分现有的写接口测试都会以 400 失败；
+>    - `sort-properties-alphabetically=false`：Jackson 3 会把普通类的字段按字母排序。record 不受影响，但 ProblemDetail 是普通类。
+>    - 其余新默认值接受，包括请求体后面多余的内容现在返回 400（原来被忽略）。
+> 6. **Boot 4 新开的东西默认关掉，保持对外暴露面不变**：health 的 liveness/readiness 分组（`management.endpoint.health.probes.enabled=false`）；dev 的 LiveReload 已默认关闭，仍显式写出（见 [SEC-03 补充](05-security.md#sec-03)）。
 >
 > **第一步：3.5.16**
 > - 编译时打开弃用警告（`-Dmaven.compiler.showDeprecation=true`）：main 代码没有用到弃用 API；测试中的 3 处 `@SpyBean`（3.4 起弃用，4.0 删除）改为 Spring Framework 的 `@MockitoSpyBean`。其中一处 spy 的是 Spring Data 仓库接口（JDK 代理），换用后照常工作。
@@ -315,3 +321,29 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 >   - `roundtrip.py`：只有已知的 book 195（5 张图片在本机没有文件）；
 >   - **回退**：改动前的 jar（H2 2.2.224 + Flyway 9）能打开被 3.5.16 写过的库，校验通过、接口正常；
 >   - 启动日志：改动前的两条 WARN（Flyway 不认识 H2 2.2.224、多余的方言设置）都消失了，没有新的告警。
+>
+> **第二步：4.1.2**（Spring Framework 7、Jackson 3、Hibernate 7.4、Flyway 12.4、H2 2.4.240、Tomcat 11、JUnit 6）
+> - **先补特征测试**（在 3.5.16 上通过，再升级）：
+>   - [JsonBindingTest](../../backend/src/test/java/com/bookscoreideas/web/JsonBindingTest.java)：null 标志视为 false、忽略未知字段、record 字段顺序与日期格式、ProblemDetail 字段顺序；
+>   - `ApiConventionsTest.aBrokenManifestIsA400`：zip 中的 manifest.json 不是合法 JSON 时返回 400。Jackson 3 的解析异常不再是 `IOException`，控制器原来的 `catch (IOException)` 接不住，会变成 500。
+> - **代码**：
+>   - `MigrationService` 注入 Jackson 3 的 `JsonMapper`；`MigrationController` 同时捕获 `JacksonException`；`GlobalExceptionHandler` 改用 Jackson 3 的 `MismatchedInputException`（`getFieldName()` → `getPropertyName()`）；
+>   - JSON 导入的 DTO 把 `@Valid List<X>` 改为 `List<@Valid X>`（Hibernate Validator 9 的 HV000271 弃用告警），校验报错中的字段路径不变；
+>   - 测试：Jackson 3 的包名和 API（`asString()`、`propertyNames()`）、`AutoConfigureMockMvc` / `ServletWebServerApplicationContext` 的新包。编译没有弃用警告。
+> - **测试调整**（新版本的行为，测试意图不变）：
+>   - `SchemaConvergenceTest`：H2 2.4 把没有写 `ON DELETE` 的外键报告为 `NO ACTION`（SQL 标准），原来是 `RESTRICT`。实测两者都会立即拒绝删除被引用的行；断言改为接受这两个名字。详见 [database-schema-and-flyway.md](../database-schema-and-flyway.md)；
+>   - `ImageTypeSafetyTest`：Spring 7 生成的兜底 `filename=` 是 ASCII 近似（非 ASCII 字符换成 `_`），完整文件名只在 `filename*` 中（RFC 6266 推荐的做法）；
+>   - `HealthEndpointTest`：通过关闭探针解决，测试本身没有改。
+> - 测试：后端 219 个全部通过（新增 7 个）。
+> - **真实数据副本**（与 3.2.5 的 jar 对比；`compare_api.py` 新增 `--strict`，连原始文本一起比较）：
+>   - 新版本（H2 2.4.240 + Flyway 12.4）打开 V7 的库文件，执行 V8、V9；各表内容与原始备份逐行相同；
+>   - schema：只有章节图片外键现在显式显示为 `ON DELETE RESTRICT`（V9 本来就这样声明，H2 2.4 不再把它和默认规则混为一谈）；
+>   - 2,749 个 GET 响应中 2,744 个解析后的 JSON 相同；用 strict 比较，其中 2,741 个原始文本也逐字相同（字段顺序全部不变）。差异全部可以解释：
+>     - 5 个图片响应：这 5 张图片在本机没有文件，前后都是 404。差异只来自 ProblemDetail 不再带 `"type":"about:blank"`（Spring 7；RFC 9457 规定省略就表示 about:blank；前端只读 `detail` / `title`）。已逐一核对哈希：去掉 `type` 后的响应体与新的哈希完全相同；
+>     - 3 个响应只是原始文本不同：U+FFFF 以外的字符（book 163 中的"𡼲"，U+21F32）原来被 Jackson 2 写成转义的代理对 `\uD847\uDF32`，现在直接输出 UTF-8。解析后的 JSON 相同，浏览器中显示正常；
+>   - `roundtrip.py`：只有已知的 book 195；manifest.json 的排版不变；
+>   - **回退**：3.2.5 和 3.5.16 的 jar 都能打开被 4.1.2 写过的库，校验通过、接口正常；
+>   - **端到端**（临时数据，测试期间独占打开真实库，结束后确认真实库的修改时间不变）：
+>     - start-dev：devtools 重启、dev 的 H2 Console、Vite 代理（包括省略 `highlighted` 的 POST 返回 201）都正常；35729 端口不再监听；stop-dev 停止全部进程；
+>     - start-prod -Rebuild：SPA、客户端路由、静态资源和 API 正常；`/h2-console`、`/actuator/health/liveness`、`/actuator/info` 都是 404。
+> - **对真实库的影响**：下次启动 dev 时，会由 H2 2.4.240 打开 V7 的库文件，并执行 V8、V9，与副本演练的过程相同。如需回到 3.x，旧 jar 可以直接打开新库；最稳妥的做法仍是恢复上面的备份。

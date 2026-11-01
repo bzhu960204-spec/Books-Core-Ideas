@@ -11,5 +11,5 @@ public record PartImport(
         @NotBlank @Size(max = 255) String title,
         Integer orderIndex,
         @Size(max = 1000) String summary,
-        @Valid List<ChapterImport> chapters) {
+        List<@Valid ChapterImport> chapters) {
 }

@@ -2,7 +2,7 @@ package com.bookscoreideas.books;
 
 import com.bookscoreideas.service.ChapterImageStorage;
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -43,9 +43,9 @@ class ImageApiTest extends IntegrationTest {
         assertThat(saved).hasSize(1);
         JsonNode image = saved.get(0);
         assertThat(fieldNames(image)).containsExactly("id", "filename", "originalName", "contentType", "orderIndex");
-        assertThat(image.get("originalName").asText()).isEqualTo("page.png");
-        assertThat(image.get("filename").asText()).endsWith(".png");
-        Path file = storage.resolve(image.get("filename").asText()).orElseThrow();
+        assertThat(image.get("originalName").asString()).isEqualTo("page.png");
+        assertThat(image.get("filename").asString()).endsWith(".png");
+        Path file = storage.resolve(image.get("filename").asString()).orElseThrow();
         assertThat(file).exists();
         assertThat(fieldNames(getJson(base).get(0))).containsExactly("id", "filename", "originalName", "contentType", "orderIndex");
 
@@ -65,7 +65,7 @@ class ImageApiTest extends IntegrationTest {
     void missingFileOrChapterIs404() throws Exception {
         long chapter = chapterIn(postForId("/api/books", Map.of("title", "Gone")));
         JsonNode saved = upload("/api/chapters/" + chapter + "/images", new MockMultipartFile("files", "a.png", "image/png", PNG));
-        Files.delete(storage.resolve(saved.get(0).get("filename").asText()).orElseThrow());
+        Files.delete(storage.resolve(saved.get(0).get("filename").asString()).orElseThrow());
 
         mockMvc.perform(get("/api/chapters/" + chapter + "/images/" + saved.get(0).get("id").asLong() + "/data"))
                 .andExpect(status().isNotFound());
@@ -93,7 +93,7 @@ class ImageApiTest extends IntegrationTest {
         assertThat(result.get("details").get(0).get("imagesImported").asInt()).isEqualTo(1);
 
         long imported = 0;
-        for (JsonNode b : getJson("/api/books")) if (b.get("title").asText().equals(title)) imported = b.get("id").asLong();
+        for (JsonNode b : getJson("/api/books")) if (b.get("title").asString().equals(title)) imported = b.get("id").asLong();
         long importedChapter = getJson("/api/books/" + imported + "/chapters").get(0).get("id").asLong();
         JsonNode images = getJson("/api/chapters/" + importedChapter + "/images");
         assertThat(images).hasSize(1);
@@ -116,7 +116,7 @@ class ImageApiTest extends IntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 

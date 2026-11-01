@@ -1,7 +1,7 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -41,13 +41,13 @@ class ChapterApiTest extends IntegrationTest {
         JsonNode ch = list.get(0);
         assertThat(fieldNames(ch)).containsExactly("id", "title", "orderIndex", "summary", "partId", "keyIdeas");
         assertThat(ch.get("id").asLong()).isEqualTo(first);
-        assertThat(ch.get("summary").asText()).isEqualTo("S");
+        assertThat(ch.get("summary").asString()).isEqualTo("S");
         assertThat(ch.get("partId").isNull()).isTrue();
         JsonNode idea = ch.get("keyIdeas").get(0);
         assertThat(fieldNames(idea)).containsExactly("id", "content", "example", "tags", "highlighted", "orderIndex");
-        assertThat(idea.get("content").asText()).isEqualTo("earlier");
+        assertThat(idea.get("content").asString()).isEqualTo("earlier");
         assertThat(idea.get("highlighted").asBoolean()).isTrue();
-        assertThat(ch.get("keyIdeas").get(1).get("content").asText()).isEqualTo("later");
+        assertThat(ch.get("keyIdeas").get(1).get("content").asString()).isEqualTo("later");
         assertThat(list.get(1).get("id").asLong()).isEqualTo(second);
         assertThat(list.get(1).get("keyIdeas")).isEmpty();
     }
@@ -65,7 +65,7 @@ class ChapterApiTest extends IntegrationTest {
         update.put("title", "C2");
         update.put("partId", null);
         JsonNode updated = putJson("/api/books/" + book + "/chapters/" + created.get("id").asLong(), update);
-        assertThat(updated.get("title").asText()).isEqualTo("C2");
+        assertThat(updated.get("title").asString()).isEqualTo("C2");
         assertThat(updated.get("partId").isNull()).isTrue();
     }
 
@@ -90,7 +90,7 @@ class ChapterApiTest extends IntegrationTest {
         assertThat(fieldNames(list.get(0))).containsExactly("id", "title", "orderIndex", "summary");
 
         JsonNode updated = putJson("/api/books/" + book + "/parts/" + created.get("id").asLong(), Map.of("title", "Part 2"));
-        assertThat(updated.get("title").asText()).isEqualTo("Part 2");
+        assertThat(updated.get("title").asString()).isEqualTo("Part 2");
 
         mockMvc.perform(delete("/api/books/" + book + "/parts/" + created.get("id").asLong()))
                 .andExpect(status().isNoContent());
@@ -132,7 +132,7 @@ class ChapterApiTest extends IntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 

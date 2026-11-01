@@ -1,8 +1,8 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -29,7 +29,7 @@ class BookResponseTest extends IntegrationTest {
 
         assertThat(book.has("chapters")).isFalse();
         assertThat(book.get("chapterCount").asLong()).isEqualTo(3);
-        assertThat(book.get("title").asText()).isEqualTo("Listed");
+        assertThat(book.get("title").asString()).isEqualTo("Listed");
     }
 
     @Test
@@ -82,7 +82,7 @@ class BookResponseTest extends IntegrationTest {
         listed.put("rating", 5);
         JsonNode updated = putJson("/api/books/" + id, listed);
 
-        listed.fieldNames().forEachRemaining(field -> assertThat(updated.get(field))
+        listed.propertyNames().forEach(field -> assertThat(updated.get(field))
                 .as(field).isEqualTo(listed.get(field)));
     }
 

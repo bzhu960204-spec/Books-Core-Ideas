@@ -1,7 +1,7 @@
 package com.bookscoreideas.migration;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
@@ -49,9 +49,9 @@ class MigrationImageSafetyTest extends IntegrationTest {
 
         JsonNode detail = importArchive(archive(title, images, files)).get("details").get(0);
 
-        assertThat(detail.get("status").asText()).isEqualTo("IMPORTED");
+        assertThat(detail.get("status").asString()).isEqualTo("IMPORTED");
         assertThat(detail.get("imagesImported").asInt()).isEqualTo(3);
-        assertThat(detail.get("message").asText())
+        assertThat(detail.get("message").asString())
                 .isEqualTo("Skipped 2 images: logo.svg (not a PNG, JPEG, GIF or WebP image); gone.png (missing from the archive)");
 
         long chapter = importedChapter(title);
@@ -59,9 +59,9 @@ class MigrationImageSafetyTest extends IntegrationTest {
         assertThat(stored).hasSize(3);
         List<String> names = new ArrayList<>();
         for (JsonNode image : stored) {
-            names.add(image.get("originalName").asText());
-            assertThat(image.get("contentType").asText()).isEqualTo("image/png");
-            assertThat(image.get("filename").asText()).matches("[0-9a-f-]{36}\\.png");
+            names.add(image.get("originalName").asString());
+            assertThat(image.get("contentType").asString()).isEqualTo("image/png");
+            assertThat(image.get("filename").asString()).matches("[0-9a-f-]{36}\\.png");
             MockHttpServletResponse data = mockMvc.perform(get("/api/chapters/" + chapter + "/images/"
                     + image.get("id").asLong() + "/data")).andExpect(status().isOk()).andReturn().getResponse();
             assertThat(data.getContentAsByteArray()).isEqualTo(PNG);
@@ -76,7 +76,7 @@ class MigrationImageSafetyTest extends IntegrationTest {
         JsonNode detail = importArchive(archive(title, List.of(image("a.png", "a.png", "image/png", 1)),
                 Map.of("a.png", PNG))).get("details").get(0);
 
-        assertThat(detail.get("status").asText()).isEqualTo("IMPORTED");
+        assertThat(detail.get("status").asString()).isEqualTo("IMPORTED");
         assertThat(detail.get("imagesImported").asInt()).isEqualTo(1);
         assertThat(detail.get("message").isNull()).isTrue();
     }
@@ -131,7 +131,7 @@ class MigrationImageSafetyTest extends IntegrationTest {
 
     private long importedChapter(String title) throws Exception {
         for (JsonNode book : getJson("/api/books")) {
-            if (book.get("title").asText().equals(title)) {
+            if (book.get("title").asString().equals(title)) {
                 return getJson("/api/books/" + book.get("id").asLong() + "/chapters").get(0).get("id").asLong();
             }
         }

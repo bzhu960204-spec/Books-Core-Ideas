@@ -14,6 +14,6 @@ import java.util.List;
  */
 public record StructureImportRequest(
         @Pattern(regexp = ImportMode.PATTERN, message = ImportMode.MESSAGE) String mode,
-        @Valid List<PartImport> parts,
-        @Valid List<ChapterImport> chapters) {
+        List<@Valid PartImport> parts,
+        List<@Valid ChapterImport> chapters) {
 }

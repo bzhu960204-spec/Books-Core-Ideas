@@ -1,7 +1,7 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -60,7 +60,7 @@ class BookRequestTest extends IntegrationTest {
         long id = postForId("/api/books", body);
 
         JsonNode book = getJson("/api/books/" + id);
-        body.forEach((field, value) -> assertThat(book.get(field).asText())
+        body.forEach((field, value) -> assertThat(book.get(field).asString())
                 .as(field).isEqualTo(String.valueOf(value)));
     }
 
@@ -69,7 +69,7 @@ class BookRequestTest extends IntegrationTest {
         JsonNode book = postJson("/api/books", Map.of("title", "Defaults"));
 
         assertThat(book.get("dateAdded").isNull()).isFalse();
-        assertThat(book.get("structureType").asText()).isEqualTo("CHAPTERS");
+        assertThat(book.get("structureType").asString()).isEqualTo("CHAPTERS");
         assertThat(book.get("chapterImagesEnabled").asBoolean()).isFalse();
     }
 
@@ -86,10 +86,10 @@ class BookRequestTest extends IntegrationTest {
         update.put("structureType", null);
         JsonNode updated = putJson("/api/books/" + id, update);
 
-        assertThat(updated.get("title").asText()).isEqualTo("After");
+        assertThat(updated.get("title").asString()).isEqualTo("After");
         assertThat(updated.get("rating").asInt()).isEqualTo(5);
-        assertThat(updated.get("dateAdded").asText()).isEqualTo("2019-05-05");
-        assertThat(updated.get("structureType").asText()).isEqualTo("PARTS");
+        assertThat(updated.get("dateAdded").asString()).isEqualTo("2019-05-05");
+        assertThat(updated.get("structureType").asString()).isEqualTo("PARTS");
         assertThat(updated.get("author").isNull()).isTrue();
         // Omitted flag means "off", as when the request was bound to the entity's default.
         assertThat(updated.get("chapterImagesEnabled").isBoolean()).isTrue();

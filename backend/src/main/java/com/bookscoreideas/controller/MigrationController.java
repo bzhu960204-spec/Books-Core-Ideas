@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import tools.jackson.core.JacksonException;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -87,7 +88,8 @@ public class MigrationController {
             // A File, not a Path: for an upload already on disk, the servlet container moves it.
             file.transferTo(saved.toFile());
             return reader.read(saved);
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
+            // Jackson 3's parse errors (a broken manifest.json) are unchecked; still the client's archive.
             throw new IllegalArgumentException("Could not read archive: " + e.getMessage(), e);
         } finally {
             try {

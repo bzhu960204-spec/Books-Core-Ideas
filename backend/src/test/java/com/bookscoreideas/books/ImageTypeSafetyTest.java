@@ -5,7 +5,7 @@ import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.service.ChapterImageStorage;
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -66,9 +66,9 @@ class ImageTypeSafetyTest extends IntegrationTest {
         JsonNode saved = upload(base, new MockMultipartFile("files", name, declared, bytes(kind)));
 
         assertThat(saved).hasSize(1);
-        assertThat(saved.get(0).get("contentType").asText()).isEqualTo(expectedType);
-        assertThat(saved.get(0).get("filename").asText()).endsWith(expectedExtension);
-        assertThat(saved.get(0).get("originalName").asText()).isEqualTo(name);
+        assertThat(saved.get(0).get("contentType").asString()).isEqualTo(expectedType);
+        assertThat(saved.get(0).get("filename").asString()).endsWith(expectedExtension);
+        assertThat(saved.get(0).get("originalName").asString()).isEqualTo(name);
         MockHttpServletResponse data = download(base, saved.get(0).get("id").asLong());
         assertThat(data.getContentType()).isEqualTo(expectedType);
         assertThat(data.getContentAsByteArray()).isEqualTo(bytes(kind));
@@ -137,10 +137,11 @@ class ImageTypeSafetyTest extends IntegrationTest {
         // Clients that ignore filename* (RFC 5987) read the fallback filename= instead, as a
         // strict quoted-string (RFC 7230). Spring before 6.2 left quotes in it unescaped, which
         // ends the string early there; Spring's own lenient parse() did not notice (BE-10).
+        // Since Spring 7 the fallback is plain ASCII with "_" for other characters (RFC 6266).
         Matcher fallback = Pattern.compile("filename=\"((?:[^\"\\\\]|\\\\.)*)\"\\s*(?:;|$)").matcher(header);
         assertThat(fallback.find()).as("strict quoted-string filename= in %s", header).isTrue();
         assertThat(ContentDisposition.parse("inline; filename=\"" + fallback.group(1) + "\"").getFilename())
-                .isEqualTo(expected);
+                .isEqualTo(expected.replaceAll("[^\\x00-\\x7F]", "_"));
     }
 
     private long storeDirectly(long chapterId, String originalName, String contentType, byte[] bytes) throws Exception {

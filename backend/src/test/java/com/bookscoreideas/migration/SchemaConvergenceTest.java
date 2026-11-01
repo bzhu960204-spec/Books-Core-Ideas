@@ -103,8 +103,10 @@ class SchemaConvergenceTest {
         try (Connection c = connect(legacy); Statement s = c.createStatement()) {
             assertThat(row(s, "SELECT MAX(\"version\") FROM \"flyway_schema_history\" WHERE \"success\""))
                     .containsExactly("8");
+            // Still V8's default rule, not V9's CASCADE. H2 up to 2.3 calls the default
+            // RESTRICT, 2.4 NO ACTION (SQL standard); both reject the delete (BE-10).
             assertThat(row(s, "SELECT DELETE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS "
-                    + "WHERE CONSTRAINT_NAME = 'FK_PARTS_BOOK'")).containsExactly("RESTRICT");
+                    + "WHERE CONSTRAINT_NAME = 'FK_PARTS_BOOK'")).singleElement().isIn("RESTRICT", "NO ACTION");
         }
     }
 

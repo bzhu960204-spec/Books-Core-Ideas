@@ -1,7 +1,7 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -44,12 +44,12 @@ class ContentApiTest extends IntegrationTest {
 
         JsonNode list = getJson(base);
         assertThat(fieldNames(list.get(0))).isEqualTo(IDEA_FIELDS);
-        assertThat(list.get(0).get("content").asText()).isEqualTo("first");
-        assertThat(list.get(1).get("content").asText()).isEqualTo("second");
+        assertThat(list.get(0).get("content").asString()).isEqualTo("first");
+        assertThat(list.get(1).get("content").asString()).isEqualTo("second");
 
         long id = created.get("id").asLong();
         JsonNode updated = putJson(base + "/" + id, Map.of("content", "edited"));
-        assertThat(updated.get("content").asText()).isEqualTo("edited");
+        assertThat(updated.get("content").asString()).isEqualTo("edited");
         assertThat(updated.get("highlighted").asBoolean()).isFalse();
         assertThat(updated.get("example").isNull()).isTrue();
 
@@ -69,7 +69,7 @@ class ContentApiTest extends IntegrationTest {
 
         long id = created.get("id").asLong();
         JsonNode updated = putJson(base + "/" + id, Map.of("content", "edited", "highlighted", true));
-        assertThat(updated.get("content").asText()).isEqualTo("edited");
+        assertThat(updated.get("content").asString()).isEqualTo("edited");
         assertThat(updated.get("note").isNull()).isTrue();
 
         mockMvc.perform(delete(base + "/" + id)).andExpect(status().isNoContent());
@@ -94,7 +94,7 @@ class ContentApiTest extends IntegrationTest {
         JsonNode ideas = getJson("/api/ideas?bookId=" + book);
         assertThat(ideas).hasSize(1);
         assertThat(fieldNames(ideas.get(0))).endsWith(SEARCH_TAIL.toArray(String[]::new));
-        assertThat(ideas.get(0).get("bookAuthor").asText()).isEqualTo("Writer");
+        assertThat(ideas.get(0).get("bookAuthor").asString()).isEqualTo("Writer");
         assertThat(getJson("/api/ideas?bookId=" + book + "&tag=focus")).hasSize(1);
         assertThat(getJson("/api/ideas?bookId=" + book + "&q=nothing-matches")).isEmpty();
 
@@ -106,7 +106,7 @@ class ContentApiTest extends IntegrationTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().forEach(names::add);
         return names;
     }
 

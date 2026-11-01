@@ -1,12 +1,17 @@
 """Compare two capture_api.py output dirs: same status and same parsed JSON body.
 
-usage: python compare_api.py <before_dir> <after_dir>
+usage: python compare_api.py [--strict] <before_dir> <after_dir>
+
+--strict: also require the same raw body text, so that key order and number or
+          string formatting count as differences (e.g. a JSON library upgrade, BE-10).
 """
 import json, os, sys
 
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')  # Windows consoles default to cp1252
 
-before, after = sys.argv[1], sys.argv[2]
+args = sys.argv[1:]
+strict = '--strict' in args
+before, after = [a for a in args if a != '--strict']
 names = sorted(n for n in os.listdir(before) if n.endswith('.json'))
 diffs, missing = [], []
 
@@ -14,12 +19,12 @@ diffs, missing = [], []
 def load(d, n):
     with open(os.path.join(d, n), encoding='utf-8') as f:
         rec = json.load(f)
-    body = rec['body']
+    raw = body = rec['body']
     try:
         body = json.loads(body) if body else body
     except json.JSONDecodeError:
         pass
-    return rec['status'], body
+    return rec['status'], body, raw
 
 
 def first_diff(a, b, path='$'):
@@ -48,11 +53,14 @@ for n in names:
     if not os.path.exists(os.path.join(after, n)):
         missing.append(n)
         continue
-    (sa, ba), (sb, bb) = load(before, n), load(after, n)
+    (sa, ba, ra), (sb, bb, rb) = load(before, n), load(after, n)
     if sa != sb:
         diffs.append(f'{n}: status {sa} != {sb}')
         continue
     d = first_diff(ba, bb)
+    if not d and strict and ra != rb:
+        i = next((i for i, (x, y) in enumerate(zip(ra, rb)) if x != y), min(len(ra), len(rb)))
+        d = f'same JSON, different text at char {i}: {ra[max(0, i - 30):i + 30]!r} != {rb[max(0, i - 30):i + 30]!r}'
     if d:
         diffs.append(f'{n}: {d}')
 

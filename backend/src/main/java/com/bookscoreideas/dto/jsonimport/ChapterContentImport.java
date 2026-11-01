@@ -13,6 +13,6 @@ import java.util.List;
 public record ChapterContentImport(
         Long chapterId,
         String chapter,
-        @Valid List<KeyIdeaRequest> ideas,
-        @Valid List<ExcerptRequest> excerpts) {
+        List<@Valid KeyIdeaRequest> ideas,
+        List<@Valid ExcerptRequest> excerpts) {
 }

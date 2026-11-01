@@ -54,7 +54,7 @@
 >    - `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`。即使图片被当成页面直接打开，也不能执行脚本。放行内联样式是为了保留浏览器自带看图页的样式（居中、深色背景），内联样式本身无法执行脚本。
 > 5. **`Content-Disposition`** 改用 Spring 的 `ContentDisposition` 生成：
 >    - ASCII 文件名的输出与以前完全相同（`inline; filename="page.png"`）；
->    - 非 ASCII 文件名由 Spring 生成 `filename*=UTF-8''…`（RFC 5987），另加一个 RFC 2047 格式的 `filename="=?UTF-8?Q?…?="` 作为兜底。注意：Spring 6.1 不会转义兜底参数中的引号。浏览器优先使用 `filename*`，所以不影响结果。**BE-10 已解决**：Spring 6.2 起引号编码为 `=22`，测试增加了按 RFC 7230 严格解析兜底参数的断言；
+>    - 非 ASCII 文件名由 Spring 生成 `filename*=UTF-8''…`（RFC 5987），另加一个 RFC 2047 格式的 `filename="=?UTF-8?Q?…?="` 作为兜底。注意：Spring 6.1 不会转义兜底参数中的引号。浏览器优先使用 `filename*`，所以不影响结果。**BE-10 已解决**：Spring 6.2 起引号编码为 `=22`；Spring 7 改为 RFC 6266 推荐的做法，兜底参数是 ASCII 近似（非 ASCII 字符换成 `_`，如 `filename="__ \"1\".png"`），完整文件名只在 `filename*` 中。测试按 RFC 7230 严格解析兜底参数；
 >    - 引号、反斜杠会被转义；控制字符（包括换行）会被去掉，防止注入响应头。
 > 6. **前端**：上传控件的 `accept` 从 `image/*` 改为这四种类型。服务端才是真正的限制，这一项只是让选择文件时少一些误选。
 >
@@ -104,6 +104,11 @@
 > - **顺带解决的问题**：只有 `AUTO_SERVER` 会让 H2 使用 `booksdb.lock.db` 锁文件。去掉后，H2 直接锁住 `.mv.db`，进程退出（包括被强杀）时由操作系统释放。所以 `stop-dev.ps1` 强杀后**不再留下陈旧锁**（[DB-05 补充](03-database-and-data-safety.md#db-05)、[ENG-06](06-engineering-practices.md#eng-06)）。备份/恢复脚本判断"正在使用"的依据是 `.mv.db` 能否独占打开，所以不受影响。真实库目录中现有的旧锁文件会继续被识别为陈旧锁，应用停止时可以删掉。
 > - **测试**：`NetworkExposureTest.theDatabaseOpensNoNetworkPort`（第 3 个）读取 `application.properties` 中真实的连接串，只把路径换成临时目录，打开数据库后断言 H2 没有登记 TCP 服务。修复前失败（`server` 为 `10.0.0.31:…`）；临时恢复 `AUTO_SERVER` 后再次失败，去掉后通过。后端 168 个测试通过。
 > - **验证**：在临时目录中放一份最新备份的副本，jar **不覆盖连接串**启动，也就是使用真实的默认连接串。V8/V9 迁移成功；进程只监听 `127.0.0.1:18083`；没有生成锁文件，备份脚本判断为 `in-use`；第二个实例报 "already in use" 并退出；强杀后判断为 `free`。GET 响应不受影响：对比工具本来就覆盖连接串，所以没有重跑对比。
+>
+> **补充（2026-11-01，BE-10 升级时发现）：dev 的 LiveReload 也监听局域网**
+> - Spring Boot 3 的 devtools 在 `start-dev`（`spring-boot:run`）期间启动 LiveReload 服务器：`new ServerSocket(35729)`，绑定**所有网卡**，不受 `server.address` 约束。它只能向浏览器发送"刷新"指令，不能访问数据；本项目的前端由 Vite 负责热更新，从来没有用到它。
+> - Spring Boot 4 默认关闭 LiveReload。[application-dev.properties](../../backend/src/main/resources/application-dev.properties) 中仍然显式写上 `spring.devtools.livereload.enabled=false`，说明意图，也防止以后默认值再变。
+> - 验证：4.1.2 下端到端运行 start-dev，35729 端口没有监听（见 [BE-10](02-backend-architecture.md#be-10)）。
 
 **现状**：
 - Spring Boot 默认监听 `0.0.0.0`，`application.properties` 未设置 `server.address`；`start-dev.ps1` 用 `vite --host 0.0.0.0` 启动前端。

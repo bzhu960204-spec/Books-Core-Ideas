@@ -9,7 +9,7 @@ import com.bookscoreideas.repository.ExplanationMarkRepository;
 import com.bookscoreideas.repository.ReadingBookmarkRepository;
 import com.bookscoreideas.service.ChapterImageStorage;
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mock.web.MockMultipartFile;
@@ -161,7 +161,7 @@ class DeletionCascadeTest extends IntegrationTest {
     }
 
     private Path imageFile(JsonNode image) {
-        Path file = storage.resolve(image.get("filename").asText()).orElseThrow();
+        Path file = storage.resolve(image.get("filename").asString()).orElseThrow();
         assertThat(file).exists();
         return file;
     }

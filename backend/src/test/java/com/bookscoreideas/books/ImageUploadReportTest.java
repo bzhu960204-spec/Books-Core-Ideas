@@ -3,7 +3,7 @@ package com.bookscoreideas.books;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.service.ChapterImageStorage;
 import com.bookscoreideas.support.IntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -58,10 +58,10 @@ class ImageUploadReportTest extends IntegrationTest {
         assertThat(names(report.get("images"))).containsExactly("a.png", "b.png");
         assertThat(orderIndexes(report.get("images"))).containsExactly(1, 2);
         assertThat(report.get("skipped")).hasSize(2);
-        assertThat(report.get("skipped").get(0).get("name").asText()).isEqualTo("notes.txt");
-        assertThat(report.get("skipped").get(0).get("reason").asText()).isEqualTo("not a PNG, JPEG, GIF or WebP image");
-        assertThat(report.get("skipped").get(1).get("name").asText()).isEqualTo("empty.png");
-        assertThat(report.get("skipped").get(1).get("reason").asText()).isEqualTo("empty file");
+        assertThat(report.get("skipped").get(0).get("name").asString()).isEqualTo("notes.txt");
+        assertThat(report.get("skipped").get(0).get("reason").asString()).isEqualTo("not a PNG, JPEG, GIF or WebP image");
+        assertThat(report.get("skipped").get(1).get("name").asString()).isEqualTo("empty.png");
+        assertThat(report.get("skipped").get(1).get("reason").asString()).isEqualTo("empty file");
         assertThat(orderIndexes(getJson(base))).containsExactly(1, 2);
     }
 
@@ -86,7 +86,7 @@ class ImageUploadReportTest extends IntegrationTest {
 
         assertThat(response.getStatus()).isEqualTo(200);
         assertThat(json(response).get("images")).isEmpty();
-        assertThat(json(response).get("skipped").get(0).get("name").asText()).isEqualTo("logo.svg");
+        assertThat(json(response).get("skipped").get(0).get("name").asString()).isEqualTo("logo.svg");
         assertThat(getJson(base)).isEmpty();
     }
 
@@ -103,10 +103,10 @@ class ImageUploadReportTest extends IntegrationTest {
 
         assertThat(names(report.get("images"))).containsExactly("b.png");
         assertThat(orderIndexes(report.get("images"))).containsExactly(1);
-        assertThat(report.get("skipped").get(0).get("name").asText()).isEqualTo("a.png");
-        assertThat(report.get("skipped").get(0).get("reason").asText()).isEqualTo("could not be saved");
+        assertThat(report.get("skipped").get(0).get("name").asString()).isEqualTo("a.png");
+        assertThat(report.get("skipped").get(0).get("reason").asString()).isEqualTo("could not be saved");
         assertThat(output.getOut()).contains("a.png").contains("disk full");
-        assertThat(newFiles(before)).containsExactly(storage.resolve(report.get("images").get(0).get("filename").asText()).orElseThrow());
+        assertThat(newFiles(before)).containsExactly(storage.resolve(report.get("images").get(0).get("filename").asString()).orElseThrow());
     }
 
     @Test
@@ -131,7 +131,7 @@ class ImageUploadReportTest extends IntegrationTest {
         MockHttpServletResponse response = upload(imagesOf(newChapter()), png(name));
 
         assertThat(response.getStatus()).isEqualTo(201);
-        assertThat(json(response).get("images").get(0).get("originalName").asText()).isEqualTo(name.substring(0, 255));
+        assertThat(json(response).get("images").get(0).get("originalName").asString()).isEqualTo(name.substring(0, 255));
     }
 
     private static MockMultipartFile png(String name) {
@@ -171,7 +171,7 @@ class ImageUploadReportTest extends IntegrationTest {
 
     private static List<String> names(JsonNode images) {
         List<String> names = new ArrayList<>();
-        images.forEach(image -> names.add(image.get("originalName").asText()));
+        images.forEach(image -> names.add(image.get("originalName").asString()));
         return names;
     }
 
