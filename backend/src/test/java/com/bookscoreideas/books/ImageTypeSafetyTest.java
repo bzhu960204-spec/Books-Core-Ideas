@@ -22,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -132,6 +134,13 @@ class ImageTypeSafetyTest extends IntegrationTest {
 
         assertThat(header).doesNotContain("\r").doesNotContain("\n");
         assertThat(ContentDisposition.parse(header).getFilename()).isEqualTo(expected);
+        // Clients that ignore filename* (RFC 5987) read the fallback filename= instead, as a
+        // strict quoted-string (RFC 7230). Spring before 6.2 left quotes in it unescaped, which
+        // ends the string early there; Spring's own lenient parse() did not notice (BE-10).
+        Matcher fallback = Pattern.compile("filename=\"((?:[^\"\\\\]|\\\\.)*)\"\\s*(?:;|$)").matcher(header);
+        assertThat(fallback.find()).as("strict quoted-string filename= in %s", header).isTrue();
+        assertThat(ContentDisposition.parse("inline; filename=\"" + fallback.group(1) + "\"").getFilename())
+                .isEqualTo(expected);
     }
 
     private long storeDirectly(long chapterId, String originalName, String contentType, byte[] bytes) throws Exception {

@@ -130,7 +130,7 @@
 | BE-07 | P2 | 导入整包入内存 | 4 | ✅ | 上传存为临时文件（用完即删），`ZipFile` 按需读取，图片流式写盘；zip bomb 防护改为"声明大小之和 ≤ 500 MB + 每个条目不超过声明大小"；图片在事务中写盘、回滚即删（SEC-04 移交），写盘失败时整本书失败；新测试 5 个（3 个修复前失败）；副本零差异，往返结果与改动前相同；`-Xmx160m` 导入 180 MB 归档：改动前 OOM，改动后成功 |
 | BE-08 | P1 | 迁移归档不完整 | 2 | ✅ | 格式 v2（书评/书签/标记/书单路径 + 原始时间戳）、兼容 v1、拒绝更新版本；真实数据整库往返完全相同 |
 | BE-09 | P3 | 配置分环境 | 4 | ✅ | 默认配置即安全配置（无 Console、无 CORS）+ dev profile（start-dev 启用，开 Console）+ prod profile；CORS 改为 `APP_CORS_ALLOWED_ORIGINS` 显式开启；devtools 并未打包（评审描述更正）；新测试 5 个（改动前失败）；副本零差异 |
-| BE-10 | P2 | 升级 Spring Boot | 4 | ⬜ | |
+| BE-10 | P2 | 升级 Spring Boot | 4 | 🔄 | 第一步 3.5.16 ✅：`@SpyBean`→`@MockitoSpyBean`、删掉与基类冲突的异常处理、去掉多余的方言设置；`ContentDisposition` 兜底参数的引号已转义（新断言在 3.2.5 上失败）；副本零差异、往返不变、旧 jar 可回退。第二步 4.x 待做 |
 | DB-01 | P0 | Schema 双源管理 | 0/2 | ✅ | V8 统一老库/空库结构 + 生产 `validate`；SchemaConvergenceTest（真实库结构夹具）；副本演练 2,724 响应零差异 |
 | DB-02 | P1 | 外键与级联 | 2 | ✅ | V9：级联 + 图片 RESTRICT + 补外键 + 复合外键保证 book_id 一致；ForeignKeyConstraintsTest；副本演练零差异 |
 | DB-03 | P3 | 删除 migrate.sql | 0 | ✅ | |

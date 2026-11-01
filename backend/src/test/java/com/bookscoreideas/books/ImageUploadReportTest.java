@@ -6,7 +6,7 @@ import com.bookscoreideas.support.IntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -40,8 +40,8 @@ class ImageUploadReportTest extends IntegrationTest {
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
 
-    @SpyBean private ChapterImageStorage storage;
-    @SpyBean private ChapterImageRepository imageRepository;
+    @MockitoSpyBean private ChapterImageStorage storage;
+    @MockitoSpyBean private ChapterImageRepository imageRepository;
 
     @Test
     void savedImagesAreNumberedWithoutGapsAndSkippedFilesAreReported() throws Exception {

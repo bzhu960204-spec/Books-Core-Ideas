@@ -4,7 +4,7 @@ import com.bookscoreideas.service.ChapterImageStorage;
 import com.bookscoreideas.support.IntegrationTest;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.ByteArrayOutputStream;
@@ -39,7 +39,7 @@ class MigrationImportFilesTest extends IntegrationTest {
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3};
 
-    @SpyBean private ChapterImageStorage storage;
+    @MockitoSpyBean private ChapterImageStorage storage;
 
     // Handed over from SEC-04: files used to be written after the commit, so a failed write
     // reported the book as FAILED while the book stayed in the database.

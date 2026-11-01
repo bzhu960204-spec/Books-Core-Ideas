@@ -14,7 +14,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.stream.Collectors;
@@ -46,13 +45,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "The change conflicts with existing data (constraint violation).");
     }
 
-    // The client closed the connection while the response was written (the frontend
-    // cancels reads it no longer needs, FE-03). Nobody is left to answer and nothing is
-    // broken. (Newer Spring versions handle this in the base class; drop this then.)
-    @ExceptionHandler(AsyncRequestNotUsableException.class)
-    public void handleClientGone(AsyncRequestNotUsableException e) {
-        log.debug("Client went away: {}", e.getMessage());
-    }
+    // A client that closed the connection mid-response (the frontend cancels reads it no
+    // longer needs, FE-03) raises AsyncRequestNotUsableException; the base class handles it
+    // since Spring 6.2 (no response, no error log). See ClientAbortTest.
 
     // Last resort: log the cause, but don't leak internals to the client.
     @ExceptionHandler(Exception.class)

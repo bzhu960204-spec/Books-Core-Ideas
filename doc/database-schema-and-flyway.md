@@ -83,7 +83,7 @@
   ```sql
   DELETE FROM "flyway_schema_history" WHERE "success"=FALSE;
   ```
-- **直接查询 H2 文件**：用 `~/.m2/repository/com/h2database/h2/2.2.224/h2-2.2.224.jar`（库为 H2 2.2 格式），
+- **直接查询 H2 文件**：用 `~/.m2/repository/com/h2database/h2/<版本>/h2-<版本>.jar`，版本与 Spring Boot 管理的一致（BE-10 后不再是 2.2.224；新版本能打开旧格式的库），
   例如 `java -cp <h2.jar> org.h2.tools.RunScript -url jdbc:h2:file:<dir>/booksdb -user sa -script q.sql -showResults`。
   务必在应用停止时操作，或操作备份的副本。
 - **Java 版本**：项目需要 Java 17；若 `JAVA_HOME` 指向旧版本，Maven 的 enforcer 会直接报 "Java 17 or newer is required"。

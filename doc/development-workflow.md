@@ -118,7 +118,7 @@ cd $env:TEMP\bci-wt-<sha>\frontend; $env:VITE_API_PROXY_TARGET='http://127.0.0.1
 - **start / stop 脚本**（ENG-06）：start-dev / start-prod 把端口、PID 和启动时间写入仓库根的 `.bci-dev-state.json` / `.bci-prod-state.json`；stop-dev / stop-prod 据此停止整个进程树。传 `-Ports` / `-Port` 时改为按端口停止。
 - 写文件使用**无 BOM 的 UTF-8**（`[IO.File]::WriteAllText($p, $s, (New-Object Text.UTF8Encoding $false))`）。`.ps1` 文件尽量只用 ASCII 字符：PS 5.1 会把无 BOM 的文件按 ANSI 读取。
 - PS 5.1 调用原生程序时会丢弃空字符串参数 `''`。所以 H2 的 `Shell -password ''` 会失效；改用 `RunScript` / `Script` 工具，这两个工具的密码默认为空。
-- 直接查询 H2 文件：`java -cp ~/.m2/repository/com/h2database/h2/2.2.224/h2-2.2.224.jar org.h2.tools.RunScript -url jdbc:h2:file:<目录>/booksdb -user sa -script q.sql -showResults`（只对已停止的库或副本操作）。
+- 直接查询 H2 文件：`java -cp ~/.m2/repository/com/h2database/h2/<版本>/h2-<版本>.jar org.h2.tools.RunScript -url jdbc:h2:file:<目录>/booksdb -user sa -script q.sql -showResults`（只对已停止的库或副本操作）。`<版本>` 用 Spring Boot 当前管理的 H2 版本（`rehearse.ps1` 自动取 `~/.m2` 中最新的）。
 
 ## 7. 已知的数据现状（2026-10-31）
 

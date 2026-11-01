@@ -54,7 +54,7 @@
 >    - `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`。即使图片被当成页面直接打开，也不能执行脚本。放行内联样式是为了保留浏览器自带看图页的样式（居中、深色背景），内联样式本身无法执行脚本。
 > 5. **`Content-Disposition`** 改用 Spring 的 `ContentDisposition` 生成：
 >    - ASCII 文件名的输出与以前完全相同（`inline; filename="page.png"`）；
->    - 非 ASCII 文件名由 Spring 生成 `filename*=UTF-8''…`（RFC 5987），另加一个 RFC 2047 格式的 `filename="=?UTF-8?Q?…?="` 作为兜底。注意：Spring 6.1 不会转义兜底参数中的引号。浏览器优先使用 `filename*`，所以不影响结果；BE-10 升级后再看一次；
+>    - 非 ASCII 文件名由 Spring 生成 `filename*=UTF-8''…`（RFC 5987），另加一个 RFC 2047 格式的 `filename="=?UTF-8?Q?…?="` 作为兜底。注意：Spring 6.1 不会转义兜底参数中的引号。浏览器优先使用 `filename*`，所以不影响结果。**BE-10 已解决**：Spring 6.2 起引号编码为 `=22`，测试增加了按 RFC 7230 严格解析兜底参数的断言；
 >    - 引号、反斜杠会被转义；控制字符（包括换行）会被去掉，防止注入响应头。
 > 6. **前端**：上传控件的 `accept` 从 `image/*` 改为这四种类型。服务端才是真正的限制，这一项只是让选择文件时少一些误选。
 >

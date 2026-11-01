@@ -284,3 +284,34 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 **建议**：升级到当前受支持的 Spring Boot 版本线（升级前先补测试，见 ENG-01）；同时引入 Maven Wrapper（ENG-04）。
 
 > 升级时顺带检查：`ContentDisposition` 对非 ASCII 文件名生成的兜底 `filename=` 参数，引号是否已转义（见 [SEC-02](05-security.md#sec-02)）。
+
+> **🔄 进行中（2026-11-01）**：分两步，每步单独验证、单独提交。第一步 3.2.5 → **3.5.16** 已完成。
+>
+> **设计决定**（简单项，按最佳判断）
+> 1. **目标版本**：中间站 3.5.16（3.x 最后一条版本线的最新补丁），终点 4.1.2（当前最新的正式版；4.2 只有 RC）。先到 3.5 是为了在 Boot 3 内把弃用 API 清干净，再做 4.0 的不兼容改动，两步的问题不会混在一起。
+> 2. **跟着升大版本的库**用 Spring Boot 管理的版本，不单独固定：
+>
+>    | | 3.2.5 | 3.5.16 | 4.1.2 |
+>    |---|---|---|---|
+>    | H2 | 2.2.224 | 2.3.232 | 2.4.240 |
+>    | Flyway | 9.22 | 11.7 | 12.4 |
+>    | Hibernate | 6.4 | 6.6 | 7.4 |
+>    | Jackson | 2.15 | 2.21 | 3.1 |
+>    | Spring / Tomcat | 6.1 / 10.1 | 6.2 / 10.1 | 7.0 / 11.0 |
+>
+>    前提是新版本能打开现有的库文件、迁移结果不变，每一步都在真实数据副本上演练确认。
+> 3. **升级前备份**：`backups\data-20261101-103024-before-be10-spring-boot.zip`。
+>
+> **第一步：3.5.16**
+> - 编译时打开弃用警告（`-Dmaven.compiler.showDeprecation=true`）：main 代码没有用到弃用 API；测试中的 3 处 `@SpyBean`（3.4 起弃用，4.0 删除）改为 Spring Framework 的 `@MockitoSpyBean`。其中一处 spy 的是 Spring Data 仓库接口（JDK 代理），换用后照常工作。
+> - `GlobalExceptionHandler` 中处理 `AsyncRequestNotUsableException` 的方法删除：Spring 6.2 的基类 `ResponseEntityExceptionHandler` 已经处理它（不响应、不记 ERROR），两者同时存在时启动失败（"Ambiguous @ExceptionHandler"）。这正是 FE-03 当时预留的说明。[ClientAbortTest](../../backend/src/test/java/com/bookscoreideas/web/ClientAbortTest.java) 不改，照常通过。
+> - 删除 `spring.jpa.database-platform=…H2Dialect`：Hibernate 6.6 提示它是多余的（HHH90000025），方言由 JDBC 元数据自动识别为同一个 `H2Dialect`。
+> - 临时加入 `spring-boot-properties-migrator` 检查配置项：没有被改名或删除的配置。检查完已移除。
+> - **`ContentDisposition` 兜底参数**：Spring 6.1 生成的 `filename="=?UTF-8?Q?…_"1".png?="` 中引号没有转义，按 RFC 7230 严格解析 quoted-string 的客户端会在第一个引号处截断；Spring 6.2 改为编码成 `=22`。[ImageTypeSafetyTest](../../backend/src/test/java/com/bookscoreideas/books/ImageTypeSafetyTest.java) 增加断言：严格提取兜底参数后也能还原文件名。Spring 自己的 `parse()` 很宽松，旧版本的输出也能"读懂"，所以断言不用它来提取。该断言在 3.2.5 上失败、3.5.16 上通过。浏览器优先使用 `filename*`，对用户没有可见影响。
+> - 测试：后端 212 个全部通过。
+> - **真实数据副本**：
+>   - 新版本（H2 2.3.232 + Flyway 11）直接打开 V7 的库文件，校验 11 个迁移后执行 V8、V9；
+>   - 与改动前的 jar 相比，2,749 个 GET 响应零差异，各表内容和导出的 schema 完全相同；
+>   - `roundtrip.py`：只有已知的 book 195（5 张图片在本机没有文件）；
+>   - **回退**：改动前的 jar（H2 2.2.224 + Flyway 9）能打开被 3.5.16 写过的库，校验通过、接口正常；
+>   - 启动日志：改动前的两条 WARN（Flyway 不认识 H2 2.2.224、多余的方言设置）都消失了，没有新的告警。

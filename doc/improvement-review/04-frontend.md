@@ -150,7 +150,7 @@
 >   - 书评库正常；无页面错误。
 >
 > **③ 后续修正（单独提交）**：前端现在会取消不再需要的请求（开发模式下的 StrictMode、切换页面）。如果取消发生在服务器写响应的过程中，Tomcat 抛出 `AsyncRequestNotUsableException`，而全局异常处理的兜底分支会把它当作"Unhandled exception"，记录 ERROR 和完整堆栈，并试图返回 500。浏览器验证期间日志里出现过一次。
-> - 修正：[GlobalExceptionHandler](../../backend/src/main/java/com/bookscoreideas/web/GlobalExceptionHandler.java) 单独处理该异常，只记 debug 日志。较新的 Spring 版本会在基类中处理它，升级（BE-10）时如果映射冲突，启动就会失败，届时删掉即可。
+> - 修正：[GlobalExceptionHandler](../../backend/src/main/java/com/bookscoreideas/web/GlobalExceptionHandler.java) 单独处理该异常，只记 debug 日志。较新的 Spring 版本会在基类中处理它，升级（BE-10）时如果映射冲突，启动就会失败，届时删掉即可。**BE-10 已删除**：Spring 6.2 的基类接管了它（升到 3.5.16 时果然启动失败），测试不变。
 > - 测试 [ClientAbortTest](../../backend/src/test/java/com/bookscoreideas/web/ClientAbortTest.java)：修复前返回 500 并记录"Unhandled exception"。
 > - 在真实数据副本上快速来回打开两本书 24 次，日志中没有 ERROR。
 
