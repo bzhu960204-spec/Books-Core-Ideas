@@ -8,6 +8,8 @@ import com.bookscoreideas.dto.migration.ReviewArchiveDto;
 import com.bookscoreideas.entity.Book;
 import com.bookscoreideas.entity.BookReview;
 import com.bookscoreideas.entity.Part;
+import com.bookscoreideas.entity.ReadingStatus;
+import com.bookscoreideas.entity.StructureType;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.BookReviewRepository;
 import org.springframework.stereotype.Component;
@@ -17,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.bookscoreideas.service.BookTreeWriter.parseDate;
+import static com.bookscoreideas.service.BookTreeWriter.parseDateTime;
 
 /**
  * Persists a single imported book inside its own transaction so that a failure
@@ -54,13 +57,13 @@ public class MigrationImporter {
         book.setCoverUrl(dto.coverUrl());
         book.setRating(dto.rating());
         book.setCategory(dto.category());
-        book.setReadingStatus(dto.readingStatus());
+        book.setReadingStatus(ReadingStatus.fromTextOrNull(dto.readingStatus()));
         book.setDateAdded(parseDate(dto.dateAdded()));
         book.setStartDate(parseDate(dto.startDate()));
         book.setFinishDate(parseDate(dto.finishDate()));
         book.setChapterImagesEnabled(dto.chapterImagesEnabled() != null ? dto.chapterImagesEnabled() : false);
-        boolean isParts = "PARTS".equals(dto.structureType());
-        book.setStructureType(isParts ? "PARTS" : "CHAPTERS");
+        book.setStructureType(StructureType.fromTextOrDefault(dto.structureType()));
+        boolean isParts = book.isPartsBook();
         book = bookRepository.save(book);
 
         List<String> storedImages = new ArrayList<>();
@@ -92,7 +95,7 @@ public class MigrationImporter {
                 review.setBook(book);
                 review.setTitle(reviewDto.title());
                 review.setContent(reviewDto.content());
-                review.setUpdatedAt(parseDate(reviewDto.updatedAt()));
+                review.setUpdatedAt(parseDateTime(reviewDto.updatedAt()));
                 reviewRepository.save(review);
             }
         }

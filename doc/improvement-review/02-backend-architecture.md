@@ -138,6 +138,7 @@
 >   - 书评更新时 null 表示"不改"，与原来"缺省表示不改"一致；界面总是同时发送两个字段。
 > - **契约变化**：`scrollRatio` 不是数字时由"静默存为空"改为 400。前端只会发送数字或 null；`ReadingApiTest` 中的对应用例已改为"缺省"。
 > - **未做：Java 枚举映射**。真实库中有 13 本书的 `reading_status` 是空串、4 本是 NULL，直接映射为 `@Enumerated` 会在加载时报错。需要先迁移数据（`''` → NULL），这会改变这 13 本书在 API 中的输出，所以暂缓，目前用请求校验保证新写入的值合法。
+>   - ✅ 2026-11-01 已在 [DB-06](03-database-and-data-safety.md#db-06) 完成：V10 把 `''` 改为 NULL，`readingStatus` / `structureType` 映射为枚举，数据库加 CHECK；请求仍接受 `""`（存为 NULL），响应中未设置一律为 `null`。
 > - 书单请求体 `BookCollectionRequest` 未改：服务层已对名称做校验并返回 400。
 > - **测试**：[InputValidationTest](../../backend/src/test/java/com/bookscoreideas/web/InputValidationTest.java)，参数化 36 个：27 个非法输入改动前全部失败（409 / 200 / 空 400），9 个边界值改动前后都通过。
 > - **真实数据**：

@@ -10,15 +10,16 @@ import java.util.List;
 
 /**
  * Normalised, order-independent description of an H2 schema: columns (type, length,
- * nullability, default), constraints (name, columns, ON DELETE rule, target table)
- * and user-created indexes. Things H2 names by itself (primary keys, indexes it
- * creates for constraints) and column order are left out, because they legitimately
- * differ between databases with the same structure.
+ * timestamp precision, nullability, default), constraints (name, columns, ON DELETE
+ * rule, target table, CHECK clause) and user-created indexes. Things H2 names by
+ * itself (primary keys, indexes it creates for constraints) and column order are
+ * left out, because they legitimately differ between databases with the same
+ * structure.
  */
 final class SchemaSnapshot {
 
     private static final String COLUMNS = """
-            SELECT 'COLUMN', TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH,
+            SELECT 'COLUMN', TABLE_NAME, COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, DATETIME_PRECISION,
                    IS_NULLABLE, COLUMN_DEFAULT, IS_IDENTITY
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = 'PUBLIC' AND TABLE_NAME <> 'flyway_schema_history'
@@ -37,7 +38,9 @@ final class SchemaSnapshot {
                             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE uk
                             WHERE uk.CONSTRAINT_SCHEMA = u.CONSTRAINT_SCHEMA AND uk.CONSTRAINT_NAME = u.CONSTRAINT_NAME) || ')'
                     FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS u
-                    WHERE u.CONSTRAINT_SCHEMA = rc.UNIQUE_CONSTRAINT_SCHEMA AND u.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME)
+                    WHERE u.CONSTRAINT_SCHEMA = rc.UNIQUE_CONSTRAINT_SCHEMA AND u.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME),
+                   (SELECT cc.CHECK_CLAUSE FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
+                    WHERE cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME)
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
             LEFT JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
                    ON rc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND rc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME

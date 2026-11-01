@@ -26,7 +26,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const REVIEW = { id: 7, bookId: 3, bookTitle: 'Book Three', title: 'My take', content: '<p>Stored</p>', updatedAt: '2026-10-01' };
+// updatedAt is a date-time since DB-06; the page shows its day.
+const REVIEW = { id: 7, bookId: 3, bookTitle: 'Book Three', title: 'My take', content: '<p>Stored</p>', updatedAt: '2026-10-01T09:30:15.123456' };
 
 function renderPage() {
   bookApi.getAll.mockResolvedValue([{ id: 3, title: 'Book Three' }]);
@@ -38,6 +39,20 @@ function renderPage() {
     </QueryClientProvider>,
   );
 }
+
+describe('ReviewBankPage edit dates', () => {
+  it('shows the day a review was last edited, on the card and in the reader', async () => {
+    renderPage();
+
+    const heading = await screen.findByRole('heading', { name: 'My take' });
+    expect(screen.getAllByText('2026-10-01')).toHaveLength(1);
+    fireEvent.click(heading);
+
+    expect(await screen.findByRole('button', { name: '✏️ Edit' })).toBeTruthy();
+    expect(screen.getAllByText('2026-10-01')).toHaveLength(2);
+    expect(screen.queryByText(/T09:30/)).toBeNull();
+  });
+});
 
 describe('ReviewBankPage saving a review', () => {
   // Regression (BUG-17): the page swallowed the error and the reader left edit

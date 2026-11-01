@@ -10,7 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,9 +53,11 @@ class ReadingApiTest extends IntegrationTest {
         assertThat(getJson("/api/books/" + book + "/explanation-chapter-ids").get(0).asLong()).isEqualTo(chapter);
 
         jdbc.update("UPDATE chapter_explanations SET updated_at = DATE '2020-01-01' WHERE id = ?", saved.get("id").asLong());
+        LocalDateTime before = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         JsonNode updated = putJson(url, Map.of("content", "<p>v2</p>"));
         assertThat(updated.get("id").asLong()).isEqualTo(saved.get("id").asLong());
-        assertThat(updated.get("updatedAt").asString()).isEqualTo(LocalDate.now().toString());
+        // DB-06: a timestamp, not just the day.
+        assertThat(LocalDateTime.parse(updated.get("updatedAt").asString())).isBetween(before, LocalDateTime.now());
         assertThat(putJson(url, Map.of()).get("content").asString()).isEmpty();
 
         putMissing("/api/chapters/999999/explanation", "{\"content\":\"x\"}");
@@ -75,10 +78,11 @@ class ReadingApiTest extends IntegrationTest {
         postJson(url, Map.of("title", "Empty"));
 
         jdbc.update("UPDATE book_reviews SET updated_at = DATE '2020-01-01' WHERE id = ?", id);
+        LocalDateTime before = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         JsonNode updated = putJson(url + "/" + id, Map.of("title", "T2"));
         assertThat(updated.get("title").asString()).isEqualTo("T2");
         assertThat(updated.get("content").asString()).isEqualTo("<p>body</p>");
-        assertThat(updated.get("updatedAt").asString()).isEqualTo(LocalDate.now().toString());
+        assertThat(LocalDateTime.parse(updated.get("updatedAt").asString())).isBetween(before, LocalDateTime.now());
 
         JsonNode list = getJson(url);
         assertThat(list).hasSize(2);
@@ -96,6 +100,21 @@ class ReadingApiTest extends IntegrationTest {
 
         mockMvc.perform(delete(url + "/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(delete(url + "/" + id)).andExpect(status().isNotFound());
+    }
+
+    /** Regression (DB-06): edit dates had no time of day, so edits made the same day were listed by id. */
+    @Test
+    void reviewsEditedTheSameDayAreListedMostRecentlyEditedFirst() throws Exception {
+        String url = "/api/books/" + book + "/reviews";
+        long first = postForId(url, Map.of("title", "First", "content", "<p>1</p>"));
+        long second = postForId(url, Map.of("title", "Second", "content", "<p>2</p>"));
+        jdbc.update("UPDATE book_reviews SET updated_at = CURRENT_DATE WHERE book_id = ?", book);
+
+        putJson(url + "/" + first, Map.of("content", "<p>1, edited</p>"));
+
+        assertThat(getJson(url)).extracting(r -> r.get("id").asLong()).containsExactly(first, second);
+        assertThat(getJson("/api/reviews")).extracting(r -> r.get("id").asLong())
+                .filteredOn(r -> r == first || r == second).containsExactly(first, second);
     }
 
     @Test

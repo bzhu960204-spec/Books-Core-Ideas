@@ -45,8 +45,7 @@ public class BookExportService {
             result.put("rating", archive.rating());
             result.put("readingStatus", archive.readingStatus());
             result.put("dateAdded", archive.dateAdded());
-            // As stored (the archive normalises unknown values to CHAPTERS).
-            result.put("structureType", book.getStructureType());
+            result.put("structureType", archive.structureType());
             if (archive.parts() != null) {
                 result.put("parts", archive.parts().stream().map(BookExportService::part).toList());
                 // A PARTS book's ungrouped chapters (BUG-14); the import takes them back as such.

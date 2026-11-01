@@ -1,9 +1,10 @@
 package com.bookscoreideas.dto;
 
 /**
- * Allowed values of the book's string-coded fields, validated on every write (BE-05).
- * They stay strings in the database: existing books store "" as well as null for "no
- * reading status", so mapping them to a Java enum would first need a data migration.
+ * Allowed values of the book's enum fields in requests, validated on every write
+ * (BE-05). Requests keep them as strings: "" is still accepted for "no reading
+ * status" (the book form, JSON exports and archives from before DB-06) and stored as
+ * null; the entity maps them to {@code ReadingStatus} / {@code StructureType}.
  */
 public final class BookValues {
 

@@ -14,6 +14,7 @@ public record BookArchiveDto(
         String coverUrl,
         Integer rating,
         String category,
+        // WANT_TO_READ / READING / FINISHED or null; "" (before DB-06) and unknown values import as null.
         String readingStatus,
         String dateAdded,
         String startDate,

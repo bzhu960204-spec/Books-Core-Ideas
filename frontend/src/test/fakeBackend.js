@@ -66,7 +66,7 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
       const c = chapters.get(m[1]);
       if (!c) return notFound(path);
       if (!c.hasExplanation) return new Response(null, { status: 204 });
-      return json({ chapterId: c.id, content: `<p>Explanation of ${c.title}</p>`, updatedAt: '2026-01-02' });
+      return json({ chapterId: c.id, content: `<p>Explanation of ${c.title}</p>`, updatedAt: '2026-01-02T09:30:00' });
     }
     if ((m = path.match(/^\/api\/chapters\/(\d+)\/(ideas|excerpts|images)$/))) {
       const c = chapters.get(m[1]);

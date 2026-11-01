@@ -44,6 +44,12 @@ describe('ChapterExplanationModal keeps its draft in step with the explanation p
     expect((await screen.findByTestId('editor')).value).toBe('<p>Existing</p>');
   });
 
+  it('shows the day the explanation was last edited', () => {
+    renderModal({ explanation: { content: '<p>Existing</p>', updatedAt: '2026-01-02T09:30:00' } });
+    expect(screen.getByText('2026-01-02')).toBeTruthy();
+    expect(screen.queryByText(/T09:30/)).toBeNull();
+  });
+
   it('shows the saved explanation in reading mode once the parent passes it back', async () => {
     const { rerender } = renderModal({ explanation: null });
     fireEvent.change(await screen.findByTestId('editor'), { target: { value: '<p>Typed</p>' } });

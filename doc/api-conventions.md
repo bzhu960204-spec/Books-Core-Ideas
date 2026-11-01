@@ -45,7 +45,11 @@
   - 未知字段忽略；
   - 布尔标志（如 `highlighted`）省略或为 `null` 时按 `false` 处理；
   - 请求体中第一个 JSON 值之后还有内容时返回 400（Jackson 2 会忽略多出的部分）；
-  - 响应字段按 record 中声明的顺序输出；日期为 ISO 字符串（`2026-01-02`）。
+  - 响应字段按 record 中声明的顺序输出。
+- 日期和时间（DB-06）：
+  - 书的 `dateAdded` / `startDate` / `finishDate` 是日期：`2026-01-02`；
+  - 其他时间都是不带时区的 ISO 日期时间（Java `LocalDateTime.toString()`，小数位数不固定，整分时省略秒）：书评和讲解的 `updatedAt`、书签的 `createdAt`、标记和书单的 `createdAt` / `updatedAt`，例如 `2026-11-01T12:47:26.235039`、`2026-06-09T00:00`。书评和讲解在 DB-06 之前只存日期，这些旧值为当天 0 点，界面上只显示日期部分。
+- 枚举值（DB-06）：`readingStatus` 为 `WANT_TO_READ` / `READING` / `FINISHED`，未设置时响应中为 `null`；请求中 `""` 与 `null` 都表示未设置。`structureType` 为 `CHAPTERS` / `PARTS`。
 - 文本长度上限 = 数据库列宽。枚举类字段的允许值集中在 [BookValues](../backend/src/main/java/com/bookscoreideas/dto/BookValues.java)。
 - 上传的章节图片只接受 PNG / JPEG / GIF / WebP，按**文件内容**判断，不看客户端声明的类型或扩展名（SEC-02，[ImageType](../backend/src/main/java/com/bookscoreideas/service/ImageType.java)）。下载时同样按文件内容决定 `Content-Type`，并带上 `nosniff` 和 `sandbox` CSP。
 - 更新是"整体替换"（`PUT /api/books/{id}`：省略的字段会被清空）。例外是书评：null 表示"不改"。

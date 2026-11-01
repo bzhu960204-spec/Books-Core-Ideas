@@ -66,7 +66,7 @@
 | 2.2 | BE-01 / BE-06 | ✅ Service 层（含 open-in-view=false）、✅ 图片存储统一；统一导出推迟到 BE-08 |
 | 2.3 | DB-01 / DB-02 | ✅ Flyway 成为唯一 schema 来源，`ddl-auto=validate`（DB-01）；✅ 补外键与级联（DB-02） |
 | 2.4 | BE-08 | ✅ 迁移归档 v2：补齐书评/书签/标记/书单 |
-| 2.5 | BE-05 / BE-03 | ✅ 校验、API 风格统一（枚举映射因数据中有 '' 暂缓，见 DB-06） |
+| 2.5 | BE-05 / BE-03 | ✅ 校验、API 风格统一（枚举映射因数据中有 '' 暂缓，已在 DB-06 完成） |
 
 ### 阶段 3 · 前端
 | 顺序 | ID | 事项 |
@@ -91,7 +91,7 @@
 | 4.7 | ENG-04 | ✅ Maven Wrapper、Node/Java 版本约束（为 BE-10 固定构建环境） |
 | 4.8 | ENG-06 | ✅ 脚本：dev 端口记录、健康检查、去重 |
 | 4.9 | BE-10 | ✅ 升级 Spring Boot（先 3.5.x 清理弃用，再 4.x） |
-| 4.10 | DB-06 | DATE→TIMESTAMP、`readingStatus` 的 `''`→NULL 与枚举（涉及 schema，先备份） |
+| 4.10 | DB-06 | ✅ DATE→TIMESTAMP、`readingStatus` 的 `''`→NULL 与枚举（`structureType` 一并改为枚举；分类不拆表） |
 | 4.11 | DB-04 | 内联 base64 图片（真实数据中目前为 0，开工前再定方案） |
 | 4.12 | FE-07 | api.js 样板 |
 | 4.13 | ENG-05 | 文档收尾（依赖前面各项的最终状态） |
@@ -125,7 +125,7 @@
 | BE-02 | P1 | 实体直出 / 列表接口过重 | 2 | ✅ | /api/books 请求/响应 DTO + chapterCount；列表 757 KB→25 KB；含 BUG-09 |
 | BE-03 | P2 | API 风格统一 | 2 | ✅ | 201/204/404 约定 + 错误一律 ProblemDetail（doc/api-conventions.md）；前端无需改动，浏览器验证 |
 | BE-04 | P1 | 全局异常处理 | 1 | ✅ | ProblemDetail + 前端解析 detail |
-| BE-05 | P2 | 校验与枚举 | 2 | ✅ | 全部写接口 Bean Validation（长度/评分/状态值）+ Map 请求体换成 record；枚举映射因数据中有 '' 暂缓 |
+| BE-05 | P2 | 校验与枚举 | 2 | ✅ | 全部写接口 Bean Validation（长度/评分/状态值）+ Map 请求体换成 record；枚举映射因数据中有 '' 暂缓，已在 DB-06 完成 |
 | BE-06 | P2 | 重复代码 | 2 | ✅ | 图片存储统一；两套导出共用 BookArchiveBuilder（随 BE-08）；JSON 导入与 ZIP 迁移共用 BookTreeWriter、前端两份导入循环删除（随 FE-08） |
 | BE-07 | P2 | 导入整包入内存 | 4 | ✅ | 上传存为临时文件（用完即删），`ZipFile` 按需读取，图片流式写盘；zip bomb 防护改为"声明大小之和 ≤ 500 MB + 每个条目不超过声明大小"；图片在事务中写盘、回滚即删（SEC-04 移交），写盘失败时整本书失败；新测试 5 个（3 个修复前失败）；副本零差异，往返结果与改动前相同；`-Xmx160m` 导入 180 MB 归档：改动前 OOM，改动后成功 |
 | BE-08 | P1 | 迁移归档不完整 | 2 | ✅ | 格式 v2（书评/书签/标记/书单路径 + 原始时间戳）、兼容 v1、拒绝更新版本；真实数据整库往返完全相同 |
@@ -136,7 +136,7 @@
 | DB-03 | P3 | 删除 migrate.sql | 0 | ✅ | |
 | DB-04 | P2 | 内联 base64 图片 | 4 | ⬜ | |
 | DB-05 | P2 | 备份机制 | 0 | ✅ | 按需求缩小为手动 backup/restore 脚本，不做自动备份；陈旧锁自动识别（data-scripts.test.ps1） |
-| DB-06 | P3 | 建模细节 | 4 | 🔄 | `Chapter.explanation` 反向一对一已去掉（ChapterExplanationLoadingTest）；DATE→TIMESTAMP、分类拆表待做 |
+| DB-06 | P3 | 建模细节 | 4 | ✅ | `Chapter.explanation` 反向一对一已去掉（ChapterExplanationLoadingTest）；V10：书评/讲解的编辑时间 DATE→TIMESTAMP（接口返回日期时间，界面仍显示日期，归档保持 v2 并兼容纯日期）、`readingStatus` `''`→NULL + 枚举 + CHECK（请求仍接受 `""`）、`structureType` 枚举 + CHECK；分类不拆表（理由见条目）；新测试后端 9 个、前端 5 个（改动前失败）；副本 116 个差异全部属于这两类，表内容不变，往返不变，旧归档导入结果与迁移结果相同；浏览器验证 |
 | FE-01 | P1 | 拆分超大组件/样式 | 3 | ✅ | 3 个组件拆成 hook + 子组件（1049→483、1029→144、531→175 行），index.css 按原顺序切成 22 个文件；特征测试先行（前端 52→119）；构建 CSS 逐字节相同；5 主题 × 18 场景新旧版本 DOM 与截图逐像素相同 |
 | FE-02 | P1 | ESLint 清零 | 1 | ✅ | 0 error / 0 warning，CI 阻断；9 处加载 effect 的 disable 已随 FE-03 删除 |
 | FE-03 | P1 | 数据获取 N+1 / 缓存 | 3 | ✅ | 聚合接口 `GET /books/{id}/detail`（语句数固定）+ TanStack Query（共享缓存、写后全部失效、请求取消）；详情页 70+ 请求 → 1；9 处 eslint-disable 已删除 |
@@ -150,7 +150,7 @@
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；补充：去掉 H2 `AUTO_SERVER`（数据库曾对局域网开端口；顺带不再留陈旧锁）；NetworkExposureTest 3 个（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ✅ | 归档图片按文件内容判断（复用 SEC-02），扩展名/类型由检测结果决定；跳过的图片（非图片、缺文件）写进导入报告并在前端显示；超长文件名截断；提交后写盘的问题移交 BE-07；回归测试修复前失败；副本零差异，往返结果与改动前相同；浏览器验证 |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 219 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定）+ 前端 Vitest 184 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 228 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键与 CHECK 约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定、阅读状态与编辑时间）+ 前端 Vitest 189 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ✅ | Maven Wrapper（3.9.16 + SHA-256 校验）；enforcer 要求 Java 17+ / Maven 3.6.3+；`engines.node` + `.nvmrc`（CI 读取）+ `engine-strict`；`tools/java-env.ps1`：三个脚本都支持 `.java-home` 并预先检查 Java 版本；用 JRE 11 / Node 20 实测提示；start-dev / start-prod / build-prod 端到端验证 |

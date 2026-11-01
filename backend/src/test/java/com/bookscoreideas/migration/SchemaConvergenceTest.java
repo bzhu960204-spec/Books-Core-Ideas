@@ -110,6 +110,64 @@ class SchemaConvergenceTest {
         }
     }
 
+    /** DB-06: "not set" is stored one way (NULL), and day-only edit dates become midnight timestamps. */
+    @Test
+    void v10StoresUnsetReadingStatusAsNullAndKeepsEditDates() throws Exception {
+        String legacy = newLegacyDatabaseAtV7();
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            s.execute("INSERT INTO BOOKS (ID, TITLE, READING_STATUS, STRUCTURE_TYPE) VALUES (1, 'Empty', '', 'CHAPTERS')");
+            s.execute("INSERT INTO BOOKS (ID, TITLE, READING_STATUS, STRUCTURE_TYPE) VALUES (2, 'Null', NULL, 'PARTS')");
+            s.execute("INSERT INTO BOOKS (ID, TITLE, READING_STATUS, STRUCTURE_TYPE) VALUES (3, 'Set', 'READING', 'CHAPTERS')");
+            s.execute("INSERT INTO CHAPTERS (ID, TITLE, BOOK_ID) VALUES (1, 'Ch', 1)");
+            s.execute("INSERT INTO BOOK_REVIEWS (ID, BOOK_ID, CONTENT, UPDATED_AT) VALUES (1, 1, 'r', DATE '2026-06-09')");
+            s.execute("INSERT INTO CHAPTER_EXPLANATIONS (ID, CHAPTER_ID, CONTENT, UPDATED_AT) VALUES (1, 1, 'e', DATE '2026-09-26')");
+        }
+
+        flyway(legacy, "7").migrate();
+
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            assertThat(row(s, "SELECT LISTAGG(COALESCE(READING_STATUS, '<null>') || '/' || STRUCTURE_TYPE, ',') "
+                    + "WITHIN GROUP (ORDER BY ID) FROM BOOKS"))
+                    .containsExactly("<null>/CHAPTERS,<null>/PARTS,READING/CHAPTERS");
+            assertThat(row(s, "SELECT UPDATED_AT FROM BOOK_REVIEWS")).containsExactly("2026-06-09 00:00:00");
+            assertThat(row(s, "SELECT UPDATED_AT FROM CHAPTER_EXPLANATIONS")).containsExactly("2026-09-26 00:00:00");
+        }
+    }
+
+    @Test
+    void unknownBookValuesAbortV10BeforeChangingAnything() throws Exception {
+        String legacy = newLegacyDatabaseAtV7();
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            s.execute("INSERT INTO BOOKS (ID, TITLE, READING_STATUS, STRUCTURE_TYPE) VALUES (1, 'Empty', '', 'CHAPTERS')");
+            s.execute("INSERT INTO BOOKS (ID, TITLE, READING_STATUS, STRUCTURE_TYPE) VALUES (2, 'Odd', 'DONE', 'CHAPTERS')");
+            s.execute("INSERT INTO BOOK_REVIEWS (ID, BOOK_ID, CONTENT, UPDATED_AT) VALUES (1, 1, 'r', DATE '2026-06-09')");
+        }
+
+        assertThatThrownBy(() -> flyway(legacy, "7").migrate())
+                .isInstanceOf(FlywayException.class)
+                .hasMessageContaining("V10 aborted: BOOKS.READING_STATUS has an unknown value 'DONE' (1 rows)");
+
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            assertThat(row(s, "SELECT MAX(\"version\") FROM \"flyway_schema_history\" WHERE \"success\""))
+                    .containsExactly("9");
+            assertThat(row(s, "SELECT READING_STATUS FROM BOOKS WHERE ID = 1")).containsExactly("");
+            assertThat(row(s, "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS "
+                    + "WHERE TABLE_NAME = 'BOOK_REVIEWS' AND COLUMN_NAME = 'UPDATED_AT'")).containsExactly("DATE");
+        }
+    }
+
+    @Test
+    void unknownStructureTypeAbortsV10() throws Exception {
+        String legacy = newLegacyDatabaseAtV7();
+        try (Connection c = connect(legacy); Statement s = c.createStatement()) {
+            s.execute("INSERT INTO BOOKS (ID, TITLE, STRUCTURE_TYPE) VALUES (1, 'Odd', 'parts')");
+        }
+
+        assertThatThrownBy(() -> flyway(legacy, "7").migrate())
+                .isInstanceOf(FlywayException.class)
+                .hasMessageContaining("V10 aborted: BOOKS.STRUCTURE_TYPE has an unknown value 'parts' (1 rows)");
+    }
+
     private static String newDatabase() {
         return "jdbc:h2:mem:schema-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
     }

@@ -4,6 +4,8 @@ import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.dto.CreateBookRequest;
 import com.bookscoreideas.dto.UpdateBookRequest;
 import com.bookscoreideas.entity.Book;
+import com.bookscoreideas.entity.ReadingStatus;
+import com.bookscoreideas.entity.StructureType;
 import com.bookscoreideas.repository.BookCollectionItemRepository;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
@@ -74,14 +76,14 @@ public class BookService {
         book.setDateAdded(request.dateAdded());
         book.setRating(request.rating());
         book.setCategory(request.category());
-        book.setReadingStatus(request.readingStatus());
+        book.setReadingStatus(ReadingStatus.fromText(request.readingStatus()));
         book.setStartDate(request.startDate());
         book.setFinishDate(request.finishDate());
         if (request.chapterImagesEnabled() != null) {
             book.setChapterImagesEnabled(request.chapterImagesEnabled());
         }
         if (request.structureType() != null) {
-            book.setStructureType(request.structureType());
+            book.setStructureType(StructureType.valueOf(request.structureType()));
         }
         return BookDto.from(bookRepository.save(book), 0);
     }
@@ -96,12 +98,12 @@ public class BookService {
             existing.setCoverUrl(request.coverUrl());
             existing.setRating(request.rating());
             existing.setCategory(request.category());
-            existing.setReadingStatus(request.readingStatus());
+            existing.setReadingStatus(ReadingStatus.fromText(request.readingStatus()));
             existing.setStartDate(request.startDate());
             existing.setFinishDate(request.finishDate());
             existing.setChapterImagesEnabled(Boolean.TRUE.equals(request.chapterImagesEnabled()));
             if (request.structureType() != null) {
-                existing.setStructureType(request.structureType());
+                existing.setStructureType(StructureType.valueOf(request.structureType()));
             }
             return toDto(bookRepository.save(existing));
         });

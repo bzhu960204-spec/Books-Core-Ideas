@@ -123,7 +123,9 @@ books-export-2026-10-01.zip
 单本书的自包含快照，字段与实体一一对应：
 
 - 书级元数据：`title`、`author`、`isbn`、`description`、`coverUrl`、`rating`、`category`、`readingStatus`、`dateAdded`、`startDate`、`finishDate`、`chapterImagesEnabled`。
+  - `readingStatus`：`WANT_TO_READ` / `READING` / `FINISHED`，未设置时为 `null`。DB-06 之前的归档中未设置可能写作 `""`；导入时 `""` 和不认识的值都按未设置处理。
 - `structureType`：`"CHAPTERS"`（扁平章节）或 `"PARTS"`（分部结构）。
+- **时间**：书评和讲解的 `updatedAt`，书签和标记的 `createdAt` / `updatedAt`，都是 ISO 日期时间（如 `2026-11-01T12:47:26.235039`）。DB-06 之前的归档中，书评和讲解只写日期（`2026-06-09`），导入时读作当天 0 点。反过来，DB-06 之前的版本导入新归档时，读不懂书评和讲解的日期时间，会把它们记为导入当天，其余内容照常导入。格式版本没有因此升级（见 [DB-06](improvement-review/03-database-and-data-safety.md#db-06)）。
 - 结构二选一：
   - `parts`：`PartArchiveDto[]`，每个分部含 `title`、`orderIndex`、`summary` 及其 `chapters`。
   - `chapters`：`ChapterArchiveDto[]`（无分部时）。

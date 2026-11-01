@@ -124,7 +124,7 @@ public class BookTreeWriter {
             ChapterExplanation explanation = new ChapterExplanation();
             explanation.setChapter(chapter);
             explanation.setContent(dto.explanation().content());
-            explanation.setUpdatedAt(parseDate(dto.explanation().updatedAt()));
+            explanation.setUpdatedAt(parseDateTime(dto.explanation().updatedAt()));
             explanationRepository.save(explanation);
         }
 
@@ -242,12 +242,14 @@ public class BookTreeWriter {
     }
 
     // Unparseable or missing timestamps fall back to "now" (set by the entity on insert).
+    // A day without a time (review and explanation dates before DB-06) is the start of that day.
     static LocalDateTime parseDateTime(String value) {
         if (value == null || value.isBlank()) return null;
         try {
             return LocalDateTime.parse(value);
         } catch (Exception e) {
-            return null;
+            LocalDate day = parseDate(value);
+            return day != null ? day.atStartOfDay() : null;
         }
     }
 }

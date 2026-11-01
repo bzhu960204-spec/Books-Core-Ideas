@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Modal from './Modal';
 import LazyRichTextEditor from './LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
+import { isoDay } from '../utils/dates';
 
 export default function ReviewReaderModal({
   review,
@@ -83,7 +84,7 @@ export default function ReviewReaderModal({
           <button type="button" className="review-bank-source-link" onClick={onOpenBook}>
             {review.bookTitle}{review.bookAuthor ? ` · ${review.bookAuthor}` : ''} →
           </button>
-          {review.updatedAt && <span className="review-bank-date">{review.updatedAt}</span>}
+          {review.updatedAt && <span className="review-bank-date">{isoDay(review.updatedAt)}</span>}
         </div>
       </header>
 

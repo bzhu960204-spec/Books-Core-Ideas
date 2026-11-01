@@ -15,6 +15,7 @@ import com.bookscoreideas.entity.BookCollection;
 import com.bookscoreideas.entity.BookCollectionItem;
 import com.bookscoreideas.entity.Chapter;
 import com.bookscoreideas.entity.Part;
+import com.bookscoreideas.entity.ReadingStatus;
 import com.bookscoreideas.repository.BookCollectionItemRepository;
 import com.bookscoreideas.repository.BookCollectionRepository;
 import com.bookscoreideas.repository.BookReviewRepository;
@@ -80,7 +81,7 @@ public class BookArchiveBuilder {
     }
 
     public BookArchiveDto build(Book book) {
-        boolean isParts = "PARTS".equals(book.getStructureType());
+        boolean isParts = book.isPartsBook();
         List<PartArchiveDto> parts = null;
         List<ChapterArchiveDto> chapters = null;
 
@@ -113,9 +114,9 @@ public class BookArchiveBuilder {
         return new BookArchiveDto(
                 MigrationService.FORMAT_VERSION,
                 book.getTitle(), book.getAuthor(), book.getIsbn(), book.getDescription(),
-                book.getCoverUrl(), book.getRating(), book.getCategory(), book.getReadingStatus(),
+                book.getCoverUrl(), book.getRating(), book.getCategory(), ReadingStatus.text(book.getReadingStatus()),
                 text(book.getDateAdded()), text(book.getStartDate()), text(book.getFinishDate()),
-                book.getChapterImagesEnabled(), isParts ? "PARTS" : "CHAPTERS", parts, chapters,
+                book.getChapterImagesEnabled(), book.getStructureType().name(), parts, chapters,
                 reviews, collectionPaths(book.getId()));
     }
 

@@ -88,7 +88,7 @@ public class JsonImportService {
         return bookRepository.findById(bookId).map(book -> {
             List<PartImport> parts = request.parts() != null ? request.parts() : List.of();
             List<ChapterImport> chapters = request.chapters() != null ? request.chapters() : List.of();
-            if (!"PARTS".equals(book.getStructureType()) && !parts.isEmpty()) {
+            if (!book.isPartsBook() && !parts.isEmpty()) {
                 throw new IllegalArgumentException("parts: this book has no parts (structure CHAPTERS); "
                         + "import \"chapters\", or switch the book to Parts → Chapters first");
             }

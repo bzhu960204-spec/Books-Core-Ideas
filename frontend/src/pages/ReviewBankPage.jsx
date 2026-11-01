@@ -6,6 +6,7 @@ import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LazyRichTextEditor from '../components/LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
+import { isoDay } from '../utils/dates';
 import ReviewReaderModal from '../components/ReviewReaderModal';
 import { attempt, reportError } from '../components/feedback/toast';
 
@@ -222,7 +223,7 @@ export default function ReviewBankPage() {
                 <h3 className="review-bank-title">{displayTitle}</h3>
                 {excerpt && <p className="review-bank-excerpt">{excerpt}</p>}
                 <div className="review-bank-meta">
-                  {r.updatedAt && <span className="review-bank-date">{r.updatedAt}</span>}
+                  {r.updatedAt && <span className="review-bank-date">{isoDay(r.updatedAt)}</span>}
                   {meta.words > 0 && (
                     <span className="review-bank-readtime">
                       {meta.words} words · ~{meta.minutes} min read

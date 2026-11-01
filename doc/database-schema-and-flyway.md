@@ -18,6 +18,7 @@
 | V1–V7 | 历史补丁：补列、改约束、新增 CHAPTER_EXPLANATIONS、BOOK_COLLECTIONS(+ITEMS)、READING_BOOKMARKS、EXPLANATION_MARKS |
 | V8 `normalize_schema` | 把老库与空库统一成同一份结构：约束/索引统一命名、外键列都有命名索引、`STRUCTURE_TYPE` 等列类型/默认值对齐、标志列 NOT NULL（DB-01） |
 | V9 `foreign_keys_and_cascades` | 外键删除规则（见下表）、补齐书单相关外键、子表外键列 NOT NULL、复合外键保证冗余 `book_id` 一致（DB-02） |
+| V10 `modeling_details` | `READING_STATUS` 的 `''` → NULL，`READING_STATUS` / `STRUCTURE_TYPE` 加 CHECK（对应 Java 枚举）；书评、讲解的 `UPDATED_AT` 由 DATE 改为 TIMESTAMP（DB-06） |
 
 ### 外键删除规则（V9 起）
 
@@ -43,7 +44,7 @@
 | **空库**（新 clone / 新机器） | schema 为空 → 不做基线，从 **V0** 开始依次执行 V0…最新。 |
 | **老库**（当初由 Hibernate 建表、后被 Flyway 以版本 0 基线接管） | 历史表里有 `<< Flyway Baseline >>`（版本 0），V0 被跳过（`BASELINE_IGNORED`），其余按版本执行。 |
 
-两条路径的最终结构**完全一致**（由 `SchemaConvergenceTest` 保证）。V8、V9 已在真实库副本上演练：迁移成功，12 张表内容逐行一致，2,724 个 GET 响应与改动前零差异。
+两条路径的最终结构**完全一致**（由 `SchemaConvergenceTest` 保证）。V8、V9 已在真实库副本上演练：迁移成功，12 张表内容逐行一致，2,724 个 GET 响应与改动前零差异。V10 同样在副本上演练过：表内容只有预期的变化，接口差异全部属于预期的两类（见 [DB-06](improvement-review/03-database-and-data-safety.md#db-06)）。
 
 ## 3. 命名约定
 
@@ -51,10 +52,12 @@
 |---|---|---|
 | 外键 | `FK_<子表>_<目标>` | `FK_CHAPTERS_BOOK`、`FK_KEY_IDEAS_CHAPTER` |
 | 唯一约束 | `UK_<表>_<列…>` | `UK_CHAPTER_EXPLANATIONS_CHAPTER` |
+| CHECK 约束 | `CK_<表>_<列>` | `CK_BOOKS_READING_STATUS` |
 | 索引 | `IDX_<表>_<列>` | `IDX_CHAPTERS_PART` |
 
 - 每个外键列都先建命名索引、再加外键：H2 会复用该索引；否则 H2 会额外建一个系统命名的重复索引。
 - 主键沿用 H2 系统名（`CONSTRAINT_xx`），不参与比较。
+- Java 枚举列（`@Enumerated(EnumType.STRING)`，DB-06）在库中是 `VARCHAR`，取值由 CHECK 约束限定；新增枚举值时要同时新增迁移，修改 CHECK。`ddl-auto=validate` 不检查 CHECK 约束。
 
 ## 4. 测试（防回归）
 
@@ -64,10 +67,10 @@
 - `FreshDatabaseMigrationTest`：空库上全部迁移成功、无待执行迁移，并做一次建书/读书的 API 冒烟。
 - `LegacyDatabaseMigrationTest`：模拟 Flyway 之前的老库（预先存在的表 + 版本 0 基线），断言 V0 被跳过、其余迁移成功、数据保留。
 - `SchemaConvergenceTest`：
-  - 以 `src/test/resources/db/legacy-schema-v7.sql`（真实库在 V8 之前的 `SCRIPT NODATA` 结构，不含数据）为起点迁移，要求最终的 INFORMATION_SCHEMA（列、类型、可空、默认值、约束名及定义、ON DELETE 规则、索引）与空库**逐项相同**。
-  - 同时检查老数据在迁移后保留。
-  - 检查遇到未知约束（V8）或违规数据（V9）时，迁移在改动任何东西之前就中止。
-- `ForeignKeyConstraintsTest`：直接用 SQL 验证数据库自身的级联、RESTRICT、NOT NULL 与复合外键。
+  - 以 `src/test/resources/db/legacy-schema-v7.sql`（真实库在 V8 之前的 `SCRIPT NODATA` 结构，不含数据）为起点迁移，要求最终的 INFORMATION_SCHEMA（列、类型、时间精度、可空、默认值、约束名及定义、ON DELETE 规则、CHECK 子句、索引）与空库**逐项相同**。
+  - 同时检查老数据在迁移后保留，V10 的数据转换（`''` → NULL，日期 → 当天 0 点）。
+  - 检查遇到未知约束（V8）、违规数据（V9）或未知的阅读状态/结构类型（V10）时，迁移在改动任何东西之前就中止。
+- `ForeignKeyConstraintsTest`：直接用 SQL 验证数据库自身的级联、RESTRICT、NOT NULL 与复合外键。`BookStatusValuesTest` 验证 CHECK 约束。
 
 ## 5. 新增迁移的约定
 

@@ -32,7 +32,8 @@ public class Book {
 
     private String category;
 
-    private String readingStatus; // WANT_TO_READ, READING, FINISHED
+    @Enumerated(EnumType.STRING)
+    private ReadingStatus readingStatus; // null = not set
 
     private LocalDate startDate;
 
@@ -41,10 +42,11 @@ public class Book {
     @Column(nullable = false)
     private Boolean chapterImagesEnabled = false;
 
-    // Structure of the book: "CHAPTERS" (flat chapters) or "PARTS" (parts that
+    // Structure of the book: CHAPTERS (flat chapters) or PARTS (parts that
     // each contain chapters). Defaults to CHAPTERS for backward compatibility.
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String structureType = "CHAPTERS";
+    private StructureType structureType = StructureType.CHAPTERS;
 
     @OneToMany(mappedBy = "book", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
@@ -86,16 +88,17 @@ public class Book {
     public void setRating(Integer rating) { this.rating = rating; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-    public String getReadingStatus() { return readingStatus; }
-    public void setReadingStatus(String readingStatus) { this.readingStatus = readingStatus; }
+    public ReadingStatus getReadingStatus() { return readingStatus; }
+    public void setReadingStatus(ReadingStatus readingStatus) { this.readingStatus = readingStatus; }
     public LocalDate getStartDate() { return startDate; }
     public void setStartDate(LocalDate startDate) { this.startDate = startDate; }
     public LocalDate getFinishDate() { return finishDate; }
     public void setFinishDate(LocalDate finishDate) { this.finishDate = finishDate; }
     public Boolean getChapterImagesEnabled() { return chapterImagesEnabled; }
     public void setChapterImagesEnabled(Boolean chapterImagesEnabled) { this.chapterImagesEnabled = chapterImagesEnabled; }
-    public String getStructureType() { return structureType; }
-    public void setStructureType(String structureType) { this.structureType = structureType; }
+    public StructureType getStructureType() { return structureType; }
+    public void setStructureType(StructureType structureType) { this.structureType = structureType; }
+    public boolean isPartsBook() { return structureType == StructureType.PARTS; }
     public List<Chapter> getChapters() { return chapters; }
     public void setChapters(List<Chapter> chapters) { this.chapters = chapters; }
     public List<Part> getParts() { return parts; }

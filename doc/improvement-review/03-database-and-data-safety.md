@@ -150,10 +150,10 @@
 <a id="db-06"></a>
 ## DB-06 · 数据建模细节 ⚪
 
-- `book_reviews.updated_at`、`chapter_explanations.updated_at` 是 `DATE`，丢失时分秒，同一天内多次编辑无法排序（目前靠 `id DESC` 兜底）。建议改 `TIMESTAMP`。
-- `books.category` 用分号拼接多值（`BookRepository.findDistinctCategories` 在 Java 里拆分）。如果分类会继续增强（重命名、统计），建议拆成 `categories` + 关联表；若保持简单可维持现状。
+- ✅ `book_reviews.updated_at`、`chapter_explanations.updated_at` 是 `DATE`，丢失时分秒，同一天内多次编辑无法排序（目前靠 `id DESC` 兜底）。建议改 `TIMESTAMP`。（2026-11-01 完成，见下文）
+- ⏸ `books.category` 用分号拼接多值（`BookRepository.findDistinctCategories` 在 Java 里拆分）。如果分类会继续增强（重命名、统计），建议拆成 `categories` + 关联表；若保持简单可维持现状。（2026-11-01 决定维持现状，理由见下文）
 - `reading_bookmarks.note` 在 V6 中为 `VARCHAR(500)`，控制器不截断，超长会 500（实体已在 DB-01 中标注 `length = 500`，仅为与库一致；✅ 超长输入随 BE-05 改为返回 400）。
-- `books.reading_status` 中"未设置"有两种存法：13 本是空串、4 本是 NULL。在把 `readingStatus` 映射为 Java 枚举之前，需要先迁移数据（`''` → NULL）。这会改变这些书在 API 中的输出（`""` → `null`），前端两种情况都当作"未设置"处理（见 BE-05）。
+- ✅ `books.reading_status` 中"未设置"有两种存法：13 本是空串、4 本是 NULL。在把 `readingStatus` 映射为 Java 枚举之前，需要先迁移数据（`''` → NULL）。这会改变这些书在 API 中的输出（`""` → `null`），前端两种情况都当作"未设置"处理（见 BE-05）。（2026-11-01 完成，见下文）
 - ✅ **`Chapter.explanation` 反向一对一**（2026-10-31 完成，BE-01 时发现）：
   - **问题**：没有字节码增强时，反向一对一无法懒加载，所以每次加载 `Chapter` 实体（改章节、加想法/摘录、导出等）都会把讲解全文一起读出来。
   - **改法**：从 `Chapter` 中删除该字段，删章/删书时讲解由数据库的 `ON DELETE CASCADE`（V9）删除。原本由服务层显式删除也是一种选择，但级联已经在数据库里了，不需要重复的代码。
@@ -162,3 +162,46 @@
     - 改章节 + 加想法 + 加摘录时加载讲解实体 0 次（改动前为 3 次，测试失败）；
     - 删章/删书仍会删除讲解（特征测试，改动前后都通过）。
   - **真实库副本**：2,724 个 GET 响应零差异。
+
+> **✅ 已完成（2026-11-01，阶段 4.10）：编辑时间改为 TIMESTAMP；阅读状态与结构类型改为枚举**
+>
+> **设计决策**（按"最佳判断"授权，接口格式与归档版本已与用户确认）：
+> 1. **只改两个"编辑时间"**：`BOOK_REVIEWS.UPDATED_AT`、`CHAPTER_EXPLANATIONS.UPDATED_AT` 改为 `TIMESTAMP`。书本身的 `DATE_ADDED` / `START_DATE` / `FINISH_DATE` 是用户在表单中选、或由 JSON 导入带来的日历日期，保持 `DATE`。已有的值无法补回时分，迁移后为当天 0 点。
+> 2. **接口返回完整的 ISO 日期时间**（如 `2026-11-01T12:47:26.235039`；0 点的旧值为 `2026-06-09T00:00`），与书签、标记的 `createdAt` / `updatedAt` 写法一致。**界面仍只显示日期**（`utils/dates.js` 的 `isoDay`），外观不变，也避免旧数据显示一个并不存在的"00:00"。实体写入时截到微秒（列的精度），保存后的响应与之后读到的值相同。
+> 3. **迁移归档保持 v2**：`updatedAt` 改为写日期时间；导入同时接受日期（旧归档，读作当天 0 点）和日期时间。旧版本（f00584c 及以前）导入新归档时，这两类时间解析失败，会被记为导入当天，其余内容不受影响（已实测）。没有升到 v3：v3 会让旧版本拒绝整个归档，代价更大。
+> 4. **`readingStatus`**：V10 把 `''` 改为 NULL，Java 端为 `ReadingStatus` 枚举（`@Enumerated(STRING)`），数据库加 `CHECK`。**请求仍接受 `""`**（表示未设置，存为 NULL）：书籍表单、旧的 JSON 导出和旧归档都会发送 `""`。响应和导出中，这 13 本书由 `""` 变为 `null`；前端两者都当作"未设置"。归档中出现未知值时按未设置导入（与 `structureType` 未知值按 `CHAPTERS` 导入的既有做法一致），JSON 导入和 API 仍按 BE-05 返回 400。
+> 5. **`structureType` 一并改为枚举**（`StructureType`，数据库加 `CHECK`）：它是 BE-05 暂缓的枚举映射的另一半，数据已全部合法，接口输出不变。各处的 `"PARTS".equals(...)` 改为 `book.isPartsBook()`。
+> 6. **分类不拆表**：目前没有重命名、统计等需要独立分类表的功能；拆表会同时改变 API、迁移归档和 JSON 导入/导出三种格式，收益不足以抵消。真实数据只有 9 种分类，`findDistinctCategories` 在 Java 中拆分足够。将来要做分类管理时再拆。另：`category` 同样有 `''` 与 NULL 两种"空"，因为它不映射为枚举，不影响功能，未处理。
+>
+> **做法**：
+> - [V10__modeling_details.sql](../../backend/src/main/resources/db/migration/V10__modeling_details.sql)：
+>   - 先用守卫查询检查 `READING_STATUS` / `STRUCTURE_TYPE` 中是否有未知值（如 `'DONE'`、小写 `'parts'`），有则在任何改动之前中止，并在错误中给出列名、值和行数；
+>   - 然后 `''` → NULL，加 `CK_BOOKS_READING_STATUS`、`CK_BOOKS_STRUCTURE_TYPE`，两列 `ALTER COLUMN … SET DATA TYPE TIMESTAMP`。
+> - 实体：`Book.readingStatus` / `structureType` 为枚举；`BookReview` / `ChapterExplanation` 的 `updatedAt` 为 `LocalDateTime`。请求 DTO 仍是带 `@Pattern` 的字符串（错误信息不变），由服务层用 `ReadingStatus.fromText` / `StructureType.valueOf` 转换。
+> - 导入：`BookTreeWriter.parseDateTime` 也接受只有日期的值（当天 0 点），书签和标记的时间同样受益。
+> - 前端：书评库卡片、书评阅读弹窗、讲解阅读弹窗三处用 `isoDay` 显示日期。讲解导出（HTML/PDF）本来就用 `new Date()` 解析，日期时间同样适用；在 UTC 以西的时区，旧的纯日期反而会被显示成前一天，现在不会。
+>
+> **测试**（后端 219 → 228，前端 184 → 189；新增和修改的断言改动前全部失败）：
+> - [SchemaConvergenceTest](../../backend/src/test/java/com/bookscoreideas/migration/SchemaConvergenceTest.java)：
+>   - 老库（V7 结构）迁移后 `''` → NULL、日期变为 0 点的时间戳；
+>   - 有未知阅读状态或结构类型时，V10 在改动前中止（停在 V9，`''` 和 `DATE` 列都未改）；
+>   - `SchemaSnapshot` 增加比较时间精度和 CHECK 子句，"老库 = 空库"仍成立。
+> - [BookStatusValuesTest](../../backend/src/test/java/com/bookscoreideas/books/BookStatusValuesTest.java)：`""` 存为 NULL、返回 null（新建、更新、"清除状态"、JSON 导入）；数据库拒绝未知值和 `''`；结构类型的接口行为不变（特征测试，改动前后都通过）。
+> - [ReadingApiTest](../../backend/src/test/java/com/bookscoreideas/books/ReadingApiTest.java)：编辑时间带时分；同一天内编辑的书评按编辑时间排序，书评库也是（改动前按 id 排在后面）。
+> - [MigrationArchiveTest](../../backend/src/test/java/com/bookscoreideas/migration/MigrationArchiveTest.java)：归档往返保留时分；旧归档的纯日期读作 0 点；归档中的 `""`、未知值、null 导入为未设置。
+> - 前端：`utils/dates.test.js`；书评库卡片和阅读弹窗、讲解弹窗只显示日期。
+>
+> **真实数据副本**（先停应用并备份 `before-db06-modeling`）：
+> - V10 在副本上执行成功（V7 → V10）。
+> - 2,749 个响应中 116 个有差异，全部是预期的两类：
+>   - 13 本书的 `readingStatus` `""` → `null`：书、详情、JSON 导出各 13 个，书列表、书单内容各 1 个；
+>   - 5 条书评、51 条讲解的 `updatedAt` 加上 `T00:00`：讲解 51 个、书评列表 4 个、书评库 1 个；
+>   - 迁移 ZIP 导出中 19 本书兼有上述两类。
+>   - 把这两处替换应用到改动前的原始文本后，与改动后**逐字相同**（字段顺序等不变）。
+> - 各表：行数和内容不变。只有两张表的 `UPDATED_AT` 由 `2026-06-09` 变为 `2026-06-09 00:00:00`，且全部恰为原日期 0 点。`READING_STATUS` 直接查库确认：NULL 17 本（13 + 4），其余不变。导出的 CSV 不区分 `''` 与 NULL，所以 `compare_tables` 看不出这一项。
+> - `roundtrip.py`：ZIP 和 JSON 往返后，除已知的 book 195 缺图片外完全相同。
+> - 旧版本 jar 导出的整库归档导入新版本后，与 V10 迁移后的副本完全相同（同样除 book 195 的图片外）。
+> - 浏览器（副本 + Vite）：
+>   - 书评库、书评阅读弹窗、讲解弹窗都只显示日期；
+>   - 编辑一条 6-15 的书评后，它排到最前，显示当天日期；
+>   - 书库中 17 本未设置状态的书仍显示"Set status"；设置后再清除，状态回到 null。

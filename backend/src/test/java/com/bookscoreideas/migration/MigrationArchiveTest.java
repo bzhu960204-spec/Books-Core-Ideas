@@ -62,8 +62,8 @@ class MigrationArchiveTest extends IntegrationTest {
         addToCollection(child, book);
         addToCollection(otherRoot, book);
         // Timestamps the API would set to "now"; the archive must keep the originals.
-        jdbc.update("UPDATE BOOK_REVIEWS SET UPDATED_AT = DATE '2020-01-02' WHERE BOOK_ID = ?", book);
-        jdbc.update("UPDATE CHAPTER_EXPLANATIONS SET UPDATED_AT = DATE '2020-02-03' WHERE CHAPTER_ID = ?", ch1);
+        jdbc.update("UPDATE BOOK_REVIEWS SET UPDATED_AT = TIMESTAMP '2020-01-02 03:04:05' WHERE BOOK_ID = ?", book);
+        jdbc.update("UPDATE CHAPTER_EXPLANATIONS SET UPDATED_AT = TIMESTAMP '2020-02-03 04:05:06.789' WHERE CHAPTER_ID = ?", ch1);
         jdbc.update("UPDATE READING_BOOKMARKS SET CREATED_AT = TIMESTAMP '2020-03-04 05:06:07' WHERE CHAPTER_ID = ?", ch1);
         jdbc.update("UPDATE EXPLANATION_MARKS SET CREATED_AT = TIMESTAMP '2020-04-05 06:07:08', "
                 + "UPDATED_AT = TIMESTAMP '2020-04-06 06:07:08' WHERE CHAPTER_ID = ?", ch1);
@@ -73,9 +73,10 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(manifest.get("formatVersion").asInt()).isEqualTo(2);
         JsonNode exported = objectMapper.readTree(original.get(manifest.get("books").get(0).get("path").asString()));
         assertThat(exported.get("reviews")).hasSize(1);
-        assertThat(exported.get("reviews").get(0).get("updatedAt").asString()).isEqualTo("2020-01-02");
+        // DB-06: edit times keep the time of day.
+        assertThat(exported.get("reviews").get(0).get("updatedAt").asString()).isEqualTo("2020-01-02T03:04:05");
         JsonNode exportedCh1 = exported.get("parts").get(0).get("chapters").get(0);
-        assertThat(exportedCh1.get("explanation").get("updatedAt").asString()).isEqualTo("2020-02-03");
+        assertThat(exportedCh1.get("explanation").get("updatedAt").asString()).isEqualTo("2020-02-03T04:05:06.789");
         assertThat(exportedCh1.get("bookmarks")).hasSize(1);
         assertThat(exportedCh1.get("marks")).hasSize(1);
         assertThat(exported.get("parts").get(0).get("chapters").get(1).get("bookmarks")).hasSize(1);
@@ -149,8 +150,30 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(chapters.get(0).get("keyIdeas")).hasSize(1);
         JsonNode explanation = getJson("/api/chapters/" + chapters.get(0).get("id").asLong() + "/explanation");
         assertThat(explanation.get("content").asString()).isEqualTo("<p>e</p>");
-        assertThat(explanation.get("updatedAt").asString()).isEqualTo("2021-05-06");
+        // A day-only date (archives before DB-06) becomes the start of that day.
+        assertThat(explanation.get("updatedAt").asString()).isEqualTo("2021-05-06T00:00");
         assertThat(getJson("/api/books/" + book + "/reviews")).isEmpty();
+    }
+
+    /** DB-06: "" (archives before DB-06) and unknown reading statuses import as "not set" (null). */
+    @Test
+    void readingStatusFromAnArchive() throws Exception {
+        for (String[] c : new String[][]{{"\"\"", null}, {"\"DONE\"", null}, {"null", null}, {"\"FINISHED\"", "FINISHED"}}) {
+            String title = "Status " + c[0].replace("\"", "") + " " + System.nanoTime();
+            byte[] zip = archive(2, title, """
+                    {"formatVersion":2,"title":"%s","readingStatus":%s,"structureType":"CHAPTERS",
+                     "chapters":[],
+                     "reviews":[{"title":"r","content":"<p>r</p>","updatedAt":"2021-07-08T09:10:11"}]}
+                    """.formatted(title, c[0]));
+
+            assertThat(importArchive(zip).get("booksImported").asInt()).as(c[0]).isEqualTo(1);
+
+            long book = bookIdByTitle(title);
+            JsonNode status = getJson("/api/books/" + book).get("readingStatus");
+            assertThat(status.isNull() ? null : status.asString()).as(c[0]).isEqualTo(c[1]);
+            assertThat(getJson("/api/books/" + book + "/reviews").get(0).get("updatedAt").asString())
+                    .isEqualTo("2021-07-08T09:10:11");
+        }
     }
 
     /** Regression (BUG-14): a PARTS book's chapters outside any part were left out of the archive. */

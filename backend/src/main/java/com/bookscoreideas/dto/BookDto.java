@@ -1,6 +1,8 @@
 package com.bookscoreideas.dto;
 
 import com.bookscoreideas.entity.Book;
+import com.bookscoreideas.entity.ReadingStatus;
+import com.bookscoreideas.entity.StructureType;
 
 import java.time.LocalDate;
 
@@ -20,11 +22,11 @@ public record BookDto(
         LocalDate dateAdded,
         Integer rating,
         String category,
-        String readingStatus,
+        ReadingStatus readingStatus,
         LocalDate startDate,
         LocalDate finishDate,
         Boolean chapterImagesEnabled,
-        String structureType,
+        StructureType structureType,
         long chapterCount) {
 
     public static BookDto from(Book book, long chapterCount) {

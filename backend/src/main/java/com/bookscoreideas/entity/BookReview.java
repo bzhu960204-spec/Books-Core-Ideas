@@ -1,7 +1,8 @@
 package com.bookscoreideas.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "book_reviews")
@@ -21,17 +22,22 @@ public class BookReview {
     @Column(columnDefinition = "CLOB")
     private String content;
 
-    private LocalDate updatedAt;
+    private LocalDateTime updatedAt;
 
-    // Imports bring the original date; everything else gets "now".
+    // Imports bring the original time; everything else gets "now" (DB-06: a timestamp,
+    // to the column's microsecond precision so the saved value reads back the same).
     @PrePersist
     protected void onCreate() {
-        if (updatedAt == null) updatedAt = LocalDate.now();
+        if (updatedAt == null) updatedAt = now();
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDate.now();
+        updatedAt = now();
+    }
+
+    private static LocalDateTime now() {
+        return LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
     }
 
     public Long getId() { return id; }
@@ -42,6 +48,6 @@ public class BookReview {
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-    public LocalDate getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDate updatedAt) { this.updatedAt = updatedAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

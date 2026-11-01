@@ -3,6 +3,7 @@ import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import LazyRichTextEditor from './LazyRichTextEditor';
 import { normalizeReviewContent } from '../utils/reviewContent';
+import { isoDay } from '../utils/dates';
 import ExplanationHtml from './explanation/ExplanationHtml';
 import ExplanationFooter from './explanation/ExplanationFooter';
 import PassageMenu from './explanation/PassageMenu';
@@ -131,7 +132,7 @@ export default function ChapterExplanationModal({
         <h2 className="review-reader-title">{chapterTitle || 'Chapter'} — Explanation</h2>
         <div className="review-reader-meta">
           {bookTitle && <span className="review-bank-date">{bookTitle}</span>}
-          {explanation?.updatedAt && <span className="review-bank-date">{explanation.updatedAt}</span>}
+          {explanation?.updatedAt && <span className="review-bank-date">{isoDay(explanation.updatedAt)}</span>}
         </div>
         {anchorMissed && (
           <div className="mark-missed-notice" role="status">
