@@ -83,7 +83,7 @@
 | 顺序 | ID | 事项 |
 |---|---|---|
 | 4.1 | SEC-03 | ✅ 仅监听本机（127.0.0.1，Vite 去掉 `--host`）；prod profile 关闭 H2 Console |
-| 4.2 | BE-09 | 配置分环境（在 SEC-03 的 prod profile 基础上） |
+| 4.2 | BE-09 | ✅ 配置分环境：默认即安全，dev / prod profile，CORS 显式开启 |
 | 4.3 | SEC-02 | 图片类型白名单 + 魔数校验、`nosniff`、`ContentDisposition` |
 | 4.4 | BUG-10 | 图片上传序号 / 失败上报（同一方法，紧跟 SEC-02） |
 | 4.5 | SEC-04 | 迁移导入复用 SEC-02 的白名单，扩展名白名单 |
@@ -129,7 +129,7 @@
 | BE-06 | P2 | 重复代码 | 2 | ✅ | 图片存储统一；两套导出共用 BookArchiveBuilder（随 BE-08）；JSON 导入与 ZIP 迁移共用 BookTreeWriter、前端两份导入循环删除（随 FE-08） |
 | BE-07 | P2 | 导入整包入内存 | 4 | ⬜ | |
 | BE-08 | P1 | 迁移归档不完整 | 2 | ✅ | 格式 v2（书评/书签/标记/书单路径 + 原始时间戳）、兼容 v1、拒绝更新版本；真实数据整库往返完全相同 |
-| BE-09 | P3 | 配置分环境 | 4 | 🔄 | prod profile 已随 SEC-03 建立（关 Console）；其余待做 |
+| BE-09 | P3 | 配置分环境 | 4 | ✅ | 默认配置即安全配置（无 Console、无 CORS）+ dev profile（start-dev 启用，开 Console）+ prod profile；CORS 改为 `APP_CORS_ALLOWED_ORIGINS` 显式开启；devtools 并未打包（评审描述更正）；新测试 5 个（改动前失败）；副本零差异 |
 | BE-10 | P2 | 升级 Spring Boot | 4 | ⬜ | |
 | DB-01 | P0 | Schema 双源管理 | 0/2 | ✅ | V8 统一老库/空库结构 + 生产 `validate`；SchemaConvergenceTest（真实库结构夹具）；副本演练 2,724 响应零差异 |
 | DB-02 | P1 | 外键与级联 | 2 | ✅ | V9：级联 + 图片 RESTRICT + 补外键 + 复合外键保证 book_id 一致；ForeignKeyConstraintsTest；副本演练零差异 |
@@ -150,7 +150,7 @@
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；补充：去掉 H2 `AUTO_SERVER`（数据库曾对局域网开端口；顺带不再留陈旧锁）；NetworkExposureTest 3 个（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 168 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听）+ 前端 Vitest 181 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 173 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS）+ 前端 Vitest 181 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

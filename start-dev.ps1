@@ -77,12 +77,14 @@ Write-Host ""
 
 # --- Start backend ---
 $backendJob = Start-Job -Name 'bci-backend' -ScriptBlock {
-  param([string]$Dir, [int]$Port, [int]$UiPort)
+  param([string]$Dir, [int]$Port)
   Set-Location $Dir
   $env:SERVER_PORT = $Port.ToString()
-  $env:APP_CORS_ALLOWED_ORIGINS = "http://localhost:$UiPort"
+  # dev profile = H2 Console (application-dev.properties). No CORS: the frontend reaches
+  # the backend through the Vite proxy, same-origin.
+  $env:SPRING_PROFILES_ACTIVE = 'dev'
   & mvn spring-boot:run 2>&1 | ForEach-Object { $_.ToString() }
-} -ArgumentList $backendDir, $BackendPort, $FrontendPort
+} -ArgumentList $backendDir, $BackendPort
 
 # --- Wait for backend ---
 Write-Host "Waiting for backend on port $BackendPort..." -ForegroundColor Yellow

@@ -45,7 +45,7 @@ class NetworkExposureTest {
 
     @Test
     void devListensOnlyOnThisMachineAndKeepsTheConsole() throws Exception {
-        try (ConfigurableApplicationContext app = start()) {
+        try (ConfigurableApplicationContext app = start("dev")) {
             int port = portOf(app);
 
             assertReachableOnlyFromLoopback(port);
@@ -60,6 +60,25 @@ class NetworkExposureTest {
 
             assertReachableOnlyFromLoopback(port);
             assertThat(get(port, "/h2-console/").statusCode()).isEqualTo(404);
+        }
+    }
+
+    /** BE-09: dev tools are opt-in, so `java -jar` or an IDE run without a profile gets the safe setup. */
+    @Test
+    void withoutAProfileItListensOnlyOnThisMachineAndHasNoConsole() throws Exception {
+        try (ConfigurableApplicationContext app = start()) {
+            int port = portOf(app);
+
+            assertReachableOnlyFromLoopback(port);
+            assertThat(get(port, "/h2-console/").statusCode()).isEqualTo(404);
+        }
+    }
+
+    /** Even combined with dev, prod (listed last, so it wins) has no console. */
+    @Test
+    void prodWinsOverDev() throws Exception {
+        try (ConfigurableApplicationContext app = start("dev", "prod")) {
+            assertThat(get(portOf(app), "/h2-console/").statusCode()).isEqualTo(404);
         }
     }
 

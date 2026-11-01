@@ -7,6 +7,7 @@
 ## 1. 数据安全
 
 - `backend/data` 是**真实数据**（H2 库 + 图片）。除正常使用应用外，任何验证都不直接操作它。
+- **配置 profile**（BE-09）：`application.properties` 是各环境共用、单独运行也安全的配置（只监听本机、无 H2 Console、无 CORS）；`dev`（start-dev）只多开 H2 Console；`prod`（start-prod）；`test`（自动化测试）。需要 Console 的手动验证加 `--spring.profiles.active=dev`。
 - **自动化测试**：使用 `test` profile，每个 Spring 上下文一个随机内存库（`application-test.properties`），图片目录在系统临时目录。
 - **手动启动验证**：用临时目录中的库，并用启动参数覆盖：
   `--spring.datasource.url=jdbc:h2:file:<临时目录>/booksdb --app.upload.dir=<临时目录>/images`

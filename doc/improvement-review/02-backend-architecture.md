@@ -213,7 +213,36 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 
 目前只有一个 `application.properties`，dev 与 prod 共用：H2 Console 常开、devtools 依赖在 fat jar 运行时虽会自动禁用但仍打包、监听所有网卡。
 
-> **进展（2026-11-01，随 SEC-03）**：已新增 `application-prod.properties`（关闭 H2 Console），`start-prod.ps1` 用 `--spring.profiles.active=prod` 启动；监听地址 `127.0.0.1` 对 dev 和 prod 都适用，放在公共配置中。其余部分（dev 专用设置、devtools 打包）待做。
+> **✅ 已完成（2026-11-01）**：默认配置就是安全配置，开发工具需要显式开启。
+>
+> **设计决定**（用户确认）
+> 1. **默认配置即安全配置**。[application.properties](../../backend/src/main/resources/application.properties) 只放各环境共用、单独运行也安全的设置：不开 H2 Console、不允许跨域。不带 profile 运行（`java -jar`、IDE 启动、验证工具）时，不会带上开发工具。
+>    - 新增 [application-dev.properties](../../backend/src/main/resources/application-dev.properties)，只开 H2 Console；[start-dev.ps1](../../start-dev.ps1) 设置 `SPRING_PROFILES_ACTIVE=dev`。
+>    - [application-prod.properties](../../backend/src/main/resources/application-prod.properties)（SEC-03 中建立）仍然明确关闭 Console，这样即使和 dev 同时启用（`dev,prod`），prod 也会胜出。
+>    - test profile 不变。
+> 2. **CORS 默认关闭**。自 BUG-04 起，dev（Vite 代理）和 prod（单端口）都是同源，不需要 CORS。原来默认允许 `http://localhost:5173`，那么任何占用 5173 端口的页面（比如别的项目的 Vite）都能在浏览器里调用本应用的接口，包括删除。
+>    - 现在只有设置了 `APP_CORS_ALLOWED_ORIGINS`（逗号分隔，可以写多个来源）才会开启，[WebConfig](../../backend/src/main/java/com/bookscoreideas/config/WebConfig.java) 在为空时不注册映射。
+>    - `start-dev.ps1` 不再设置这个变量。
+> 3. **devtools 保持现状**：继续自动重启，"跑 mvn 前先确认 8080 空闲"的约定不变。
+> 4. **更正评审描述**：devtools **没有**被打进 jar。`spring-boot-maven-plugin` 默认会把它排除，实际检查 jar 也确认不包含，所以这一点无需改动。
+> 5. 开工时还发现 H2 的 `AUTO_SERVER` 在所有网卡上开着端口，已作为 [SEC-03 补充](05-security.md#sec-03) 单独修复并提交。
+>
+> **测试**
+> - [NetworkExposureTest](../../backend/src/test/java/com/bookscoreideas/web/NetworkExposureTest.java)：
+>   - dev 测试改为显式使用 dev profile；
+>   - 新增"不带 profile：只监听本机、没有 Console"，改动前失败；
+>   - 新增"`dev,prod` 时 prod 胜出"。
+> - [CorsDefaultTest](../../backend/src/test/java/com/bookscoreideas/config/CorsDefaultTest.java)：默认配置下，来自 `localhost:5173` 和外部来源的预检请求、普通请求，都拿不到 `Access-Control-Allow-Origin`。改动前失败。
+> - [CorsConfigTest](../../backend/src/test/java/com/bookscoreideas/config/CorsConfigTest.java)：改为显式配置两个来源后，BUG-04 的各方法预检仍然通过，其他来源返回 403。多来源那项在改动前失败。
+> - 后端 173 个测试通过。
+>
+> **验证**（真实数据副本）
+> - 改动前后 2,748 个 GET 响应零差异，12 张表不变。
+> - 按 start-dev 的方式运行：`SPRING_PROFILES_ACTIVE=dev` + `mvn spring-boot:run`，再加 Vite 代理。日志显示 dev profile 生效、Console 可用、迁移到 V9；只监听 `127.0.0.1` / `::1`，从局域网 IP 连接被拒绝。
+>   - 跨域 GET 不带 `Access-Control-Allow-Origin`；
+>   - 经 Vite 代理、带 `Origin` 头的 POST 和 DELETE 正常（201 / 204），说明去掉 CORS 不影响同源写入；
+>   - 浏览器打开书籍详情页正常。
+> - 打包的 jar：不带 profile 时没有 Console；prod + dist 时没有 Console，前端正常。
 
 **建议**：`application-dev.properties` / `application-prod.properties`；`start-prod.ps1` 传 `--spring.profiles.active=prod`。具体安全项见 [SEC-03](05-security.md#sec-03)。
 
