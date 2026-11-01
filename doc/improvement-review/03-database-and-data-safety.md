@@ -96,7 +96,7 @@
 
 > **✅ 已删除（2026-10-31）**，删除后后端全部测试通过。
 
-[migrate.sql](../../backend/src/main/resources/migrate.sql) 不被任何代码加载（不是 Spring 约定的 `schema.sql/data.sql`），内容已被 V1 覆盖，且注释引用了**并不存在**的 `BookReviewSchemaMigration.java`。建议删除，避免误导。
+`backend/src/main/resources/migrate.sql`（已随 DB-03 删除）不被任何代码加载（不是 Spring 约定的 `schema.sql/data.sql`），内容已被 V1 覆盖，且注释引用了**并不存在**的 `BookReviewSchemaMigration.java`。建议删除，避免误导。
 
 ---
 

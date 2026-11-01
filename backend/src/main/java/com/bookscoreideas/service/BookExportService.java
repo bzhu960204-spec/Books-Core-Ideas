@@ -16,7 +16,7 @@ import java.util.Optional;
 
 /**
  * Single-book JSON export (the "Export JSON" button). Its shape is the documented
- * JSON import format (see README), so it stays as it is: a subset of the archive
+ * JSON import format (see doc/json-import-format.md), so it stays as it is: a subset of the archive
  * snapshot (no explanation, images, reviews, bookmarks, marks or collections), read
  * through the same {@link BookArchiveBuilder} as the ZIP migration.
  */

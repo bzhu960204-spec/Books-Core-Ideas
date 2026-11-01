@@ -1,10 +1,20 @@
 # 项目改进评审（Improvement Review）
 
-> 评审日期：2026-10-31 ｜ 范围：后端、数据库、前端、安全、工程实践 ｜ 状态：**待逐项改进**
+> 评审日期：2026-10-31 ｜ 范围：后端、数据库、前端、安全、工程实践 ｜ 状态：**阶段 0–4 已全部完成（2026-11-01）**，现状与遗留见下文
 >
 > 本目录用于记录 Books-Core-Ideas 的全面评审结果，并作为后续"一步步改进"的**任务清单与进度追踪**。
 > 每完成一项，就在下方追踪表中更新状态，并在对应条目下补充"已完成：做了什么 / 提交号"。
 > 改进过程中遵循的约定（数据安全、迁移、测试、真实数据副本验证、提交）见 [../development-workflow.md](../development-workflow.md)。
+
+## 现状与遗留（2026-11-01）
+
+- 进度表共 54 项：53 项 ✅；DB-04 ⏸（真实数据中没有内联图片，只加了正文大小上限，重新考虑的时机写在条目中）。
+- 测试：后端 233 个，前端 250 个，脚本场景测试 2 组。每个修复附回归测试、每个重构附特征测试，作为约定继续执行（[development-workflow.md](../development-workflow.md)）。
+- **所有提交都在本地，尚未推送。** 推送后需要确认：
+  - GitHub Actions 的首次运行（ENG-02）；
+  - Dependabot 开始工作（SEC-05）。npm audit 中的开发依赖漏洞交给它处理，生产依赖为 0。
+- **真实库仍停在 V7**。下次启动应用（dev 或 prod）时，会由 H2 2.4 打开并迁移到 V10，这一过程已在副本上演练过。启动前建议再执行一次 `backup-data.ps1`。已有的备份：`before-db01-db02`、`before-be10-spring-boot`、`before-db06-modeling`。
+- 已知数据现状：book 195 的 5 张章节图片在本机没有文件（[development-workflow.md](../development-workflow.md) 第 7 节）。
 
 ## 文档结构
 
@@ -94,7 +104,7 @@
 | 4.10 | DB-06 | ✅ DATE→TIMESTAMP、`readingStatus` 的 `''`→NULL 与枚举（`structureType` 一并改为枚举；分类不拆表） |
 | 4.11 | DB-04 | ⏸ 内联 base64 图片：真实数据中为 0，按方案 C 只加正文大小上限（20 MB），图片外置推迟 |
 | 4.12 | FE-07 | ✅ api.js 样板（类型检查暂不引入） |
-| 4.13 | ENG-05 | 文档收尾（依赖前面各项的最终状态） |
+| 4.13 | ENG-05 | ✅ 文档收尾：README 重写、文档索引、JSON 导入格式独立成文档、过时内容更正 |
 
 ## 进度追踪
 
@@ -150,9 +160,9 @@
 | SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；补充：去掉 H2 `AUTO_SERVER`（数据库曾对局域网开端口；顺带不再留陈旧锁）；NetworkExposureTest 3 个（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ✅ | 归档图片按文件内容判断（复用 SEC-02），扩展名/类型由检测结果决定；跳过的图片（非图片、缺文件）写进导入报告并在前端显示；超长文件名截断；提交后写盘的问题移交 BE-07；回归测试修复前失败；副本零差异，往返结果与改动前相同；浏览器验证 |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 233 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键与 CHECK 约束、输入校验（含富文本大小上限）、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定、阅读状态与编辑时间）+ 前端 Vitest 250 个（含 RTL 组件测试、fetch 层假后端、全部 API 调用的请求特征测试、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | ✅ | 后端 233 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键与 CHECK 约束、输入校验（含富文本大小上限）、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听、配置分环境与 CORS、图片类型、上传报告、导入图片校验、导入写盘与 zip bomb 防护、健康检查与 SPA 回退、JSON 绑定、阅读状态与编辑时间）+ 前端 Vitest 250 个（含 RTL 组件测试、fetch 层假后端、全部 API 调用的请求特征测试、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ✅ | Maven Wrapper（3.9.16 + SHA-256 校验）；enforcer 要求 Java 17+ / Maven 3.6.3+；`engines.node` + `.nvmrc`（CI 读取）+ `engine-strict`；`tools/java-env.ps1`：三个脚本都支持 `.java-home` 并预先检查 Java 版本；用 JRE 11 / Node 20 实测提示；start-dev / start-prod / build-prod 端到端验证 |
-| ENG-05 | P2 | 文档更新 | 4 | 🔄 | 每阶段顺带更新相关文档；新增 development-workflow.md（工作约定 + 真实数据副本验证工具 tools/rehearsal） |
+| ENG-05 | P2 | 文档更新 | 4 | ✅ | 每阶段顺带更新相关文档；新增 development-workflow.md（工作约定 + 真实数据副本验证工具 tools/rehearsal）。收尾：根 README 按"简介 → 功能 → 快速开始 → 环境要求 → 数据与备份 → 测试 → 文档"重写；JSON 导入格式移到 doc/json-import-format.md（并补全书的字段）；新增 doc/README.md 索引；frontend/README.md 由 Vite 模板改为实际说明；书单、讲解片段收藏文档中过时的内容已更正；全部链接和代码标识符已核对 |
 | ENG-06 | P3 | 脚本小问题 | 4 | ✅ | 强杀留下的陈旧锁不再阻止备份/恢复；start 脚本记录 PID + 启动时间，stop 脚本停止整个进程树（不再按端口误杀或漏杀）；`/actuator/health`（只暴露 health、不含细节，SPA 回退排除 actuator）作为就绪判断；端口函数合并到 `tools/app-run.ps1`；`npx.cmd` / `npm.cmd`（直接运行 `.\start-dev.ps1` 时前端起不来）+ 显示 job 错误；新测试：后端 12 个（4 个修复前失败）+ 脚本 17 个场景；dev / prod 端到端验证；副本只多了 health 一项 |

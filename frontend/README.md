@@ -1,16 +1,27 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React 19 + Vite. How to run the whole app, requirements and tests: see the [root README](../README.md); conventions: [doc/development-workflow.md](../doc/development-workflow.md).
 
-Currently, two official plugins are available:
+```powershell
+npm ci                  # Node version: package.json "engines" / .nvmrc (engine-strict)
+npm run dev             # Vite on :5173, /api proxied to VITE_API_PROXY_TARGET (default http://127.0.0.1:8080)
+npm test                # Vitest + Testing Library (jsdom)
+npm run lint            # ESLint, fails on any warning
+npm run build           # -> dist/, served by the backend in single-port (prod) mode
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+In PowerShell scripts, call `npm.cmd` / `npx.cmd`: `npm` resolves to `npm.ps1`, which the execution policy may refuse to run.
 
-## React Compiler
+## Layout
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Path | Contents |
+|---|---|
+| `src/api.js` | Every backend call (one `request()` helper; errors carry the ProblemDetail `detail` and the HTTP status) |
+| `src/queries.js` | TanStack Query hooks and cache keys; writes invalidate the cache |
+| `src/pages/` | One component per route; `pages/bookDetail/` holds the book page's hooks and parts |
+| `src/components/` | Shared components; `richText/` (TipTap editor and paste handling), `explanation/` (explanation reader), `collections/`, `feedback/` (toasts, error boundary) |
+| `src/utils/` | Pure helpers: HTML sanitising (DOMPurify), JSON import shapes, explanation anchors, dates, … |
+| `src/styles/` | CSS, one file per area, imported in order by `index.css` |
+| `src/test/` | Test setup and the fake backend (`installFakeBackend`) used by page tests |
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Heavy pages and the editor are lazy-loaded (`chunkReload.js` reloads once if an old chunk has gone after a deploy).

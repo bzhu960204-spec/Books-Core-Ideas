@@ -25,7 +25,7 @@
 |---|---|---|
 | §1.2 不做常驻内联高亮 | **做了**：已保存片段常驻高亮，可开关 | 保存后若没有持久反馈，用户无法判断是否已存；`CSS Custom Highlight API` 不改 DOM，成本很低 |
 | §6.2 选区附近浮出"收藏"按钮 | 浮动菜单，但**锚在选区起点**，并跟随滚动 | 浏览器（Edge）自带选区迷你菜单出现在选区末端，锚在起点可避开重叠 |
-| §7 讲解被删除时清除该章片段 | 在 `ChapterExplanationController.deleteExplanation` 中显式删除 | 片段挂在 `Chapter` 下而非 `ChapterExplanation` 下，删除讲解不会自动级联 |
+| §7 讲解被删除时清除该章片段 | 在 `ChapterExplanationController.deleteExplanation` 中显式删除（BE-01 后移到 `ExplanationService.delete`） | 片段挂在 `Chapter` 下而非 `ChapterExplanation` 下，删除讲解不会自动级联 |
 | 新增 | `Undo`、重复保存检测（`✓ Already saved`）、高亮开关 | 交互完整性 |
 
 ---
@@ -37,10 +37,10 @@
 | 文件 | 说明 |
 |---|---|
 | `entity/ExplanationMark.java` | 实体，风格对齐 `ReadingBookmark`；`quote` 为 CLOB；`@PrePersist`/`@PreUpdate` 维护时间 |
-| `entity/Chapter.java` | 增加 `explanationMarks`（`cascade=ALL, orphanRemoval, @JsonIgnore`），删章/删书级联清除 |
+| `entity/Chapter.java` | 增加 `explanationMarks`（`cascade=ALL, orphanRemoval, @JsonIgnore`），删章/删书级联清除。V9（DB-02）起数据库外键也是 `ON DELETE CASCADE`，复合外键保证 `book_id` 与章节一致 |
 | `repository/ExplanationMarkRepository.java` | 按书、按章排序查询；`deleteByChapterId` |
-| `controller/ExplanationMarkController.java` | 见 3.2 |
-| `controller/ChapterExplanationController.java` | 删除讲解时一并删除该章片段（`@Transactional`） |
+| `controller/ExplanationMarkController.java` | 见 3.2（BE-01 后业务逻辑在 `service/MarkService.java`） |
+| `controller/ChapterExplanationController.java` | 删除讲解时一并删除该章片段（`@Transactional`）。BE-01 后在 `ExplanationService.delete` |
 | `resources/db/migration/V7__add_explanation_marks.sql` | `IF NOT EXISTS` 幂等建表 + 索引 |
 
 ### 3.2 API
@@ -48,14 +48,14 @@
 | 方法 & 路径 | 说明 | 备注 |
 |---|---|---|
 | `POST /api/chapters/{chapterId}/marks` | 新建片段 | `quote` 为空 → 400；章节不存在 → 404；`prefix`/`suffix` 截断到 200，`note` 截断到 1000 |
-| `GET /api/books/{bookId}/marks` | 本书全部片段 | 按 章节 `orderIndex` → `startOffset` → `id` 排序 |
+| `GET /api/books/{bookId}/marks` | 本书全部片段 | 按 章节 `orderIndex` → `startOffset` → `id` 排序。FE-03 后详情页改从聚合接口 `GET /api/books/{id}/detail` 取片段，本接口保留 |
 | `GET /api/chapters/{chapterId}/marks` | 单章片段（可选接口） | 前端目前未使用 |
 | `PATCH /api/marks/{id}` | 修改批注 | 空批注视为清空 |
 | `DELETE /api/marks/{id}` | 删除 | 不存在 → 404，成功 → 204 |
 
-响应 DTO（手工 `Map`）：`id, bookId, bookTitle, chapterId, chapterTitle, chapterOrderIndex, quote, prefix, suffix, startOffset, endOffset, note, createdAt, updatedAt`。
+响应 DTO：`id, bookId, bookTitle, chapterId, chapterTitle, chapterOrderIndex, quote, prefix, suffix, startOffset, endOffset, note, createdAt, updatedAt`。最初是手工拼的 `Map`，BE-01 后为 `MarkDto` record（字段不变）。
 
-> **迁移注意**：全新空库会在 Flyway **V2** 失败（`BOOKS` 表不存在）——这是既有行为（Flyway 先于 Hibernate 建表），与本功能无关。已有库（含 Hibernate `ddl-auto=update` 建好的表）上 V7 幂等通过。
+> **迁移注意**（已过时，留作记录）：当时全新空库会在 Flyway **V2** 失败（`BOOKS` 表不存在），与本功能无关。BUG-01 / DB-01 后空库从 V0 起完整迁移，Flyway 是唯一的 schema 来源，见 [database-schema-and-flyway.md](../database-schema-and-flyway.md)。
 
 ---
 
@@ -66,7 +66,7 @@
 | 文件 | 说明 |
 |---|---|
 | `src/utils/explanationAnchor.js`（新） | 锚点采集与定位工具，见第 5 节 |
-| `src/api.js` | 新增 `markApi`（`create / listByBook / updateNote / delete`） |
+| `src/api.js` | 新增 `markApi`（`create / listByBook / updateNote / delete`）。FE-03 后片段随详情聚合接口返回，`listByBook` 已删除 |
 | `src/components/ChapterExplanationModal.jsx` | 选区检测、浮动菜单、高亮、跳转定位、高亮开关。FE-01 后拆到 `src/components/explanation/`：`usePassageMarks`（选区、保存/撤销、待存/已存高亮）、`useFloatingMenu`（菜单定位）、`useReadingPosition`（跳转定位与闪烁）、`useReaderPreferences`（高亮开关）、`PassageMenu` |
 | `src/components/ExplanationMarksPanel.jsx`（新） | 本书片段面板 |
 | `src/pages/BookDetailPage.jsx` | 持有 `marks` 状态；入口按钮；保存/改批注/删除/跳转接线；向弹窗传入当前章节的 `marks`。FE-01 后：`marks` 来自 `pages/bookDetail/useBookDetailData`，保存/改批注/删除在 `useExplanationReader` |

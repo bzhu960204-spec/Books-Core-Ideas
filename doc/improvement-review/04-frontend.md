@@ -270,7 +270,7 @@
 
 > **✅ 已修复（2026-10-31）**：`jszip@^3.10.2` 已加入 `frontend/package.json`；根目录 `package.json`、`package-lock.json`、`node_modules/` 已删除；删除根目录 `node_modules` 后 `npm run build` 仍成功，说明依赖已在前端内部解析。
 
-[ExplanationExportModal.jsx](../../frontend/src/components/ExplanationExportModal.jsx) `import JSZip from 'jszip'`，但 `jszip` 只声明在**仓库根目录**的 [package.json](../../package.json)，不在 [frontend/package.json](../../frontend/package.json)。目前能构建，仅因为 Node 模块解析会向上找到根目录 `node_modules`。
+[ExplanationExportModal.jsx](../../frontend/src/components/ExplanationExportModal.jsx) `import JSZip from 'jszip'`，但 `jszip` 只声明在**仓库根目录**的 `package.json`（已随 FE-06 删除），不在 [frontend/package.json](../../frontend/package.json)。目前能构建，仅因为 Node 模块解析会向上找到根目录 `node_modules`。
 同时根目录 `node_modules/`（163 个文件）被提交进了 git（见 ENG-03）。
 
 **后果**：单独 clone 并在 `frontend/` 下 `npm ci` 的环境（如 CI）构建会失败；依赖版本不受前端 lock 文件控制。

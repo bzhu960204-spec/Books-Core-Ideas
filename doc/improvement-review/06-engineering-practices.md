@@ -54,7 +54,7 @@ frontend: npm ci && npm run lint && npm test && npm run build   (在 frontend/ �
 > **✅ 已处理（2026-10-31）**：根目录 `node_modules/`（163 个已跟踪文件）、`package.json`、`package-lock.json` 已从工作区删除（提交后即从仓库移除）；`.gitignore` 改为全局忽略 `node_modules/`。提交信息规范需在后续提交中执行。
 
 - **根目录 `node_modules/` 被提交**（163 个文件，jszip 及其依赖）；`.gitignore` 只忽略了 `frontend/node_modules/`。
-- 根目录 [package.json](../../package.json) / `package-lock.json` 只为 jszip 存在，应归属 `frontend/`（FE-06）。
+- 根目录 `package.json`（已随 FE-06 删除）/ `package-lock.json` 只为 jszip 存在，应归属 `frontend/`（FE-06）。
 - 最近的提交信息全是 `chore: sync from Project Management ...`，无法从历史得知"改了什么、为什么改"，也无法用 `git bisect`/`git log` 定位回归（例如 BUG-01 中 Flyway 被重新开启的那次改动）。
 
 **建议**：
@@ -119,6 +119,23 @@ frontend: npm ci && npm run lint && npm test && npm run build   (在 frontend/ �
 - `doc/` 没有索引页。
 
 **建议**：README 重写为"简介 → 功能 → 快速开始 → 环境要求 → 数据与备份 → 文档索引"，JSON 导入格式移到 `doc/json-import-format.md`；`doc/README.md` 做索引。
+
+> **✅ 已完成（2026-11-01，阶段 4.13）**
+> - **根 [README.md](../../README.md)** 按建议的顺序重写：
+>   - 新增功能概览，以及首次安装（`npm ci`、可选的 OneDrive 数据链接）、prod 单端口模式、环境要求；
+>   - 新增"更新前先备份、启动时自动迁移"的说明；
+>   - 技术栈按实际版本更正（React 19、Vite 8、Spring Boot 4.1、Jackson 3、H2 2.4 等）。
+>   - 保持英文，与原来一致；`doc/` 下的文档仍是中文。
+> - **[doc/json-import-format.md](../json-import-format.md)**：从 README 原样移入。书的字段表补上了导入接受、"Export JSON"也会输出的 `rating`、`category`、`readingStatus`、几个日期和 `chapterImagesEnabled`。
+> - **[doc/README.md](../README.md)**：文档索引，分为"开发约定 / 功能说明 / 历史记录"。设计稿、实施计划和评审记录明确标为不随代码更新的历史记录。
+> - **[frontend/README.md](../../frontend/README.md)**：原来是 Vite 模板的说明，改为前端的命令和目录结构。
+> - **更正过时内容**（按代码逐条核对）：
+>   - [collections-feature.md](../collections-feature.md)：V8 / V9 之后的约束名和外键、BE-03 之后的状态码、删除顺序、孤儿记录过滤已只是兜底；"category 是单标签"改为"可用 `;` 分隔多个"；
+>   - [explanation-marks/implementation.md](../explanation-marks/implementation.md)：响应由 `Map` 改为 `MarkDto`、删除讲解的逻辑移到 `ExplanationService`、`markApi.listByBook` 已删除（片段随详情聚合接口返回）、"空库在 V2 失败"已由 BUG-01 修复。
+> - **检查**（一次性脚本）：
+>   - 全部 Markdown 中的相对链接和锚点都存在。评审记录里指向已删除文件（`migrate.sql`、根 `package.json`）的 3 个链接改为纯文本，注明已删除；`malformed-link-fix.md` 中的 7 处是示例语法，保留。
+>   - 当前文档中反引号里的类名、函数名在源码中都存在（只有 DOM 的 `TreeWalker` 和 Jackson 2 的旧名，这是有意提到的）。
+> - 评审记录（improvement-review）其余内容保持原样：它们是带日期的过程记录。
 
 ---
 

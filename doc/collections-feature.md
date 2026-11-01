@@ -52,12 +52,17 @@ BOOK_COLLECTIONS / BOOK_COLLECTION_ITEMS  (表)
 
 ### 3.2 表结构（迁移 V5）
 
-见 [V5__add_book_collections.sql](../backend/src/main/resources/db/migration/V5__add_book_collections.sql)。采用 `IF NOT EXISTS` 幂等写法，兼容 Hibernate `ddl-auto=update` 已建表的情况：
+见 [V5__add_book_collections.sql](../backend/src/main/resources/db/migration/V5__add_book_collections.sql)。采用 `IF NOT EXISTS` 幂等写法，兼容 Hibernate `ddl-auto=update` 已建表的情况（当时的做法；DB-01 后 Flyway 是唯一的 schema 来源）：
 
 - `BOOK_COLLECTIONS(ID, PARENT_ID, NAME, SORT_ORDER, CREATED_AT, UPDATED_AT)`
 - `BOOK_COLLECTION_ITEMS(ID, COLLECTION_ID, BOOK_ID, ADDED_AT)`
   - 唯一约束 `UK_BOOK_COLLECTION_ITEMS(COLLECTION_ID, BOOK_ID)`
   - 索引 `IDX_BCI_COLLECTION_ID`、`IDX_BCI_BOOK_ID`
+
+> **后续变化**：
+> - V8（DB-01）统一了命名：`UK_BOOK_COLLECTION_ITEMS_COLLECTION_BOOK`、`IDX_BOOK_COLLECTION_ITEMS_COLLECTION`、`IDX_BOOK_COLLECTION_ITEMS_BOOK`。
+> - V9（DB-02）补上了原先没有的外键，都是 `ON DELETE CASCADE`：成员 → 书、成员 → 文件夹、子文件夹 → 父文件夹。所以删书、删文件夹时，数据库本身也会清除成员行和子孙文件夹。
+> - 当前结构见 [database-schema-and-flyway.md](database-schema-and-flyway.md)。
 
 ## 4. 后端 API
 
@@ -77,15 +82,17 @@ BOOK_COLLECTIONS / BOOK_COLLECTION_ITEMS  (表)
 
 返回体 `BookCollectionResponse`（[BookCollectionResponse.java](../backend/src/main/java/com/bookscoreideas/dto/BookCollectionResponse.java)）：`id, parentId, name, sortOrder, bookCount, createdAt, updatedAt`。
 
+状态码按 [api-conventions.md](api-conventions.md)（BE-03）：新建 201，删除 204；加书是建立关联，返回 204；文件夹或书不存在时返回 404，名称不合法时返回 400，都是 ProblemDetail。
+
 ## 5. 后端业务逻辑要点
 
 实现于 [BookCollectionService.java](../backend/src/main/java/com/bookscoreideas/service/BookCollectionService.java)。
 
 - **更新与改父分离**：`update()` 只改名/排序；改父单独走 `move()`。因为请求体里「缺省 parentId」与「显式 null」无法区分，若合并会把重命名的文件夹误移到根级。
 - **环路防护**：`move()` 禁止把文件夹设为自身父级，或移动到自己的子孙之下（通过 `descendantIds()` BFS 计算子孙集合判断）。
-- **级联删除**：`delete()` 收集自身 + 全部子孙 id，先删关联行再删文件夹；不删书。
+- **级联删除**：`delete()` 收集自身 + 全部子孙 id，先删关联行再删文件夹；不删书。顺序必须是先子行、后父行：数据库也会级联删除（V9），先删父行会让 Hibernate 随后删除已不存在的子行而报错（见 [database-schema-and-flyway.md](database-schema-and-flyway.md)）。
 - **聚合查询**：`booksIn(id, includeDescendants)` 用 `LinkedHashSet` 保持插入顺序并跨多个文件夹去重。
-- **成员计数健壮性**：`directMemberCounts()` 与 `collectionIdsForBook()` 会过滤掉书已被删除、但关联行仍残留的「孤儿」记录，避免角标虚高。
+- **成员计数健壮性**：`directMemberCounts()` 与 `collectionIdsForBook()` 会过滤掉书已被删除、但关联行仍残留的「孤儿」记录，避免角标虚高。删书时现在会同时清除成员行（BUG-08），V9 又加了外键，所以已经不会产生孤儿记录，这层过滤只是兜底。
 - **名称清洗**：`sanitizeName()` 去空白、禁空、限 200 字。
 - 类与写操作均标注 `@Transactional`，读操作标注 `@Transactional(readOnly = true)`。
 
@@ -135,7 +142,7 @@ API 封装：[api.js](../frontend/src/api.js) 的 `bookCollectionApi`（`list / 
 ## 7. 关键设计约定
 
 - **书与收藏是多对多、非独占**：一本书可同时在多个文件夹；从文件夹移出或删除文件夹都**不删除书**。
-- **category 与 Collections 并存且独立**：前者是单标签，后者是可嵌套多归属结构。
+- **category 与 Collections 并存且独立**：前者是平铺的分类标签（一本书可以有几个，用 `;` 分隔），后者是可嵌套、多归属的文件夹结构。
 - **幂等性**：加书、建表均为幂等操作，重复调用安全。
 - **顺序与去重**：聚合查看按插入顺序保留、跨文件夹去重。
 - **响应式面包屑**：深层路径折叠 + `…` 下拉，保证低分辨率/长路径下布局不破。

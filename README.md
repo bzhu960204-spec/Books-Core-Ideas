@@ -1,23 +1,62 @@
 # Books Core Ideas
 
-A full-stack web app for organizing books, chapters, and key ideas. Built with Spring Boot (backend) + React/Vite (frontend).
+A personal reading journal: organise books into chapters (optionally grouped into parts), and keep the key ideas, excerpts, AI explanations and your own reviews for each one. Spring Boot backend, React/Vite frontend, data in a local H2 file. It runs on your own machine and accepts connections from this machine only (there is no login).
+
+## Features
+
+- **Library**: grid, list and compact views; search; filter by rating, category and reading status; set the status straight from a book's card.
+- **Books**: a flat chapter list or Parts → Chapters. Per chapter:
+  - key ideas (tags, highlights) and excerpts, with a full-screen excerpt reader;
+  - chapter images (PNG/JPEG/GIF/WebP), if enabled for the book;
+  - a rich-text **explanation**: paste from Markdown or AI chats, read full screen, mark where you stopped (a reading bookmark), and save passages with notes. Explanations can be exported as HTML or print-to-PDF.
+- **Collections**: nested folders of books.
+- **Idea Bank / Excerpt Bank**: search all ideas (by book and tag) and all excerpts (by book).
+- **Review Bank**: your rich-text reviews of books.
+- **Reading History**: where you left off in each book's explanations.
+- **Import / export**:
+  - JSON import into the library, a book, or a chapter (format: [doc/json-import-format.md](doc/json-import-format.md)), and each book's **Export JSON**;
+  - **Migrate**: ZIP export / import of whole books with everything they own, to move them between installations ([doc/migration-feature.md](doc/migration-feature.md)).
+- Five themes.
 
 ## Quick Start
 
-```bash
-# Windows — start both backend and frontend
-start-dev.cmd
-# or PowerShell
-.\start-dev.ps1
+First time on a machine:
+
+```powershell
+cd frontend; npm ci; cd ..        # frontend dependencies (Node version: see Requirements)
+.\setup-data-link.ps1             # optional: keep backend\data in OneDrive (see Data & Backup)
 ```
 
-Backend runs on `http://localhost:8080`, frontend on `http://localhost:5173`. Both accept connections from this machine only (there is no login). If a port is taken, the script picks the next free one and says so. It reports "Both services started" once the backend's `/actuator/health` is UP and Vite answers. Stop with Ctrl+C, or from another console with `.\stop-dev.ps1` (it stops exactly what start-dev started, whatever ports it ended up on). The single-port packaged mode works the same way: `start-prod.cmd` / `.\stop-prod.ps1`.
+**Development** (backend with hot restart + Vite dev server):
 
-**Requirements:** JDK 17+ and Node.js 22.13+ / 24 / 26+ (`frontend/.nvmrc` pins 24). Maven is not needed: `backend/mvnw.cmd` (the Maven Wrapper) downloads the pinned version. If `JAVA_HOME` points to an older JDK, put the path of a JDK 17+ in a `.java-home` file in the repository root; the start and build scripts use it.
+```powershell
+start-dev.cmd                     # or, in PowerShell: .\start-dev.ps1
+```
 
-## Data Backup & Restore
+The backend runs on `http://localhost:8080` and the frontend on `http://localhost:5173`; open the frontend. If a port is taken, the script picks the next free one and says so. It reports "Both services started" once the backend's `/actuator/health` is UP and Vite answers. Stop with Ctrl+C, or from another console with `.\stop-dev.ps1`: it stops exactly what start-dev started, whatever ports it ended up on.
 
-Data lives in `backend/data/` (H2 database + uploaded images). Take a manual snapshot before risky changes such as schema refactors. Stop the app first; both scripts refuse to run while a process has the database open. A `booksdb.lock.db` left behind by an older version of the app is recognised as stale and ignored with a warning (current versions no longer write it), so `-Force` is no longer needed (it is accepted but ignored).
+**Everyday use** (single port, packaged):
+
+```powershell
+start-prod.cmd                    # builds on first run (or with -Rebuild), then opens the browser
+.\stop-prod.ps1
+```
+
+One Spring Boot process serves the API and the built frontend on `http://localhost:8080` (or the next free port). Logs go to the console and to `logs\prod-<timestamp>.log`. After changing code, rebuild with `.\build-prod.ps1` or `start-prod.cmd -Rebuild`.
+
+The H2 Console (`/h2-console`) is only available in development. Both modes use the same database, so run only one at a time; the second refuses to start.
+
+## Requirements
+
+- **JDK 17+.** Maven is not needed: `backend\mvnw.cmd` (the Maven Wrapper) downloads the pinned version. If `JAVA_HOME` points to an older JDK, put the path of a JDK 17+ in a `.java-home` file in the repository root; the start and build scripts use it.
+- **Node.js 22.13+ / 24 / 26+** (`frontend/.nvmrc` pins 24). `npm install` / `npm ci` refuse other versions.
+- Windows PowerShell 5.1 or later (the scripts are PowerShell).
+
+## Data & Backup
+
+Data lives in `backend\data\` (H2 database `booksdb.mv.db` + uploaded images) and is not in git. `setup-data-link.ps1` turns `backend\data` into a junction to `<OneDrive>\ProjectData\books-core-ideas\data`, so the data follows you between machines. Never run the app on two machines at once: close it and let OneDrive finish syncing first.
+
+The schema is managed by Flyway: after an update, the next start migrates the database ([doc/database-schema-and-flyway.md](doc/database-schema-and-flyway.md)). Take a snapshot before updates and other risky changes. Stop the app first; both scripts refuse to run while a process has the database open. A `booksdb.lock.db` left behind by an older version of the app is recognised as stale and ignored with a warning (`-Force` is accepted but no longer needed).
 
 ```powershell
 .\stop-dev.ps1
@@ -25,339 +64,28 @@ Data lives in `backend/data/` (H2 database + uploaded images). Take a manual sna
 .\restore-data.ps1 -Latest                    # or -BackupFile .\backups\<file>.zip
 ```
 
-`restore-data.ps1` first saves the current data as `*-pre-restore.zip`, so you can undo a restore. `backups/` is git-ignored.
-Scenario tests for both scripts: `powershell -NoProfile -File tools\tests\data-scripts.test.ps1`. For the helpers of the start/stop scripts: `powershell -NoProfile -File tools\tests\app-run.test.ps1`.
+`restore-data.ps1` first saves the current data as `*-pre-restore.zip`, so you can undo a restore. `backups\` is git-ignored.
 
 ## Tests & CI
 
 ```powershell
-cd backend;  .\mvnw.cmd test   # integration tests on an isolated in-memory H2 (never touches backend/data)
-cd frontend; npm test; npm run lint; npm run build   # Vitest unit + component tests (jsdom); lint fails on any warning
+cd backend;  .\mvnw.cmd test        # integration tests on an isolated in-memory H2 (never touches backend\data)
+cd frontend; npm.cmd test; npm.cmd run lint; npm.cmd run build   # Vitest (jsdom); lint fails on any warning
+powershell -NoProfile -File tools\tests\data-scripts.test.ps1   # backup / restore scripts
+powershell -NoProfile -File tools\tests\app-run.test.ps1        # helpers of the start / stop scripts
 ```
 
-GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the same on every push to `main` and on pull requests.
+GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the backend and frontend checks on every push to `main` and on pull requests; Dependabot keeps dependencies up to date.
 
-Development conventions (data safety, migrations, testing, rehearsing changes on a copy of the real data): [doc/development-workflow.md](doc/development-workflow.md).
+## Documentation
 
----
+[doc/README.md](doc/README.md) lists all documents (most are in Chinese). Start with:
 
-## JSON Import Formats
-
-The app supports importing data via JSON. Library page has its own import, and each book's detail page has a unified **Import JSON** button with three tabs: **Chapters** (or **Parts**), **Ideas**, **Excerpts**.
-
-> **One step, all or nothing:** every import is sent to the server as one request and saved in one transaction. If anything is invalid, nothing is imported and the error names the field, e.g. `books[1].chapters[0].excerpts[0].content: must not be blank`. Unknown fields are ignored, so a book's **Export JSON** output can be imported as is.
-
-> **Book structure:** Each book has a `structureType` of either `"CHAPTERS"` (flat list of chapters, the default) or `"PARTS"` (chapters grouped under parts). The detail page renders and imports according to the book's structure. See [Books with Parts](#books-with-parts) below.
-
----
-
-### 1. Import Book(s) — Library Page
-
-Click **`Import JSON`** on the Library page.
-
-**Minimal (title only required):**
-```json
-{
-  "title": "Thinking, Fast and Slow",
-  "author": "Daniel Kahneman",
-  "isbn": "978-0374533557",
-  "description": "A tour of the mind and the two systems that drive the way we think."
-}
-```
-
-**Full — with nested chapters, key ideas, and excerpts:**
-```json
-{
-  "title": "My Book",
-  "author": "Author Name",
-  "isbn": "978-xxxxxxxxxx",
-  "description": "Brief description...",
-  "chapters": [
-    {
-      "title": "Chapter 1: The Beginning",
-      "orderIndex": 1,
-      "summary": "Overview of the chapter...",
-      "keyIdeas": [
-        {
-          "content": "Core insight or concept",
-          "example": "A concrete example or supporting note",
-          "orderIndex": 1
-        }
-      ],
-      "excerpts": [
-        {
-          "content": "A memorable passage...",
-          "note": "Why it matters",
-          "source": "p.42",
-          "orderIndex": 1
-        }
-      ]
-    }
-  ]
-}
-```
-
-**Array of books:**
-```json
-[
-  { "title": "Book One", "author": "Alice" },
-  { "title": "Book Two", "author": "Bob" }
-]
-```
-
-**Field reference:**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `title` | string | **Yes** | Max 255 chars |
-| `author` | string | No | Max 255 chars |
-| `isbn` | string | No | Max 255 chars |
-| `description` | string | No | Max 2000 chars |
-| `coverUrl` | string | No | URL to cover image, max 255 chars |
-| `structureType` | string | No | `"CHAPTERS"` (default) or `"PARTS"` |
-| `chapters` | array | No | Flat chapter list (CHAPTERS books) |
-| `parts` | array | No | Parts, each with nested `chapters` (PARTS books) |
-
-> If `parts` is present (or `structureType` is `"PARTS"`), the book is created as a PARTS book. See [Books with Parts](#books-with-parts).
->
-> **Limits** (enforced by the API; a longer value fails with a message naming the field): chapter and part `title` 255, part `summary` 1000, key idea `content` / `example` 3000 and `tags` 500, excerpt `note` 1000 and `source` 300. Chapter `summary` and excerpt `content` are unlimited.
-
----
-
-<a id="books-with-parts"></a>
-### Books with Parts (Part → Chapter)
-
-For books organized into parts (e.g. "Part One", "Part Two"), set `structureType` to `"PARTS"` and nest chapters inside a `parts` array. Each part has its own `title`, `orderIndex`, and `summary`; chapters keep the same format as flat chapters (with nested `keyIdeas` / `excerpts`).
-
-This is also the exact shape produced by the book **Export** button.
-
-```json
-{
-  "title": "My Book",
-  "author": "Author Name",
-  "structureType": "PARTS",
-  "parts": [
-    {
-      "title": "Part One: Foundations",
-      "orderIndex": 1,
-      "summary": "What this part covers...",
-      "chapters": [
-        {
-          "title": "Chapter 1: The Beginning",
-          "orderIndex": 1,
-          "summary": "Overview of the chapter...",
-          "keyIdeas": [
-            { "content": "Core insight", "example": "For instance...", "orderIndex": 1 }
-          ],
-          "excerpts": [
-            { "content": "A memorable passage...", "note": "Why it matters", "source": "p.42", "orderIndex": 1 }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "Part Two: Going Deeper",
-      "orderIndex": 2,
-      "summary": "...",
-      "chapters": []
-    }
-  ]
-}
-```
-
-On a PARTS book's detail page, the unified **Import JSON** button's first tab becomes **Parts** and expects an array of parts (the `parts` value above):
-
-```json
-[
-  {
-    "title": "Part One: Foundations",
-    "orderIndex": 1,
-    "summary": "...",
-    "chapters": [
-      { "title": "Chapter 1", "orderIndex": 1, "summary": "..." }
-    ]
-  }
-]
-```
-
-**Part field reference:**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `title` | string | **Yes** | |
-| `orderIndex` | integer | No | Sort order |
-| `summary` | string | No | Max 1000 chars |
-| `chapters` | array | No | Chapter format (see below) |
-
-> The importer validates structure: a `parts` payload is rejected for a CHAPTERS book, and the Chapters tab rejects objects that contain a `chapters` array (a Parts structure). In the library import, top-level `chapters` of a PARTS book (next to `parts`) become ungrouped chapters; **Export** writes a PARTS book's ungrouped chapters the same way.
-
----
-
-### 2. Import Chapters — Book Detail Page → "Chapters" tab
-
-Creates new chapters. Can include nested `keyIdeas` and `excerpts`.
-
-```json
-[
-  {
-    "title": "Chapter 1: The Beginning",
-    "orderIndex": 1,
-    "summary": "Overview of the chapter...",
-    "keyIdeas": [
-      { "content": "Core insight here", "example": "For instance...", "orderIndex": 1 }
-    ],
-    "excerpts": [
-      { "content": "A memorable passage...", "note": "Why it matters", "orderIndex": 1 }
-    ]
-  },
-  {
-    "title": "Chapter 2: Going Deeper",
-    "orderIndex": 2,
-    "summary": "..."
-  }
-]
-```
-
-**Field reference:**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `title` | string | **Yes** | Max 255 chars |
-| `orderIndex` | integer | No | Sort order |
-| `summary` | string | No | No length limit |
-| `keyIdeas` | array | No | See Key Idea format below |
-| `excerpts` | array | No | See Excerpt format below |
-
----
-
-### 3. Import Key Ideas — Book Detail Page → "Ideas (All)" tab
-
-Import ideas into **existing** chapters across the whole book, grouped by chapter title: an exact title (ignoring case) wins; otherwise the first chapter whose title contains the given text.
-
-Supports **Add New** (append) or **Replace All** (clear the named chapters' existing ideas first; other chapters and their excerpts are untouched).
-
-```json
-[
-  {
-    "chapter": "Chapter 1: The Beginning",
-    "ideas": [
-      { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
-      { "content": "Another idea", "orderIndex": 2 }
-    ]
-  },
-  {
-    "chapter": "Chapter 2: Going Deeper",
-    "ideas": [
-      { "content": "Key concept", "orderIndex": 1 }
-    ]
-  }
-]
-```
-
-**Field reference (per idea):**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `content` | string | **Yes** | Max 3000 chars |
-| `example` | string | No | Max 3000 chars |
-| `tags` | string | No | Comma-separated |
-| `orderIndex` | integer | No | Sort order |
-
----
-
-### 4. Import for Single Chapter (`{}` button on chapter header)
-
-Click the **`{}`** button on any chapter header. A modal opens with three tabs:
-
-**Tab: Ideas** — flat array, imports into this chapter only.
-
-```json
-[
-  { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
-  { "content": "Another idea", "orderIndex": 2 }
-]
-```
-
-**Tab: Excerpts** — flat array, imports into this chapter only.
-
-```json
-[
-  {
-    "content": "The full passage. **Markdown** supported.",
-    "note": "Why it stands out (optional)",
-    "source": "p.42 (optional)",
-    "orderIndex": 1
-  },
-  { "content": "Another memorable passage...", "orderIndex": 2 }
-]
-```
-
-**Tab: Ideas + Excerpts** — import both at once in a single object.
-
-```json
-{
-  "ideas": [
-    { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
-    { "content": "Another idea", "orderIndex": 2 }
-  ],
-  "excerpts": [
-    {
-      "content": "A memorable passage. **Markdown** supported.",
-      "note": "Why it stands out (optional)",
-      "source": "p.42 (optional)",
-      "orderIndex": 1
-    }
-  ]
-}
-```
-
-All three tabs support **Add New** or **Replace All** (Replace All clears only the kinds you import: `{ "excerpts": [...] }` keeps the chapter's ideas).
-
----
-
-### 5. Import Excerpts — Book Detail Page → "Excerpts (All)" tab
-
-Import excerpts into **existing** chapters across the whole book, grouped by chapter title (matched as in the Ideas tab).
-
-Supports **Add New** (append) or **Replace All** (clear the named chapters' existing excerpts first).
-
-```json
-[
-  {
-    "chapter": "Chapter 1: The Beginning",
-    "excerpts": [
-      {
-        "content": "The full passage text. **Markdown** supported.",
-        "note": "Why this passage stands out (optional)",
-        "source": "p.42 (optional)",
-        "orderIndex": 1
-      }
-    ]
-  },
-  {
-    "chapter": "Chapter 2: Going Deeper",
-    "excerpts": [
-      { "content": "Another memorable passage...", "orderIndex": 1 }
-    ]
-  }
-]
-```
-
-**Field reference (per excerpt):**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `content` | string | **Yes** | Markdown supported |
-| `note` | string | No | Personal annotation, max 1000 chars |
-| `source` | string | No | Page / section reference, max 300 chars |
-| `orderIndex` | integer | No | Sort order |
-
-> Once imported, click the **📖 N** badge on the chapter header to open the full-screen excerpt reader with ←/→ navigation.
-
----
+- [doc/development-workflow.md](doc/development-workflow.md): conventions for changing the code (data safety, migrations, tests, checking a change against a copy of the real data);
+- [doc/api-conventions.md](doc/api-conventions.md): status codes, error format, request bodies;
+- [doc/json-import-format.md](doc/json-import-format.md): JSON import formats.
 
 ## Tech Stack
 
-- **Backend:** Java 17, Spring Boot 4, Spring Data JPA, Flyway, H2 (file-based)
-- **Frontend:** React 18, Vite, React Router
-- **Database file:** `backend/data/booksdb.mv.db` (local, not committed to git)
+- **Backend:** Java 17+, Spring Boot 4.1 (Spring MVC, Spring Data JPA / Hibernate 7, Bean Validation, Actuator), Jackson 3, Flyway, H2 2.4 (file-based)
+- **Frontend:** React 19, Vite 8, React Router 7, TanStack Query 5, TipTap 3 (rich text), DOMPurify, marked, JSZip; Vitest + Testing Library, ESLint
