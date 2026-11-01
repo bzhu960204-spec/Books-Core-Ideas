@@ -165,6 +165,8 @@
 
 [MigrationService.readZip](../../backend/src/main/java/com/bookscoreideas/service/MigrationService.java) 把整个 ZIP 解压到 `Map<String, byte[]>`（上限 500MB），默认 JVM 堆下大归档可能 OOM；而 multipart 上限是 200MB。
 
+> 随 [SEC-04](05-security.md#sec-04) 移交过来：图片文件在每本书的事务**提交后**才写盘。写盘失败时，这本书报告为 FAILED，但数据库里已经有了，而且再次导入会因同名被跳过。改为流式写盘时，一并改成"在事务中写盘，回滚就删除"（BUG-10 的 `ChapterImageStorage.deleteIfRolledBack`）。
+
 **建议**：先把上传落到临时文件，用 `java.util.zip.ZipFile` 按需读取条目；图片直接流式写盘。
 
 ---

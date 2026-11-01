@@ -7,10 +7,4 @@ import java.util.List;
  * with a reason the user can read.
  */
 public record ImageUploadDto(List<ChapterImageDto> images, List<SkippedFile> skipped) {
-
-    public record SkippedFile(String name, String reason) {
-        public static final String EMPTY = "empty file";
-        public static final String NOT_AN_IMAGE = "not a PNG, JPEG, GIF or WebP image";
-        public static final String NOT_SAVED = "could not be saved";
-    }
 }

@@ -80,7 +80,7 @@ MigrationImporter  ← 单本书事务性落库（@Transactional）
 - **不包含**：
   - 不含书的空书单；
   - 书单的排序、创建时间，以及书加入书单的时间（导入时新建的书单排在默认位置）；
-  - 数据库里有记录、但图片文件已不存在的章节图片（导出时没有文件，导入时跳过）。
+  - 数据库里有记录、但图片文件已不存在的章节图片（导出时没有文件；导入时跳过，并在导入结果中写明 "missing from the archive"）。
 - **定位**：ZIP 用于"分享 / 迁移书"。整库灾备请用 `backup-data.ps1`（复制整个数据库与图片目录），见 [DB-05](improvement-review/03-database-and-data-safety.md#db-05)。
 
 ```
@@ -181,13 +181,14 @@ books-export-2026-10-01.zip
 - 书签、标记的 `book_id` 取导入后的新书（数据库复合外键要求它与章节所属的书一致）。
 - 书评、讲解、书签、标记带上归档中的原始时间戳。实体的 `@PrePersist` 只在时间戳为空时才填"现在"；之后的修改仍由 `@PreUpdate` 更新。
 - 书单：对每条 `collectionPaths` 调用 `BookCollectionService.findOrCreatePath`，从根开始逐级查找同名子书单（名称去掉首尾空格），没有就新建，再把书加进去。这样导入的路径会**合并**进现有的树，不会重复建出同名书单。这一步在本书的同一事务内完成，失败时一起回滚。
-- 图片：为每个 `ChapterImage` **生成新的 `UUID + 原扩展名** 作为磁盘文件名，避免跨实例文件名冲突；无对应字节的图片记录跳过。
-- 图片字节暂存于 `PendingImageWrite` 列表返回，事务提交后才写盘。
+- 图片：为每个 `ChapterImage` **生成新的 `UUID + 扩展名`** 作为磁盘文件名，避免跨实例文件名冲突。扩展名和 `contentType` 由图片字节决定（SEC-04，与上传共用 `ImageType`），不使用归档中的文件名和 `contentType`。不是 PNG / JPEG / GIF / WebP 的文件，以及归档中缺少文件的图片，都不导入，并在这本书的结果 `message` 中逐一列出，例如 "Skipped 2 images: logo.svg (not a PNG, JPEG, GIF or WebP image); gone.png (missing from the archive)"。前端把它显示在书名下方。
+- 图片字节暂存于 `PendingImageWrite` 列表返回，事务提交后才写盘（写盘失败的处理见 [BE-07](improvement-review/02-backend-architecture.md#be-07)）。
 
 ## 7. 安全与健壮性
 
 - **Zip Bomb 防护**：解包时限制累计解压大小 `MAX_TOTAL_UNCOMPRESSED = 500 MB`、条目数 `MAX_ENTRIES = 50000`，超限抛 `IllegalArgumentException`。
 - **路径穿越防护**：导出读图与导入写图均 `normalize()` 后校验 `startsWith(uploadDir)`；条目名统一 `\` → `/`。
+- **图片类型**（SEC-04）：归档可能来自他人，所以按字节判断类型，只接受四种位图格式，存储名由 UUID 加检测出的扩展名组成，不包含归档中的任何字符。
 - **事务隔离**：每本书独立事务，单本失败不污染整体；图片先入库后落盘，保证一致性。
 - **冲突幂等**：基于归一化 `(title, author)` 去重，重复导入不会产生副本。
 - **上传大小限制**：`application.properties` 中 `spring.servlet.multipart.max-file-size=200MB`、`max-request-size=220MB`，以容纳多书归档。
@@ -208,4 +209,5 @@ books-export-2026-10-01.zip
 - 测试：
   - [MigrationArchiveTest](../backend/src/test/java/com/bookscoreideas/migration/MigrationArchiveTest.java)：v2 往返（导出 → 删除 → 导入 → 再导出必须与原导出完全相同）、v1 归档兼容、拒绝更新版本、预览计数；
   - [ImageApiTest](../backend/src/test/java/com/bookscoreideas/books/ImageApiTest.java)：图片字节往返；
+  - [MigrationImageSafetyTest](../backend/src/test/java/com/bookscoreideas/migration/MigrationImageSafetyTest.java)：归档图片按字节判断类型、报告跳过的图片（SEC-04）；
   - [BookJsonExportTest](../backend/src/test/java/com/bookscoreideas/books/BookJsonExportTest.java)：单本 JSON 导出格式不变。

@@ -2,7 +2,7 @@ package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.ChapterImageDto;
 import com.bookscoreideas.dto.ImageUploadDto;
-import com.bookscoreideas.dto.ImageUploadDto.SkippedFile;
+import com.bookscoreideas.dto.SkippedFile;
 import com.bookscoreideas.entity.ChapterImage;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
@@ -28,9 +28,6 @@ import java.util.UUID;
 public class ChapterImageService {
 
     private static final Logger log = LoggerFactory.getLogger(ChapterImageService.class);
-
-    /** Width of chapter_images.original_name. The name comes from the client's file, so it is cut, not rejected. */
-    private static final int MAX_NAME_LENGTH = 255;
 
     /**
      * An image file ready to be served.
@@ -79,7 +76,7 @@ public class ChapterImageService {
 
                 ChapterImage image = new ChapterImage();
                 image.setFilename(stored.get().filename());
-                image.setOriginalName(name == null ? null : name.substring(0, Math.min(name.length(), MAX_NAME_LENGTH)));
+                image.setOriginalName(ChapterImage.fitOriginalName(name));
                 image.setContentType(stored.get().type().contentType());
                 image.setOrderIndex(nextIndex++);
                 image.setChapter(chapter);

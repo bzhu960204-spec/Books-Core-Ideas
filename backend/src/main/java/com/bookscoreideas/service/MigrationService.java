@@ -1,5 +1,6 @@
 package com.bookscoreideas.service;
 
+import com.bookscoreideas.dto.SkippedFile;
 import com.bookscoreideas.dto.migration.BookArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
 import com.bookscoreideas.dto.migration.ImageArchiveDto;
@@ -146,7 +147,8 @@ public class MigrationService {
                 writeImages(outcome.imageWrites());
                 existingKeys.add(key);
                 imported++;
-                details.add(new ImportBookResultDto(dto.title(), dto.author(), "IMPORTED", null,
+                details.add(new ImportBookResultDto(dto.title(), dto.author(), "IMPORTED",
+                        skippedMessage(outcome.skippedImages()),
                         outcome.chaptersImported(), outcome.imageWrites().size()));
             } catch (Exception e) {
                 failed++;
@@ -196,6 +198,18 @@ public class MigrationService {
     }
 
     // ---------------------------------------------------------------- HELPERS
+
+    /** "Skipped 2 images: a.svg (reason); b.png (reason)", or null when every image was imported. */
+    private static String skippedMessage(List<SkippedFile> skipped) {
+        if (skipped.isEmpty()) return null;
+        StringBuilder message = new StringBuilder("Skipped ").append(skipped.size())
+                .append(skipped.size() == 1 ? " image: " : " images: ");
+        for (int i = 0; i < skipped.size(); i++) {
+            if (i > 0) message.append("; ");
+            message.append(skipped.get(i).name()).append(" (").append(skipped.get(i).reason()).append(')');
+        }
+        return message.toString();
+    }
 
     private Set<String> loadExistingBookKeys() {
         Set<String> keys = new HashSet<>();

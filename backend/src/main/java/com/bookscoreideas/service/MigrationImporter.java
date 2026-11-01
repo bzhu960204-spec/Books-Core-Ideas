@@ -1,5 +1,6 @@
 package com.bookscoreideas.service;
 
+import com.bookscoreideas.dto.SkippedFile;
 import com.bookscoreideas.dto.migration.BookArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
@@ -42,7 +43,9 @@ public class MigrationImporter {
 
     public record PendingImageWrite(String filename, byte[] bytes) {}
 
-    public record PersistOutcome(Long bookId, int chaptersImported, List<PendingImageWrite> imageWrites) {}
+    /** @param skippedImages images in the archive that were not imported, with the reason (SEC-04) */
+    public record PersistOutcome(Long bookId, int chaptersImported, List<PendingImageWrite> imageWrites,
+                                 List<SkippedFile> skippedImages) {}
 
     @Transactional
     public PersistOutcome persistBook(BookArchiveDto dto, Map<String, byte[]> imageBytesByFilename) {
@@ -64,6 +67,7 @@ public class MigrationImporter {
         book = bookRepository.save(book);
 
         List<PendingImageWrite> writes = new ArrayList<>();
+        List<SkippedFile> skippedImages = new ArrayList<>();
         int chapterCount = 0;
 
         if (isParts && dto.parts() != null) {
@@ -71,7 +75,7 @@ public class MigrationImporter {
                 Part part = treeWriter.writePart(book, partDto);
                 if (partDto.chapters() != null) {
                     for (ChapterArchiveDto chDto : partDto.chapters()) {
-                        treeWriter.writeChapter(book, part, chDto, imageBytesByFilename, writes);
+                        treeWriter.writeChapter(book, part, chDto, imageBytesByFilename, writes, skippedImages);
                         chapterCount++;
                     }
                 }
@@ -80,7 +84,7 @@ public class MigrationImporter {
         // Chapters outside any part: all of a CHAPTERS book's, or a PARTS book's ungrouped ones.
         if (dto.chapters() != null) {
             for (ChapterArchiveDto chDto : dto.chapters()) {
-                treeWriter.writeChapter(book, null, chDto, imageBytesByFilename, writes);
+                treeWriter.writeChapter(book, null, chDto, imageBytesByFilename, writes, skippedImages);
                 chapterCount++;
             }
         }
@@ -102,6 +106,6 @@ public class MigrationImporter {
             }
         }
 
-        return new PersistOutcome(book.getId(), chapterCount, writes);
+        return new PersistOutcome(book.getId(), chapterCount, writes, skippedImages);
     }
 }

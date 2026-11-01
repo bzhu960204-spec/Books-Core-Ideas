@@ -342,12 +342,18 @@ function ImportPanel({ onClose, onImported }) {
                 {r.error ? (
                   <div className="json-error">{r.error}</div>
                 ) : r.result.details.map((d, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.2rem 0.5rem' }}>
-                    <span style={{ fontWeight: 500 }}>{d.title}</span>
-                    {d.author && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>— {d.author}</span>}
-                    <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: statusColor(d.status) }}>
-                      {statusLabel(d)}
-                    </span>
+                  <div key={i} style={{ padding: '0.2rem 0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontWeight: 500 }}>{d.title}</span>
+                      {d.author && <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>— {d.author}</span>}
+                      <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: statusColor(d.status) }}>
+                        {statusLabel(d)}
+                      </span>
+                    </div>
+                    {/* SEC-04: an imported book can still have images that were not imported */}
+                    {d.status === 'IMPORTED' && d.message && (
+                      <div style={{ fontSize: '0.78rem', color: statusColor('SKIPPED_CONFLICT') }}>{d.message}</div>
+                    )}
                   </div>
                 ))}
               </div>

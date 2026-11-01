@@ -119,6 +119,34 @@
 <a id="sec-04"></a>
 ## SEC-04 · 迁移导入的边界校验 ⚪
 
+> **✅ 已修复（2026-11-01）**：迁移归档中的图片和上传一样，按文件内容判断（SEC-02）。没有导入的图片会在导入报告中逐一列出。
+>
+> **设计决定**（简单项，按最佳判断）
+> 1. **按文件内容判断**：[BookTreeWriter](../../backend/src/main/java/com/bookscoreideas/service/BookTreeWriter.java) 用 `ImageType.detect` 判断归档里每张图片的实际类型。
+>    - 新文件名的扩展名和 `contentType` 都由检测结果决定。归档中的 `filename` 只用来在 ZIP 里找到对应的文件，`contentType` 一律不用。
+>    - 这比评审建议的"扩展名只允许 `[a-z0-9]{1,5}`"更严格，原来的 `extensionOf` 已删除。
+>    - 不是这四种图片的文件不入库、不写盘。下载时本来也会按文件内容判断（SEC-02），这里是在入口再拦一次。
+> 2. **报告没有导入的图片**：书仍是 `IMPORTED`，`message` 写成 "Skipped 2 images: logo.svg (not a PNG, JPEG, GIF or WebP image); gone.png (missing from the archive)"。
+>    - 归档中缺少文件的图片，原来静默跳过，现在也一并报告。
+>    - 跳过的原因与 BUG-10 统一：`SkippedFile` 提为独立的 DTO，新增原因 `missing from the archive`。
+>    - 前端 [BookMigrationModal](../../frontend/src/components/BookMigrationModal.jsx) 在导入结果中，把这条信息显示在书名下方。
+> 3. **`originalName` 超长时截断**：放到 `ChapterImage.fitOriginalName` 中，上传和导入共用。原来整本书会导入失败。
+> 4. **交给 BE-07**：图片文件在事务**提交后**才写盘。写盘失败时，这本书会被报告为 FAILED，但数据库里已经有了。这正是 BE-07 要改的代码（不再整包读入内存，改为按需读取、流式写盘），所以一起处理。
+>
+> **测试** [MigrationImageSafetyTest](../../backend/src/test/java/com/bookscoreideas/migration/MigrationImageSafetyTest.java)：手工构造一个归档，包含以下 5 张图片：
+> - 声明为 `image/svg+xml` 的真实 PNG；
+> - 声明为 `image/png` 的带脚本 SVG；
+> - 文件名为 `scan./evil`（按旧逻辑，扩展名会是 `./evil`）；
+> - 归档中缺少文件的图片；
+> - 300 字符的文件名。
+>
+> 断言：3 张以 `<uuid>.png` / `image/png` 导入，原始字节可以下载，另外 2 张在报告中写明原因。修复前整本书导入失败（`FAILED`）。另有一个特征测试（没有跳过的图片时 `message` 为 null），修复前后都通过。前端新增 1 个，修复前失败。后端共 195 个、前端共 184 个测试通过。
+>
+> **验证**
+> - 真实数据副本：改动前后 2,748 个 GET 响应零差异，各表不变。
+> - 往返（`roundtrip.py`，真实数据副本 → 空库）：改动前后结果相同，ZIP 导入 24 本全部成功，JSON 导入 24 本往返完全相同。ZIP 只有 book 195 的 `book.json` 不同，原因与 [BE-08](02-backend-architecture.md#be-08) 记录的一样：这 5 张图片的文件不在本机。现在导入报告会写明 "Skipped 5 images: … (missing from the archive)"，原来不会提示。
+> - 浏览器：通过迁移弹窗导入一个构造的"他人分享"归档，结果为 "✓ 1 ch · 1 img"，书名下方显示被跳过的 `logo.svg` 和 `gone.png` 及原因。导入的那张图片以 `.png` / `image/png` 保存，能正常解码（240×120）。
+
 [MigrationService](../../backend/src/main/java/com/bookscoreideas/service/MigrationService.java) 已有不错的防护（条目数上限、解压总量上限、写盘前 `normalize + startsWith` 路径穿越校验）。剩余小问题：
 - 新文件名扩展名取自归档内文件名（`MigrationImporter.extensionOf`），可能包含 `/`、`..` 等字符；虽然写盘时会被路径校验拦截，但数据库里已经插入了指向无效文件的 `ChapterImage` 行。建议扩展名只允许 `[a-z0-9]{1,5}` 白名单。
 - 归档中的 `contentType` 应按 SEC-02 的白名单重新判定。

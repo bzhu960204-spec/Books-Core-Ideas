@@ -9,6 +9,13 @@ import jakarta.persistence.*;
 @EntityListeners(ChapterImageFileCleanup.class)
 public class ChapterImage {
 
+    /** Width of original_name. The name comes from someone's file, not from a form, so it is cut, not rejected. */
+    public static final int ORIGINAL_NAME_LENGTH = 255;
+
+    public static String fitOriginalName(String name) {
+        return name == null || name.length() <= ORIGINAL_NAME_LENGTH ? name : name.substring(0, ORIGINAL_NAME_LENGTH);
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

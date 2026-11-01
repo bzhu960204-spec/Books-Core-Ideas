@@ -1,5 +1,6 @@
 package com.bookscoreideas.service;
 
+import com.bookscoreideas.dto.SkippedFile;
 import com.bookscoreideas.dto.migration.BookmarkArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
 import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -78,10 +80,14 @@ public class BookTreeWriter {
      * A chapter (in {@code part}, or ungrouped when null) with its ideas, excerpts,
      * explanation, bookmarks, marks and images. Image rows are saved here; their bytes
      * are added to {@code imageWrites} so the caller writes files only after commit.
+     * The archive may come from someone else (SEC-04): an image is imported only if its
+     * bytes are a supported {@link ImageType}, which also decides the stored name and type;
+     * every other image goes to {@code skippedImages}.
      */
     public Chapter writeChapter(Book book, Part part, ChapterArchiveDto dto,
                                 Map<String, byte[]> imageBytesByFilename,
-                                List<MigrationImporter.PendingImageWrite> imageWrites) {
+                                List<MigrationImporter.PendingImageWrite> imageWrites,
+                                List<SkippedFile> skippedImages) {
         Chapter chapter = new Chapter();
         chapter.setTitle(dto.title());
         chapter.setOrderIndex(dto.orderIndex());
@@ -138,13 +144,22 @@ public class BookTreeWriter {
         if (dto.images() != null) {
             int idx = 1;
             for (ImageArchiveDto imgDto : dto.images()) {
+                String name = imgDto.originalName() != null ? imgDto.originalName() : imgDto.filename();
                 byte[] bytes = imgDto.filename() != null ? imageBytesByFilename.get(imgDto.filename()) : null;
-                if (bytes == null) continue;
-                String newFilename = UUID.randomUUID() + extensionOf(imgDto.filename(), imgDto.originalName());
+                if (bytes == null) {
+                    skippedImages.add(new SkippedFile(name, SkippedFile.MISSING));
+                    continue;
+                }
+                Optional<ImageType> type = ImageType.detect(bytes);
+                if (type.isEmpty()) {
+                    skippedImages.add(new SkippedFile(name, bytes.length == 0 ? SkippedFile.EMPTY : SkippedFile.NOT_AN_IMAGE));
+                    continue;
+                }
+                String newFilename = UUID.randomUUID() + type.get().extension();
                 ChapterImage image = new ChapterImage();
                 image.setFilename(newFilename);
-                image.setOriginalName(imgDto.originalName());
-                image.setContentType(imgDto.contentType());
+                image.setOriginalName(ChapterImage.fitOriginalName(imgDto.originalName()));
+                image.setContentType(type.get().contentType());
                 image.setOrderIndex(imgDto.orderIndex() != null ? imgDto.orderIndex() : idx);
                 image.setChapter(chapter);
                 imageRepository.save(image);
@@ -194,17 +209,5 @@ public class BookTreeWriter {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private static String extensionOf(String filename, String originalName) {
-        for (String candidate : new String[]{filename, originalName}) {
-            if (candidate != null) {
-                int dot = candidate.lastIndexOf('.');
-                if (dot >= 0 && dot < candidate.length() - 1) {
-                    return candidate.substring(dot).toLowerCase();
-                }
-            }
-        }
-        return "";
     }
 }

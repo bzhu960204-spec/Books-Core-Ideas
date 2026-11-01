@@ -181,7 +181,7 @@ public class JsonImportService {
     }
 
     private void writeChapter(Book book, Part part, ChapterImport chapter, Counter count) {
-        treeWriter.writeChapter(book, part, chapter(chapter), Map.of(), new ArrayList<>());
+        treeWriter.writeChapter(book, part, chapter(chapter), Map.of(), new ArrayList<>(), new ArrayList<>());
         count.chapters++;
         count.ideas += orEmpty(chapter.keyIdeas()).size();
         count.excerpts += orEmpty(chapter.excerpts()).size();
