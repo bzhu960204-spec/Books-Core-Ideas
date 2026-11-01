@@ -63,7 +63,9 @@ if ($Jar) {
     if (-not (Select-String -Path "$root\app.log" -Pattern 'Started BooksCoreIdeasApplication' -Quiet)) {
       throw "App did not start; see $root\app.log"
     }
-    python (Join-Path $PSScriptRoot 'capture_api.py') "http://localhost:$Port" "$root\api"
+    # 127.0.0.1: the app listens only there (SEC-03); "localhost" tries ::1 first, and on
+    # Windows each refused attempt costs ~2 s per request.
+    python (Join-Path $PSScriptRoot 'capture_api.py') "http://127.0.0.1:$Port" "$root\api"
     if ($LASTEXITCODE) { throw 'capture failed' }
   } finally {
     if (-not $p.HasExited) { Stop-Process -Id $p.Id; $p.WaitForExit() }

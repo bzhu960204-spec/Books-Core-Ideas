@@ -213,6 +213,8 @@ ZIP 迁移只包含：书、Part、章节、keyIdeas、excerpts、explanation、
 
 目前只有一个 `application.properties`，dev 与 prod 共用：H2 Console 常开、devtools 依赖在 fat jar 运行时虽会自动禁用但仍打包、监听所有网卡。
 
+> **进展（2026-11-01，随 SEC-03）**：已新增 `application-prod.properties`（关闭 H2 Console），`start-prod.ps1` 用 `--spring.profiles.active=prod` 启动；监听地址 `127.0.0.1` 对 dev 和 prod 都适用，放在公共配置中。其余部分（dev 专用设置、devtools 打包）待做。
+
 **建议**：`application-dev.properties` / `application-prod.properties`；`start-prod.ps1` 传 `--spring.profiles.active=prod`。具体安全项见 [SEC-03](05-security.md#sec-03)。
 
 ---

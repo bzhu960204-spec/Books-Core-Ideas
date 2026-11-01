@@ -113,8 +113,9 @@ $frontendJob = Start-Job -Name 'bci-frontend' -ScriptBlock {
   param([string]$Dir, [int]$ApiPort, [int]$Port)
   Set-Location $Dir
   # The SPA calls same-origin /api; Vite proxies it to the backend (vite.config.js).
-  $env:VITE_API_PROXY_TARGET = "http://localhost:$ApiPort"
-  & npx vite --host 0.0.0.0 --port $Port 2>&1 | ForEach-Object { $_.ToString() }
+  # The backend listens on 127.0.0.1 only (SEC-03); Vite's default host is this machine only too.
+  $env:VITE_API_PROXY_TARGET = "http://127.0.0.1:$ApiPort"
+  & npx vite --port $Port 2>&1 | ForEach-Object { $_.ToString() }
 } -ArgumentList $frontendDir, $BackendPort, $FrontendPort
 
 Write-Host ""

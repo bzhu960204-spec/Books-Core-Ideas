@@ -78,7 +78,23 @@
 | 3.5 | FE-05 | ✅ Toast、ErrorBoundary、404、统一确认框（顺带发现并修复 BUG-17、BUG-18、BUG-19） |
 
 ### 阶段 4 · 加固与收尾
-SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04、DB-06、ENG-04、ENG-05、ENG-06、FE-07、BUG-09、BUG-10。
+按以下顺序进行（2026-11-01 确认）：
+
+| 顺序 | ID | 事项 |
+|---|---|---|
+| 4.1 | SEC-03 | ✅ 仅监听本机（127.0.0.1，Vite 去掉 `--host`）；prod profile 关闭 H2 Console |
+| 4.2 | BE-09 | 配置分环境（在 SEC-03 的 prod profile 基础上） |
+| 4.3 | SEC-02 | 图片类型白名单 + 魔数校验、`nosniff`、`ContentDisposition` |
+| 4.4 | BUG-10 | 图片上传序号 / 失败上报（同一方法，紧跟 SEC-02） |
+| 4.5 | SEC-04 | 迁移导入复用 SEC-02 的白名单，扩展名白名单 |
+| 4.6 | BE-07 | 导入改为临时文件 + `ZipFile`，不再整包读入内存 |
+| 4.7 | ENG-04 | Maven Wrapper、Node/Java 版本约束（为 BE-10 固定构建环境） |
+| 4.8 | ENG-06 | 脚本：dev 端口记录、健康检查、去重 |
+| 4.9 | BE-10 | 升级 Spring Boot（先 3.5.x 清理弃用，再 4.x） |
+| 4.10 | DB-06 | DATE→TIMESTAMP、`readingStatus` 的 `''`→NULL 与枚举（涉及 schema，先备份） |
+| 4.11 | DB-04 | 内联 base64 图片（真实数据中目前为 0，开工前再定方案） |
+| 4.12 | FE-07 | api.js 样板 |
+| 4.13 | ENG-05 | 文档收尾（依赖前面各项的最终状态） |
 
 ## 进度追踪
 
@@ -113,7 +129,7 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | BE-06 | P2 | 重复代码 | 2 | ✅ | 图片存储统一；两套导出共用 BookArchiveBuilder（随 BE-08）；JSON 导入与 ZIP 迁移共用 BookTreeWriter、前端两份导入循环删除（随 FE-08） |
 | BE-07 | P2 | 导入整包入内存 | 4 | ⬜ | |
 | BE-08 | P1 | 迁移归档不完整 | 2 | ✅ | 格式 v2（书评/书签/标记/书单路径 + 原始时间戳）、兼容 v1、拒绝更新版本；真实数据整库往返完全相同 |
-| BE-09 | P3 | 配置分环境 | 4 | ⬜ | |
+| BE-09 | P3 | 配置分环境 | 4 | 🔄 | prod profile 已随 SEC-03 建立（关 Console）；其余待做 |
 | BE-10 | P2 | 升级 Spring Boot | 4 | ⬜ | |
 | DB-01 | P0 | Schema 双源管理 | 0/2 | ✅ | V8 统一老库/空库结构 + 生产 `validate`；SchemaConvergenceTest（真实库结构夹具）；副本演练 2,724 响应零差异 |
 | DB-02 | P1 | 外键与级联 | 2 | ✅ | V9：级联 + 图片 RESTRICT + 补外键 + 复合外键保证 book_id 一致；ForeignKeyConstraintsTest；副本演练零差异 |
@@ -131,10 +147,10 @@ SEC-02、SEC-03、SEC-05、BE-07、BE-09、BE-10（升级 Spring Boot）、DB-04
 | FE-08 | P2 | JSON 导入移到后端 | 3 | ✅ | 3 个单事务导入接口（与 ZIP 迁移共用 BookTreeWriter）+ 前端 6 种导入各一个请求（utils/jsonImport.js）；真实数据 24 本 JSON 往返完全相同 |
 | SEC-01 | P1 | 富文本 XSS 清洗 | 3 | ✅ | DOMPurify：粘贴入口 + 显示出口 + 导出；真实数据零差异 |
 | SEC-02 | P2 | 图片类型白名单 | 4 | ⬜ | |
-| SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ⬜ | 若在公司网络使用，建议提前 |
+| SEC-03 | P1 | 仅监听本机 / 关 H2 Console | 4 | ✅ | `server.address=127.0.0.1` + Vite 去掉 `--host`；prod profile 关 Console（dev 保留，仅本机）；NetworkExposureTest（修复前失败）；副本 2,748 响应零差异；本机局域网 IP 连不上 |
 | SEC-04 | P3 | 导入边界校验 | 4 | ⬜ | |
 | SEC-05 | P2 | 依赖漏洞扫描 | 4 | ✅ | 依赖已升级（prod audit 0）；Dependabot 已配置，推送后生效 |
-| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 165 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入）+ 前端 Vitest 181 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
+| ENG-01 | P0 | 测试 | 1 | 🔄 | 后端 167 个（含 N+1 回归、迁移往返、OSIV 关闭、新旧库结构一致、数据库外键约束、输入校验、API 状态码约定、详情聚合接口、JSON 导入、仅本机监听）+ 前端 Vitest 181 个（含 RTL 组件测试、fetch 层假后端、FE-01 的特征测试、FE-05 的失败场景）；每个修复附回归测试 |
 | ENG-02 | P1 | CI | 1 | ✅ | GitHub Actions；lint 已阻断（FE-02）；推送后确认首次运行 |
 | ENG-03 | P1 | 仓库卫生 | 0 | ✅ | node_modules 清理完成；提交信息规范持续执行 |
 | ENG-04 | P2 | 构建可复现 | 4 | ⬜ | |

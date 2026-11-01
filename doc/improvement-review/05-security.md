@@ -49,6 +49,23 @@
 <a id="sec-03"></a>
 ## SEC-03 · 服务暴露范围与 H2 Console 🟠
 
+> **✅ 已修复（2026-11-01）**：应用只接受本机连接，prod 不再有 H2 Console。
+>
+> **设计决定**
+> 1. **不提供局域网开关**（用户确认不需要从手机/局域网访问）。因此也不需要口令认证；以后确有需要，再加显式开关并配合认证。
+> 2. **`server.address=127.0.0.1`**，写在 `application.properties` 中，dev 和 prod 都生效。用 IP 而不是 `localhost`：`localhost` 可能只解析成 `::1`，而浏览器打开 `http://localhost:<端口>` 时会自动退回 IPv4，用户的使用方式不变。
+> 3. **dev 保留 H2 Console**（由我判断）：它已经只能从本机访问，开发时查数据有用。新增 [application-prod.properties](../../backend/src/main/resources/application-prod.properties) 关闭它，[start-prod.ps1](../../start-prod.ps1) 用 `--spring.profiles.active=prod` 启动，并不再打印 Console 地址。这个 prod profile 也是 [BE-09](02-backend-architecture.md#be-09) 的起点。
+> 4. **Vite 去掉 `--host 0.0.0.0`**：默认只监听本机。代理目标（[vite.config.js](../../frontend/vite.config.js) 的默认值、`start-dev.ps1` 设置的 `VITE_API_PROXY_TARGET`）改为 `http://127.0.0.1:<端口>`。
+> 5. **本机工具也改用 `127.0.0.1`**：第一次在副本上验证时，[rehearse.ps1](../../tools/rehearsal/rehearse.ps1) 用 `http://localhost:<端口>` 采集，Python 先尝试 `::1`。在 Windows 上，每次被拒绝的连接要等约 2 秒才退回 IPv4，2,748 个请求因此要一个半小时。Vite 代理也有同样的问题，所以 4 中改为 IP。
+>
+> **测试** [NetworkExposureTest](../../backend/src/test/java/com/bookscoreideas/web/NetworkExposureTest.java)（2 个）：在真实端口上按 dev / prod 两种配置启动应用（内存库），断言回环地址能连上、本机各网卡的 IPv4 地址都连不上，并且 `/h2-console/` 在 dev 为 200、在 prod 为 404。
+> - 修复前两个测试都失败：从网卡地址能连上。只加 `server.address` 后，prod 仍失败：Console 返回 200。
+>
+> **验证**
+> - 后端 167 个测试通过；前端 lint 0 / 181 个测试通过。
+> - 真实数据副本：改动前后 2,748 个 GET 响应零差异，12 张表不变。
+> - 手动：prod 方式（prod profile + 前端 dist）和 dev 方式（无 profile 的后端 + 不带 `--host` 的 Vite）都在副本上运行。用本机局域网 IP（10.0.0.31）连接 18083、18084、15173 均被拒绝；prod 的 `/h2-console/` 为 404，dev 为 200；浏览器通过 `http://localhost:…` 打开书籍详情页正常。
+
 **现状**：
 - Spring Boot 默认监听 `0.0.0.0`，`application.properties` 未设置 `server.address`；`start-dev.ps1` 用 `vite --host 0.0.0.0` 启动前端。
 - 所有 API 无认证。CORS 只约束浏览器跨域，**不能**阻止同网段任何人直接 `curl http://<你的IP>:8080/api/books`，或在 prod 模式下直接用浏览器打开 `http://<你的IP>:8080` 使用整个应用（包括删除数据）。

@@ -125,7 +125,6 @@ Write-Host ""
 Write-Host "==============================================="
 Write-Host " Books Core Ideas (prod) starting"
 Write-Host "   URL       : http://localhost:$Port"
-Write-Host "   H2 Console: http://localhost:$Port/h2-console"
 Write-Host "   Jar       : $($jar.FullName)"
 Write-Host "   Frontend  : $distDir"
 if ($logFile) { Write-Host "   Log       : $logFile" }
@@ -134,12 +133,13 @@ Write-Host "==============================================="
 Write-Host ""
 
 # Run in the foreground with cwd = backend so H2 (./data/booksdb) matches the
-# dev flow. Program args (not env) carry the port + dist so they always reach
-# Spring reliably.
+# dev flow. Program args (not env) carry the profile, port + dist so they always
+# reach Spring reliably. The prod profile turns off the H2 Console (SEC-03).
 Push-Location $backendDir
 try {
   $jarArgs = @(
     '-jar', $jar.FullName,
+    '--spring.profiles.active=prod',
     "--server.port=$Port",
     "--app.web.dist=$distDir"
   )

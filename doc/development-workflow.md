@@ -11,6 +11,7 @@
 - **手动启动验证**：用临时目录中的库，并用启动参数覆盖：
   `--spring.datasource.url=jdbc:h2:file:<临时目录>/booksdb --app.upload.dir=<临时目录>/images`
   - 端口用 18083/18084（Vite 用 15173），不和日常 dev 的 8080/5173 冲突。
+  - 应用只监听 `127.0.0.1`（SEC-03）。脚本和工具访问它时写 `http://127.0.0.1:<端口>`，不要写 `localhost`：在 Windows 上，`localhost` 会先尝试 `::1`，每个请求要多等约 2 秒。浏览器不受影响。
 - **dev 带 devtools**：`backend/target/classes` 一变化就会自动重启，并**对真实库执行 Flyway 迁移**。所以在本仓库执行 `mvn`（compile/test/package）之前，先确认 8080 上没有服务在运行。
   - [tools/rehearsal/build-jar.ps1](../tools/rehearsal/build-jar.ps1) `-Ref <提交>` 在临时 git worktree 中构建，不碰 `backend/target`。
 - **涉及数据库结构的改动**，按顺序：
@@ -81,7 +82,7 @@ java '-Dfile.encoding=UTF-8' -jar <jar> --server.port=18084 "--spring.datasource
 # 2) 改动前的前端：临时 worktree + 共用 node_modules，Vite 用 15174
 git worktree add --detach $env:TEMP\bci-wt-<sha> <sha>
 cmd /c mklink /J $env:TEMP\bci-wt-<sha>\frontend\node_modules $PWD\frontend\node_modules
-cd $env:TEMP\bci-wt-<sha>\frontend; $env:VITE_API_PROXY_TARGET='http://localhost:18084'; npx.cmd vite --port 15174 --strictPort
+cd $env:TEMP\bci-wt-<sha>\frontend; $env:VITE_API_PROXY_TARGET='http://127.0.0.1:18084'; npx.cmd vite --port 15174 --strictPort
 # 3) 当前工作区：同样代理到 18084，Vite 用 15173
 ```
 
