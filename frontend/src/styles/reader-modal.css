@@ -68,7 +68,31 @@
   padding: 1.25rem 1.75rem;
   overflow-y: auto;
   flex: 1;
+  min-width: 0;
   min-height: 0;
+}
+
+/* Text on the left, the optional image panel on the right. */
+.reader-split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.modal--xl.review-reader-modal.has-image-panel:not(.is-fullscreen) {
+  width: 96%;
+  max-width: min(1600px, 96vw);
+  height: 92vh;
+}
+
+@media (max-width: 899px) {
+  .reader-split { flex-direction: column; }
+  .reader-resizer { display: none; }
+  .reader-image-pane {
+    order: -1;
+    flex: 0 0 40vh;
+  }
+  .review-reader-modal.has-image-panel .reader-image-pane { border-bottom: 1px solid var(--border); }
 }
 
 /* When editing, hand off all space + scrolling to the editor itself so we

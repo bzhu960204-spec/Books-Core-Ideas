@@ -1,12 +1,15 @@
 import { highlightsSupported } from '../../utils/explanationAnchor';
 
-// The reader's bottom bar. Editing: fullscreen, Cancel (only when there is saved
-// content to return to), Save. Reading: fullscreen, font size, highlights,
-// bookmark, Delete, Close, Edit.
+// The reader's bottom bar. Editing: fullscreen, images (when the chapter has any), Cancel
+// (only when there is saved content to return to), Save. Reading: fullscreen, images,
+// font size, highlights, bookmark, Delete, Close, Edit.
 export default function ExplanationFooter({
   editing,
   fullscreen,
   onToggleFullscreen,
+  imageCount = 0,
+  imagePanelOpen = false,
+  onToggleImagePanel,
   hasContent,
   saving,
   onCancelEdit,
@@ -19,6 +22,19 @@ export default function ExplanationFooter({
   onClose,
   onEdit,
 }) {
+  const imagesToggle = imageCount > 0 && (
+    <button
+      type="button"
+      className="btn btn-secondary btn-sm"
+      onClick={onToggleImagePanel}
+      aria-pressed={imagePanelOpen}
+      title={imagePanelOpen ? 'Hide the chapter images' : 'Show the chapter images beside the text'}
+      style={{ marginLeft: '0.35rem' }}
+    >
+      {imagePanelOpen ? '🖼 Hide Images' : `🖼 Images (${imageCount})`}
+    </button>
+  );
+
   return (
     <footer className="review-reader-actions">
       {editing ? (
@@ -31,6 +47,7 @@ export default function ExplanationFooter({
           >
             {fullscreen ? '⤡ Exit Fullscreen' : '⛶ Fullscreen'}
           </button>
+          {imagesToggle}
           <span style={{ flex: 1 }} />
           {hasContent && (
             <button
@@ -55,6 +72,7 @@ export default function ExplanationFooter({
           >
             {fullscreen ? '⤡ Exit Fullscreen' : '⛶ Fullscreen'}
           </button>
+          {imagesToggle}
           <div className="reader-font-controls" role="group" aria-label="Font size">
             <button
               type="button"

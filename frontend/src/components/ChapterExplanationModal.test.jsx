@@ -1,11 +1,21 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ChapterExplanationModal from './ChapterExplanationModal';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { chapterImageApi } from '../api';
+import { createQueryClient } from '../queries';
 
 vi.mock('./RichTextEditor', () => ({
   default: ({ value, onChange }) => (
     <textarea data-testid="editor" value={value} onChange={e => onChange(e.target.value)} />
   ),
+}));
+
+vi.mock('../api', () => ({
+  chapterImageApi: {
+    getAll: vi.fn(),
+    getUrl: (chapterId, imageId) => `/img/${chapterId}/${imageId}`,
+  },
 }));
 
 beforeAll(() => {
@@ -381,5 +391,123 @@ describe('ChapterExplanationModal saved passages', () => {
   it('hides the highlights switch where the browser cannot highlight', () => {
     renderModal({ explanation: { content: TEXT } });
     expect(screen.queryByRole('button', { name: /Highlights/ })).toBeNull();
+  });
+});
+
+describe('ChapterExplanationModal image panel', () => {
+  const images = [1, 2, 3].map(id => ({ id, originalName: `image-${id}.png` }));
+
+  function renderWithImages(props) {
+    chapterImageApi.getAll.mockResolvedValue(images);
+    const base = {
+      chapterId: 7, imageCount: 3, chapterTitle: 'Ch 1', bookTitle: 'Book',
+      explanation: { content: TEXT }, onClose: () => {}, onSave: vi.fn(),
+    };
+    return render(
+      <QueryClientProvider client={createQueryClient()}>
+        <ChapterExplanationModal {...base} {...props} />
+      </QueryClientProvider>,
+    );
+  }
+
+  const imagesButton = () => screen.getByRole('button', { name: /Images \(3\)|Hide Images/ });
+
+  it('offers the panel only when the chapter has images', () => {
+    renderWithImages({ imageCount: 0 });
+    expect(screen.queryByRole('button', { name: /Images/ })).toBeNull();
+    expect(document.querySelector('.reader-split')).not.toBeNull();
+    expect(document.querySelector('.chapter-image-panel')).toBeNull();
+  });
+
+  it('opens and closes the panel with the images, and remembers the choice', async () => {
+    const { unmount } = renderWithImages();
+    expect(document.querySelector('.chapter-image-panel')).toBeNull();
+
+    fireEvent.click(imagesButton());
+    expect(await screen.findByText('image-1.png')).toBeTruthy();
+    expect(screen.getByText('1 / 3')).toBeTruthy();
+    expect(imagesButton().getAttribute('aria-pressed')).toBe('true');
+    expect(imagesButton().textContent).toContain('Hide Images');
+    expect(document.querySelector('.review-reader-modal').classList.contains('has-image-panel')).toBe(true);
+    expect(localStorage.getItem('explanationReaderImagePanel')).toBe('on');
+
+    unmount();
+    renderWithImages();
+    expect(await screen.findByText('image-1.png')).toBeTruthy();
+
+    fireEvent.click(imagesButton());
+    expect(document.querySelector('.chapter-image-panel')).toBeNull();
+    expect(localStorage.getItem('explanationReaderImagePanel')).toBe('off');
+  });
+
+  it('can be opened while editing', async () => {
+    renderWithImages({ startInEdit: true });
+    expect(await screen.findByTestId('editor')).toBeTruthy();
+    fireEvent.click(imagesButton());
+    expect(await screen.findByText('image-1.png')).toBeTruthy();
+  });
+
+  it('still offers to save a passage selected in the text', async () => {
+    localStorage.setItem('explanationReaderImagePanel', 'on');
+    renderWithImages({ onSaveMark: vi.fn().mockResolvedValue({ id: 1 }) });
+    await screen.findByText('image-1.png');
+
+    selectText('beta gamma');
+    expect(await screen.findByRole('button', { name: '📑 Save passage' })).toBeTruthy();
+  });
+
+  it('switches images with the arrow keys only while focus is in the panel', async () => {
+    localStorage.setItem('explanationReaderImagePanel', 'on');
+    renderWithImages();
+    await screen.findByText('image-1.png');
+
+    fireEvent.keyDown(document.querySelector('.review-reader-content'), { key: 'ArrowRight' });
+    expect(screen.getByText('1 / 3')).toBeTruthy();
+
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Next image' }), { key: 'ArrowRight' });
+    expect(screen.getByText('2 / 3')).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Next image' }), { key: 'ArrowLeft' });
+    expect(screen.getByText('1 / 3')).toBeTruthy();
+  });
+
+  it('resizes the panel from the separator within bounds and remembers the width', async () => {
+    localStorage.setItem('explanationReaderImagePanel', 'on');
+    renderWithImages();
+    const separator = await screen.findByRole('separator');
+    const split = () => document.querySelector('.reader-split').style.getPropertyValue('--image-panel-ratio');
+    expect(split()).toBe('0.4');
+
+    fireEvent.keyDown(separator, { key: 'ArrowLeft' });
+    expect(split()).toBe('0.45');
+    expect(localStorage.getItem('explanationReaderImagePanelRatio')).toBe('0.45');
+
+    for (let i = 0; i < 10; i += 1) fireEvent.keyDown(separator, { key: 'ArrowLeft' });
+    expect(Number(split())).toBeCloseTo(0.65);
+    for (let i = 0; i < 20; i += 1) fireEvent.keyDown(separator, { key: 'ArrowRight' });
+    expect(Number(split())).toBeCloseTo(0.25);
+  });
+
+  it('closes only the lightbox on Esc, then leaves fullscreen, then closes the reader', async () => {
+    localStorage.setItem('explanationReaderImagePanel', 'on');
+    const onClose = vi.fn();
+    renderWithImages({ onClose });
+    await screen.findByText('image-1.png');
+    const modal = () => document.querySelector('.review-reader-modal');
+
+    fireEvent.click(screen.getByRole('button', { name: '⛶ Fullscreen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open full screen' }));
+    expect(screen.getByRole('dialog', { name: 'Image viewer' })).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Image viewer' })).toBeNull();
+    expect(modal().classList.contains('is-fullscreen')).toBe(true);
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(modal().classList.contains('is-fullscreen')).toBe(false);
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

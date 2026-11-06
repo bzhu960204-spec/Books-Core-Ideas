@@ -4,6 +4,8 @@ import { chapterImageApi } from '../api';
 import { useChapterImages, useRefresh } from '../queries';
 import ConfirmDialog from './ConfirmDialog';
 import LoadError from './feedback/LoadError';
+import ZoomableImage from './images/ZoomableImage';
+import ImageLightbox from './images/ImageLightbox';
 import { attempt, reportError, showToast } from './feedback/toast';
 
 const NO_IMAGES = [];
@@ -34,6 +36,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null); // the image to delete
+  const [lightbox, setLightbox] = useState(false);
   const fileInputRef = useRef(null);
 
   // Clamp against the current list (e.g. after deleting the last image).
@@ -83,7 +86,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
   const goNext = useCallback(() => { if (idx < images.length - 1) setIdx(i => i + 1); }, [idx, images.length]);
 
   useEffect(() => {
-    if (confirmDelete) return undefined; // keys belong to the confirmation
+    if (confirmDelete || lightbox) return undefined; // keys belong to the confirmation / lightbox
     const handler = (e) => {
       if (e.key === 'Escape') onClose();
       if (mode === 'browse') {
@@ -93,7 +96,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose, goPrev, goNext, mode, confirmDelete]);
+  }, [onClose, goPrev, goNext, mode, confirmDelete, lightbox]);
 
   const currentImage = images[idx];
 
@@ -171,10 +174,11 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
               ) : (
                 <div className="chapter-image-display">
                   <div className="chapter-image-main">
-                    <img
+                    <ZoomableImage
+                      key={currentImage.id}
                       src={chapterImageApi.getUrl(chapterId, currentImage.id)}
                       alt={currentImage.originalName}
-                      className="chapter-image-img"
+                      onExpand={() => setLightbox(true)}
                     />
                   </div>
                   <div className="chapter-image-info">
@@ -207,6 +211,16 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
               disabled={!hasNext}
             >Next →</button>
           </div>
+        )}
+
+        {lightbox && (
+          <ImageLightbox
+            images={images}
+            index={idx}
+            getUrl={(image) => chapterImageApi.getUrl(chapterId, image.id)}
+            onIndexChange={setIdx}
+            onClose={() => setLightbox(false)}
+          />
         )}
 
         {confirmDelete && (

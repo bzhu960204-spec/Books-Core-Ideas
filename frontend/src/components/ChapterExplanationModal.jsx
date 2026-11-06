@@ -11,13 +11,18 @@ import { useFloatingMenu } from './explanation/useFloatingMenu';
 import { usePassageMarks, useSavedPassageHighlights } from './explanation/usePassageMarks';
 import { useReaderPreferences } from './explanation/useReaderPreferences';
 import { useReadingPosition } from './explanation/useReadingPosition';
+import ChapterImagePanel from './explanation/ChapterImagePanel';
+import PanelResizer from './explanation/PanelResizer';
 
 // View / edit a single chapter's "explanation" (详解) document. Mirrors the
 // review reader: rendered HTML in view mode, RichTextEditor in edit mode, with
 // a distraction-free fullscreen toggle. In view mode, selecting text offers to
 // save it as a passage; `initialAnchor` scrolls to and flashes a saved passage.
-// The parts live in ./explanation.
+// A chapter with images can show them in a resizable side panel (`chapterId`,
+// `imageCount`). The parts live in ./explanation.
 export default function ChapterExplanationModal({
+  chapterId,
+  imageCount = 0,
   chapterTitle,
   bookTitle,
   explanation,
@@ -50,11 +55,13 @@ export default function ChapterExplanationModal({
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const bodyRef = useRef(null);
+  const splitRef = useRef(null);
   const contentRef = useRef(null);
   const menuRef = useRef(null);
 
   const passages = usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDeleteMark });
   const prefs = useReaderPreferences();
+  const showImagePanel = imageCount > 0 && prefs.imagePanelOpen;
 
   // Sanitizing a long explanation isn't free; do it once per content change,
   // not on every re-render (e.g. while the reader selects text).
@@ -122,7 +129,8 @@ export default function ChapterExplanationModal({
   return (
     <Modal
       size="xl"
-      className={`review-reader-modal ${fullscreen ? 'is-fullscreen' : ''}`.trim()}
+      className={['review-reader-modal', fullscreen && 'is-fullscreen', showImagePanel && 'has-image-panel']
+        .filter(Boolean).join(' ')}
       onClose={onClose}
       title={null}
       closeOnOverlay={!editing}
@@ -142,22 +150,40 @@ export default function ChapterExplanationModal({
       </header>
 
       <div
-        ref={bodyRef}
-        className={`review-reader-body ${editing ? 'is-editing' : ''}`}
+        ref={splitRef}
+        className="reader-split"
+        style={showImagePanel ? { '--image-panel-ratio': prefs.imagePanelRatio } : undefined}
       >
-        {editing ? (
-          <LazyRichTextEditor
-            value={draft}
-            onChange={setDraft}
-            placeholder="Paste or write the chapter explanation… Markdown paste supported."
-            fill
-          />
-        ) : (
-          <ExplanationHtml
-            contentRef={contentRef}
-            html={explanationHtml}
-            fontScale={prefs.fontScale}
-          />
+        <div
+          ref={bodyRef}
+          className={`review-reader-body ${editing ? 'is-editing' : ''}`}
+        >
+          {editing ? (
+            <LazyRichTextEditor
+              value={draft}
+              onChange={setDraft}
+              placeholder="Paste or write the chapter explanation… Markdown paste supported."
+              fill
+            />
+          ) : (
+            <ExplanationHtml
+              contentRef={contentRef}
+              html={explanationHtml}
+              fontScale={prefs.fontScale}
+            />
+          )}
+        </div>
+        {showImagePanel && (
+          <>
+            <PanelResizer
+              containerRef={splitRef}
+              ratio={prefs.imagePanelRatio}
+              onChange={prefs.setImagePanelRatio}
+            />
+            <div className="reader-image-pane">
+              <ChapterImagePanel chapterId={chapterId} />
+            </div>
+          </>
         )}
       </div>
 
@@ -169,6 +195,9 @@ export default function ChapterExplanationModal({
         editing={editing}
         fullscreen={fullscreen}
         onToggleFullscreen={() => setFullscreen(f => !f)}
+        imageCount={imageCount}
+        imagePanelOpen={showImagePanel}
+        onToggleImagePanel={prefs.toggleImagePanel}
         hasContent={hasContent}
         saving={saving}
         onCancelEdit={() => { setEditing(false); setFullscreen(false); }}

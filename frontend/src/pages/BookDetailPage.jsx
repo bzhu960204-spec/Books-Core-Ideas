@@ -454,6 +454,8 @@ export default function BookDetailPage() {
 
       {reader.modal && (
         <ChapterExplanationModal
+          chapterId={reader.modal.chapterId}
+          imageCount={chapterById(reader.modal.chapterId)?.imageCount ?? 0}
           chapterTitle={chapterById(reader.modal.chapterId)?.title || 'Chapter'}
           bookTitle={book.title}
           explanation={reader.modal.data}

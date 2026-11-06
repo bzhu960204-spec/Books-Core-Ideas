@@ -37,6 +37,21 @@ const deleteCurrent = () => {
 };
 
 describe('ChapterImageViewer', () => {
+  it('lets the image be zoomed and opened full screen', async () => {
+    chapterImageApi.getAll.mockResolvedValue([img(1), img(2)]);
+    renderViewer();
+
+    await screen.findByText('image-1.png');
+    expect(screen.getByRole('toolbar', { name: 'Zoom' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open full screen' }));
+    expect(screen.getByRole('dialog', { name: 'Image viewer' })).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+    expect(screen.getAllByText('image-2.png').length).toBeGreaterThan(0);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Image viewer' })).toBeNull();
+  });
+
   it('moves back to the new last image after deleting the last one', async () => {
     chapterImageApi.getAll
       .mockResolvedValueOnce([img(1), img(2), img(3)])

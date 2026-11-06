@@ -16,6 +16,7 @@
 @import './styles/shared.css';
 @import './styles/json-import.css';
 @import './styles/image-viewer.css';
+@import './styles/zoomable-image.css';
 @import './styles/banks.css';
 @import './styles/book-picker.css';
 @import './styles/reading-status.css';

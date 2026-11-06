@@ -151,18 +151,7 @@
 
 .chapter-image-main {
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.chapter-image-img {
-  max-width: 100%;
-  max-height: 60vh;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  object-fit: contain;
+  height: 60vh;
 }
 
 .chapter-image-info {
