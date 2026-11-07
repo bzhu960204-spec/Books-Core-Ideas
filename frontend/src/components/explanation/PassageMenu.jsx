@@ -1,12 +1,15 @@
 const NOTE_MAX = 1000;
 
 // The floating bar next to the selected passage ("Save passage" / note / "Already
-// saved") or the one just saved ("Passage saved" / Undo). mouseDown is prevented
-// outside the note input so clicking a button keeps the text selection.
+// saved" + Remove), the one just saved ("Passage saved" / Undo) or the one just
+// removed ("Highlight removed" / Undo). mouseDown is prevented outside the note
+// input so clicking a button keeps the text selection.
 export default function PassageMenu({ menuRef, passages, duplicate }) {
   const {
     selection, noteOpen, setNoteOpen, noteDraft, setNoteDraft, savingMark, markError, save, undo,
+    removedNotice, removeSelected, undoRemove,
   } = passages;
+  const showingRemoved = !selection && !passages.savedNotice && !!removedNotice;
 
   return (
     <div
@@ -35,7 +38,16 @@ export default function PassageMenu({ menuRef, passages, duplicate }) {
             />
           )}
           {duplicate ? (
-            <span className="mark-menu-status">✓ Already saved</span>
+            <>
+              <span className="mark-menu-status">✓ Already saved</span>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => removeSelected(duplicate)}
+                title="Remove this highlight"
+              >
+                🗑 Remove
+              </button>
+            </>
           ) : (
             <>
               <button className="btn btn-primary btn-sm" onClick={save} disabled={savingMark}>
@@ -52,6 +64,12 @@ export default function PassageMenu({ menuRef, passages, duplicate }) {
               )}
             </>
           )}
+          {markError && <span className="mark-menu-error">{markError}</span>}
+        </>
+      ) : showingRemoved ? (
+        <>
+          <span className="mark-menu-status">✓ Highlight removed</span>
+          <button className="btn btn-secondary btn-sm" onClick={undoRemove}>Undo</button>
           {markError && <span className="mark-menu-error">{markError}</span>}
         </>
       ) : (

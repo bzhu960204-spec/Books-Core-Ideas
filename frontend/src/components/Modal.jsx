@@ -8,6 +8,7 @@ export default function Modal({
   className = '',
   closeOnOverlay = true,
   closeOnEsc = true,
+  headerActions = null,
 }) {
   useEffect(() => {
     if (!closeOnEsc) return undefined;
@@ -45,14 +46,17 @@ export default function Modal({
         role="dialog"
         aria-modal="true"
       >
-        <button
-          type="button"
-          className="modal-close"
-          onClick={onClose}
-          aria-label="Close"
-        >×</button>
+        <div className="modal-corner">
+          {headerActions}
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >×</button>
+        </div>
         {title && <h3 className="modal-title">{title}</h3>}
-        {children}
+        {size === 'xl' ? children : <div className="modal-body">{children}</div>}
       </div>
     </div>
   );

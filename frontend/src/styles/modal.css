@@ -27,6 +27,21 @@
 
 .modal--md { max-width: 660px; }
 .modal--lg { max-width: 880px; }
+/* The header stays put; only .modal-body scrolls. */
+.modal--md,
+.modal--lg {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0; /* lets the flex child shrink so the scrollbar appears */
+  overflow-y: auto;
+  /* Scrollbar hugs the modal edge, and the padding keeps input focus rings from being clipped. */
+  margin: 0 -2rem -2rem;
+  padding: 0 2rem 2rem;
+}
 .modal--xl {
   max-width: 1100px;
   width: 95%;
@@ -61,7 +76,40 @@
   color: var(--text-primary);
 }
 
+/* Top-right corner: optional header buttons plus the close button. */
+.modal-corner {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.75rem;
+  z-index: 2;
+  display: flex;
+  gap: 0.25rem;
+}
+.modal-corner .modal-close {
+  position: static;
+}
+.modal-icon-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.15rem;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, color 0.15s;
+}
+.modal-icon-btn:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.06));
+  color: var(--text-primary);
+}
+
 .modal-title {
+  flex: none;
   font-family: var(--font-heading);
   font-size: 1.3rem;
   margin-bottom: 1.25rem;

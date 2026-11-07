@@ -56,6 +56,97 @@
   color: inherit;
 }
 
+/* The passage under the pointer (or of the open note card). */
+::highlight(mark-hover) {
+  background-color: color-mix(in srgb, var(--accent) 85%, transparent);
+  text-decoration: underline 2px color-mix(in srgb, var(--accent-hover) 100%, black 20%);
+  color: inherit;
+}
+.review-reader-content:focus {
+  outline: none;
+}
+
+/* Note card over a saved passage. Position is set from script. */
+.mark-popover {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: max-content;
+  min-width: 14rem;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 0.5rem 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px var(--shadow);
+}
+.mark-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.mark-popover-close {
+  padding: 0 0.3rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.mark-popover-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+.mark-popover-note {
+  max-height: 10em;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+.mark-popover-note.is-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.mark-popover-input {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.3rem 0.5rem;
+  resize: vertical;
+}
+.mark-popover-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+.mark-popover-date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.mark-popover-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+.mark-popover-error {
+  font-size: 0.8rem;
+  color: var(--danger);
+}
+
 /* Flash for a jumped-to passage: Custom Highlight API where supported, with a
    block-level fallback. Runtime-only; the explanation HTML is never altered. */
 ::highlight(mark-flash) {
@@ -75,13 +166,129 @@
   flex-direction: column;
   gap: 1.25rem;
 }
-.marks-group-title {
+.marks-modal {
+  height: min(85vh, 760px);
+}
+.marks-modal .modal-title {
+  margin-right: 5rem; /* keeps the title clear of the corner buttons */
+}
+.marks-modal.is-maximized {
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+.marks-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1rem;
+}
+.marks-modal.is-maximized .marks-layout {
+  grid-template-columns: 300px 1fr;
+}
+.marks-modal.is-maximized .marks-content-inner {
+  max-width: 60rem;
+  margin: 0 auto;
+}
+.marks-sidebar,
+.marks-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.marks-content {
+  padding-right: 0.75rem; /* gap between the text and the scrollbar */
+}
+.marks-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-right: 0.5rem;
+  border-right: 1px solid var(--border);
+}
+.marks-chapter-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 0 6px 6px 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+.marks-chapter-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
+}
+.marks-chapter-btn.is-active {
+  border-left-color: var(--accent);
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
+  font-weight: 600;
+}
+.marks-chapter-title {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.marks-chapter-count {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.marks-content-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+.marks-content-title {
+  margin: 0;
   font-family: var(--font-heading);
   font-size: 1rem;
-  margin: 0 0 0.5rem;
-  padding-bottom: 0.3rem;
-  border-bottom: 1px solid var(--border);
   color: var(--text-primary);
+}
+.marks-content-count {
+  flex: none;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+@media (max-width: 639px) {
+  .marks-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .marks-sidebar {
+    max-height: 30vh;
+    padding-right: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .marks-maximize-btn {
+    display: none;
+  }
+  .marks-modal .modal-title {
+    margin-right: 2rem;
+  }
 }
 .marks-item {
   padding: 0.6rem 0;
@@ -92,12 +299,19 @@
 }
 .marks-quote {
   margin: 0;
-  padding: 0.1rem 0 0.1rem 0.75rem;
+  padding: 0.1rem 0.25em 0.1rem 0.75rem; /* right padding: room for italic glyphs that overhang */
   border-left: 3px solid var(--accent-hover);
   font-style: italic;
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.marks-quote.is-clickable {
+  cursor: pointer;
+  border-radius: 0 4px 4px 0;
+}
+.marks-quote.is-clickable:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.06));
 }
 .marks-expand {
   margin: 0.2rem 0 0 0.75rem;
@@ -107,13 +321,8 @@
   margin: 0.4rem 0 0 0.75rem;
   font-size: 0.9rem;
   color: var(--text-secondary);
+  white-space: pre-wrap;
   word-break: break-word;
-}
-.marks-note-edit {
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-  margin: 0.4rem 0 0 0.75rem;
 }
 .marks-meta {
   display: flex;
@@ -131,4 +340,81 @@
   margin-bottom: 0.75rem;
   color: var(--danger);
   font-size: 0.9rem;
+}
+
+/* ===== Passage focus dialog ===== */
+.passage-focus-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* the text area scrolls, the action bar stays put */
+}
+.passage-focus-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -2rem;
+  padding: 0 2rem 1rem;
+}
+.passage-focus-sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: -0.75rem 0 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.passage-focus-text {
+  margin-bottom: 1.25rem;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.passage-focus-context {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+.passage-focus-quote {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--text-primary);
+  font-style: normal;
+}
+.passage-focus-note-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.passage-focus-note {
+  display: block;
+  width: 100%;
+  max-height: 40vh;
+  overflow-y: auto;
+  resize: none;
+  line-height: 1.6;
+}
+.passage-focus-save {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+.passage-focus-save .marks-error {
+  margin: 0;
+}
+.passage-focus-saved {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.passage-focus-footer {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
 }

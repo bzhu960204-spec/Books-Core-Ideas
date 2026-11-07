@@ -439,6 +439,27 @@ describe('explanations, bookmarks and saved passages', () => {
     await waitFor(() => expect(writes).toEqual([{ method: 'DELETE', path: '/api/marks/7', body: undefined }]));
   });
 
+  it('reopens saved passages on the chapter last viewed', async () => {
+    const detail = bookDetail(1, 'Book One', 2);
+    detail.chapters[1].hasExplanation = true;
+    const markIn = (id, chapterId, title) => ({
+      id, chapterId, chapterTitle: title, chapterOrderIndex: 1,
+      quote: 'Explanation', prefix: '', suffix: ' of Book', startOffset: 0, endOffset: 11, note: '', createdAt: '2026-01-04T09:00:00',
+    });
+    detail.marks = [markIn(7, 101, 'Book One chapter 1'), markIn(8, 102, 'Book One chapter 2')];
+    renderBook(detail);
+
+    fireEvent.click(await screen.findByRole('button', { name: '📑 Saved Passages (2)' }));
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Chapters' })).getByRole('button', { name: /Book One chapter 2/ }));
+    fireEvent.click(within(dialog('Saved Passages (2)')).getByRole('button', { name: 'Jump to' }));
+    expect(await screen.findByText('Explanation of Book One chapter 2')).toBeTruthy();
+    fireEvent.click(screen.getByText('Close', { selector: 'button' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '📑 Saved Passages (2)' }));
+    const active = within(screen.getByRole('navigation', { name: 'Chapters' })).getByRole('button', { current: true });
+    expect(active.textContent).toContain('Book One chapter 2');
+  });
+
   it('opens the explanation named in the navigation state (Reading History)', async () => {
     const detail = bookDetail(1, 'Book One', 2);
     detail.chapters[1].hasExplanation = true;

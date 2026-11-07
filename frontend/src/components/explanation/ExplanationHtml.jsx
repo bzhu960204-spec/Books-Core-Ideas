@@ -7,6 +7,7 @@ const ExplanationHtml = memo(function ExplanationHtml({ html, fontScale, content
   return (
     <div
       ref={contentRef}
+      tabIndex={-1}
       className="review-bank-content review-reader-content"
       style={{ '--reader-font-scale': fontScale }}
       dangerouslySetInnerHTML={{ __html: html }}

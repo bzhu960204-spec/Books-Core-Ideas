@@ -17,5 +17,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Vitest blanks CSS imports by default, including `?raw` ones; the export
+    // HTML builder inlines imageViewer.css as text.
+    css: { include: [/\.css\?raw$/] },
   },
 })

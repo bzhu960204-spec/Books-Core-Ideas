@@ -66,6 +66,7 @@ export default function BookDetailPage() {
   const [excerptReader, setExcerptReader] = useState(null); // { chapterId, startIndex }
   const [imageViewer, setImageViewer] = useState(null); // chapterId
   const [showMarks, setShowMarks] = useState(false);
+  const [marksChapterId, setMarksChapterId] = useState(null); // chapter last viewed in Saved Passages
   const [showExplanationExport, setShowExplanationExport] = useState(false);
 
   const reader = useExplanationReader({
@@ -470,6 +471,7 @@ export default function BookDetailPage() {
           onBookmark={reader.bookmark}
           onSaveMark={reader.saveMark}
           onDeleteMark={reader.deleteMark}
+          onUpdateMarkNote={reader.updateMarkNote}
           marks={marks.filter(m => m.chapterId === reader.modal.chapterId)}
           onAnchorResult={reader.onAnchorResult}
         />
@@ -478,6 +480,11 @@ export default function BookDetailPage() {
       {showMarks && (
         <ExplanationMarksPanel
           marks={marks}
+          chapters={chapters}
+          parts={parts}
+          isParts={isParts}
+          initialChapterId={marksChapterId}
+          onChapterChange={setMarksChapterId}
           staleIds={reader.staleMarkIds}
           onJump={jumpToMark}
           onUpdateNote={reader.updateMarkNote}

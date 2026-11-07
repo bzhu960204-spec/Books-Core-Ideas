@@ -7,7 +7,10 @@ import { isoDay } from '../utils/dates';
 import ExplanationHtml from './explanation/ExplanationHtml';
 import ExplanationFooter from './explanation/ExplanationFooter';
 import PassageMenu from './explanation/PassageMenu';
+import MarkPopover from './explanation/MarkPopover';
 import { useFloatingMenu } from './explanation/useFloatingMenu';
+import { useMarkHover } from './explanation/useMarkHover';
+import { highlightsSupported } from '../utils/explanationAnchor';
 import { usePassageMarks, useSavedPassageHighlights } from './explanation/usePassageMarks';
 import { useReaderPreferences } from './explanation/useReaderPreferences';
 import { useReadingPosition } from './explanation/useReadingPosition';
@@ -35,6 +38,7 @@ export default function ChapterExplanationModal({
   onBookmark,
   onSaveMark,
   onDeleteMark,
+  onUpdateMarkNote,
   onAnchorResult,
   marks = [],
   bookmarking = false,
@@ -86,12 +90,23 @@ export default function ChapterExplanationModal({
   const anchorMissed = useReadingPosition({
     bodyRef, contentRef, editing, explanation, initialScrollRatio, initialAnchor, onAnchorResult,
   });
-  useSavedPassageHighlights({ contentRef, editing, showHighlights: prefs.showHighlights, explanation, marks });
+  const matches = useSavedPassageHighlights({
+    contentRef, editing, showHighlights: prefs.showHighlights, explanation, marks,
+  });
+  const noticeShowing = !!(passages.savedNotice || passages.removedNotice);
+  const hover = useMarkHover({
+    contentRef,
+    bodyRef,
+    matches,
+    enabled: !editing && prefs.showHighlights && highlightsSupported() && !passages.selection && !noticeShowing,
+  });
   useFloatingMenu({
     menuRef,
     bodyRef,
     editing,
-    range: editing ? null : (passages.selection?.range ?? passages.savedNotice?.range ?? null),
+    range: editing
+      ? null
+      : (passages.selection?.range ?? passages.savedNotice?.range ?? passages.removedNotice?.range ?? null),
   });
 
   const handleSave = async () => {
@@ -187,8 +202,24 @@ export default function ChapterExplanationModal({
         )}
       </div>
 
-      {!editing && (selection || passages.savedNotice) && (
+      {!editing && (selection || noticeShowing) && (
         <PassageMenu menuRef={menuRef} passages={passages} duplicate={duplicate} />
+      )}
+
+      {!editing && hover.card && (
+        <MarkPopover
+          popoverRef={hover.popoverRef}
+          mark={hover.card.mark}
+          pinned={hover.card.pinned}
+          editing={hover.card.editing}
+          onEditingChange={hover.setEditing}
+          onClose={hover.close}
+          onUpdateNote={onUpdateMarkNote}
+          onRemove={() => passages.remove(hover.card.mark, hover.card.range)}
+          onLayout={hover.place}
+          onPointerEnter={hover.onPopoverEnter}
+          onPointerLeave={hover.onPopoverLeave}
+        />
       )}
 
       <ExplanationFooter

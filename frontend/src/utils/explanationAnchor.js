@@ -150,12 +150,47 @@ export function findAnchor(rootEl, anchor) {
   return locate(buildTextIndex(rootEl), anchor);
 }
 
-// Locates many passages against a single text index. Returns the DOM ranges
-// of the ones that could still be found.
-export function findAnchorRanges(rootEl, anchors) {
+// Locates many passages against a single text index. Returns { mark, range }
+// for the ones that could still be found, in input order.
+export function findAnchorMatches(rootEl, anchors) {
   if (!anchors.length) return [];
   const index = buildTextIndex(rootEl);
-  return anchors.map(anchor => locate(index, anchor).range).filter(Boolean);
+  const matches = [];
+  for (const mark of anchors) {
+    const { range } = locate(index, mark);
+    if (range) matches.push({ mark, range });
+  }
+  return matches;
+}
+
+// The DOM ranges of the passages that could still be found.
+export function findAnchorRanges(rootEl, anchors) {
+  return findAnchorMatches(rootEl, anchors).map(m => m.range);
+}
+
+// The client rects of the text `range` covers, one set per text node. Unlike
+// range.getClientRects() this leaves out the border boxes of blocks the range
+// fully contains (full-width <p>, <ul>, ...), which Chrome includes but which
+// are not painted by the Custom Highlight API.
+export function textClientRects(range) {
+  const rects = [];
+  const root = range.commonAncestorContainer;
+  const part = document.createRange();
+  const collect = (node) => {
+    part.selectNodeContents(node);
+    if (node === range.startContainer) part.setStart(node, range.startOffset);
+    if (node === range.endContainer) part.setEnd(node, range.endOffset);
+    rects.push(...part.getClientRects());
+  };
+  if (root.nodeType === 3) {
+    collect(root);
+    return rects;
+  }
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (range.intersectsNode(node)) collect(node);
+  }
+  return rects;
 }
 
 export const highlightsSupported = () =>

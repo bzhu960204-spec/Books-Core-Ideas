@@ -137,6 +137,19 @@ describe('api requests (FE-07 characterization)', () => {
     expect(chapterImageApi.getUrl(4, 10)).toBe('/api/chapters/4/images/10/data');
   });
 
+  it('downloads an image as a blob, and fails like any other request', async () => {
+    const calls = recordFetch(() => new Response('png-bytes', { status: 200, headers: { 'Content-Type': 'image/png' } }));
+    const blob = await chapterImageApi.getBlob(4, 10);
+
+    expect(calls[0].url).toBe('/api/chapters/4/images/10/data');
+    expect(calls[0].options.method ?? 'GET').toBe('GET');
+    expect(blob.type).toBe('image/png');
+    expect(await blob.text()).toBe('png-bytes');
+
+    respond(404, JSON.stringify({ status: 404, detail: 'Image not found: 10' }));
+    await expect(chapterImageApi.getBlob(4, 10)).rejects.toMatchObject({ message: 'Image not found: 10', status: 404 });
+  });
+
   it('exports books as a ZIP blob with the server\'s file name', async () => {
     const calls = recordFetch(() => new Response('zip-bytes', {
       status: 200,

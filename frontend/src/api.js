@@ -144,6 +144,8 @@ export const chapterImageApi = {
   upload: (chapterId, files) => postForm(`/chapters/${chapterId}/images`, fileForm('files', files)),
   delete: (chapterId, imageId) => del(`/chapters/${chapterId}/images/${imageId}`),
   getUrl: (chapterId, imageId) => `${API_BASE}/chapters/${chapterId}/images/${imageId}/data`,
+  getBlob: (chapterId, imageId, opts) =>
+    request(`/chapters/${chapterId}/images/${imageId}/data`, opts).then(res => res.blob()),
 };
 
 // JSON import (FE-08): each call is one server transaction; bodies come from utils/jsonImport.js.

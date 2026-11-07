@@ -394,6 +394,260 @@ describe('ChapterExplanationModal saved passages', () => {
   });
 });
 
+describe('ChapterExplanationModal highlight hover card', () => {
+  const mark = {
+    id: 1, quote: 'beta', prefix: 'Alpha ', suffix: ' gamma', startOffset: 6, endOffset: 10,
+    note: 'why', createdAt: '2026-11-03T10:00:00',
+  };
+  // Every range sits at left 50-120, top 10-30 (see beforeAll).
+  const OVER = { clientX: 60, clientY: 20 };
+  const content = () => document.querySelector('.review-reader-content');
+  const card = () => screen.findByRole('dialog', { name: 'Saved passage note' });
+  const hover = () => { layoutReader(); fireEvent.pointerMove(content(), { ...OVER, buttons: 0 }); };
+  const click = () => {
+    layoutReader();
+    fireEvent.pointerDown(content(), OVER);
+    fireEvent.pointerUp(content(), OVER);
+  };
+
+  it('shows the note after a short hover, and emphasizes the passage', async () => {
+    const highlights = supportHighlights();
+    renderModal({ explanation: { content: TEXT }, marks: [mark] });
+
+    hover();
+    await waitFor(() => expect(highlights.get('mark-hover')?.ranges[0].toString()).toBe('beta'));
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+    const popover = await card();
+    expect(popover.textContent).toContain('why');
+    expect(popover.textContent).toContain('Saved 2026-11-03');
+    expect(screen.queryByRole('button', { name: 'Close note' })).toBeNull();
+
+    fireEvent.pointerLeave(content());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull());
+    expect(highlights.has('mark-hover')).toBe(false);
+  });
+
+  // Moving from the text onto the card: React reports the card's pointer-enter
+  // (on pointerout) before the text's native pointerleave arrives. The leave
+  // must not restart the close timer once the pointer is on the card.
+  it('stays open once the pointer is on the card, however the events interleave', async () => {
+    supportHighlights();
+    renderModal({ explanation: { content: TEXT }, marks: [mark] });
+
+    hover();
+    const popover = await card();
+    fireEvent.pointerMove(content(), { clientX: 300, clientY: 200, buttons: 0 }); // the gap
+    fireEvent.pointerEnter(popover);
+    fireEvent.pointerLeave(content());
+    await new Promise(resolve => setTimeout(resolve, 450));
+    expect(popover.isConnected).toBe(true);
+
+    fireEvent.pointerLeave(popover);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull());
+  });
+
+  // Chrome's Range.getClientRects() also returns the full-width box of every
+  // block a passage spans; the blank space inside those boxes is not highlighted.
+  it('ignores the blank space of blocks a passage spans', async () => {
+    supportHighlights();
+    const original = Range.prototype.getClientRects;
+    const block = { left: 0, right: 600, top: 100, bottom: 140, width: 600, height: 40 };
+    const textRect = (top) => ({ left: 50, right: 80, top, bottom: top + 20, width: 30, height: 20 });
+    Range.prototype.getClientRects = function getClientRects() {
+      if (this.cloneContents().querySelector('ul')) return [block];
+      return [textRect({ one: 100 }[this.toString()] ?? 10)];
+    };
+    try {
+      const spanning = {
+        id: 2, quote: 'Alpha one delta', prefix: '', suffix: '', startOffset: 0, endOffset: 15, note: 'span',
+      };
+      renderModal({ explanation: { content: '<p>Alpha</p><ul><li>one</li></ul><p>delta</p>' }, marks: [spanning] });
+      layoutReader();
+
+      fireEvent.pointerMove(content(), { clientX: 400, clientY: 120, buttons: 0 }); // blank, inside the <ul> box
+      await new Promise(resolve => setTimeout(resolve, 450));
+      expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+
+      fireEvent.pointerMove(content(), { clientX: 60, clientY: 110, buttons: 0 }); // on the text
+      expect((await card()).textContent).toContain('span');
+    } finally {
+      Range.prototype.getClientRects = original;
+    }
+  });
+
+  it('offers to add a note to a passage that has none', async () => {
+    supportHighlights();
+    renderModal({ explanation: { content: TEXT }, marks: [{ ...mark, note: '' }] });
+
+    hover();
+    const popover = await card();
+    expect(popover.textContent).toContain('No note');
+    expect(screen.getByRole('button', { name: '✎ Add note' })).toBeTruthy();
+  });
+
+  it('does nothing away from a highlight, with highlights off, or while editing', async () => {
+    supportHighlights();
+    localStorage.setItem('explanationReaderShowHighlights', 'off');
+    renderModal({ explanation: { content: TEXT }, marks: [mark] });
+    hover();
+    await new Promise(resolve => setTimeout(resolve, 450));
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+    cleanup();
+
+    localStorage.clear();
+    renderModal({ explanation: { content: TEXT }, marks: [mark] });
+    fireEvent.pointerMove(content(), { clientX: 300, clientY: 200, buttons: 0 });
+    await new Promise(resolve => setTimeout(resolve, 450));
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    expect(await screen.findByTestId('editor')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+  });
+
+  it('does not open while a selection is being made or exists', async () => {
+    supportHighlights();
+    renderModal({ explanation: { content: TEXT }, marks: [mark] });
+
+    fireEvent.pointerMove(content(), { ...OVER, buttons: 1 });
+    await new Promise(resolve => setTimeout(resolve, 450));
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+
+    selectText('delta');
+    await screen.findByRole('region', { name: 'Save selected passage' });
+    hover();
+    await new Promise(resolve => setTimeout(resolve, 450));
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+  });
+
+  it('pins the card on click; Esc closes only the card', async () => {
+    supportHighlights();
+    const onClose = vi.fn();
+    renderModal({ explanation: { content: TEXT }, marks: [mark], onClose });
+
+    click();
+    const popover = await card();
+    const close = screen.getByRole('button', { name: 'Close note' });
+    expect(document.activeElement).toBe(close);
+
+    fireEvent.pointerLeave(content());
+    await new Promise(resolve => setTimeout(resolve, 450));
+    expect(popover.isConnected).toBe(true);
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not pin when clicking a link inside the highlight', async () => {
+    supportHighlights();
+    renderModal({ explanation: { content: '<p>Alpha <a href="#x">beta</a> gamma delta.</p>' }, marks: [mark] });
+    const link = content().querySelector('a');
+    fireEvent.pointerDown(link, OVER);
+    fireEvent.pointerUp(link, OVER);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+  });
+
+  it('edits the note; a failed save keeps the draft', async () => {
+    supportHighlights();
+    const onUpdateMarkNote = vi.fn().mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(undefined);
+    renderModal({ explanation: { content: TEXT }, marks: [mark], onUpdateMarkNote });
+
+    hover();
+    await card();
+    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    const input = screen.getByRole('textbox', { name: 'Note' });
+    expect(input.value).toBe('why');
+    fireEvent.change(input, { target: { value: '  new note  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Could not save the note. Try again.')).toBeTruthy();
+    expect(onUpdateMarkNote).toHaveBeenCalledWith(1, 'new note');
+    expect(screen.getByRole('textbox', { name: 'Note' }).value).toBe('  new note  ');
+
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note' }), { key: 'Enter', ctrlKey: true });
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Note' })).toBeNull());
+    expect(onUpdateMarkNote).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels a note edit with Esc, and closes the card with the next one', async () => {
+    supportHighlights();
+    renderModal({ explanation: { content: TEXT }, marks: [mark] });
+
+    hover();
+    await card();
+    fireEvent.click(screen.getByRole('button', { name: '✎ Edit' }));
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note' }), { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: 'Note' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Saved passage note' })).toBeTruthy();
+
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull());
+  });
+
+  it('removes the passage, and Undo re-creates it with its note', async () => {
+    supportHighlights();
+    const onDeleteMark = vi.fn().mockResolvedValue(undefined);
+    const onSaveMark = vi.fn().mockResolvedValue({ id: 2 });
+    renderModal({ explanation: { content: TEXT }, marks: [mark], onDeleteMark, onSaveMark });
+
+    hover();
+    await card();
+    fireEvent.click(screen.getByRole('button', { name: '🗑 Remove' }));
+
+    expect(await screen.findByText('✓ Highlight removed')).toBeTruthy();
+    expect(onDeleteMark).toHaveBeenCalledWith(1);
+    expect(screen.queryByRole('dialog', { name: 'Saved passage note' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await waitFor(() => expect(screen.queryByText('✓ Highlight removed')).toBeNull());
+    expect(onSaveMark).toHaveBeenCalledWith({
+      quote: 'beta', prefix: 'Alpha ', suffix: ' gamma', startOffset: 6, endOffset: 10, note: 'why',
+    });
+  });
+
+  it('reports a failed removal in the card and keeps it open', async () => {
+    supportHighlights();
+    const onDeleteMark = vi.fn().mockRejectedValue(new Error('down'));
+    renderModal({ explanation: { content: TEXT }, marks: [mark], onDeleteMark });
+
+    hover();
+    await card();
+    fireEvent.click(screen.getByRole('button', { name: '🗑 Remove' }));
+    expect(await screen.findByText('Could not remove. Try again.')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Saved passage note' })).toBeTruthy();
+  });
+
+  it('reports a failed restore in the removed notice', async () => {
+    supportHighlights();
+    const onDeleteMark = vi.fn().mockResolvedValue(undefined);
+    const onSaveMark = vi.fn().mockRejectedValue(new Error('down'));
+    renderModal({ explanation: { content: TEXT }, marks: [mark], onDeleteMark, onSaveMark });
+
+    hover();
+    await card();
+    fireEvent.click(screen.getByRole('button', { name: '🗑 Remove' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText('Could not restore.')).toBeTruthy();
+    expect(screen.getByText('✓ Highlight removed')).toBeTruthy();
+  });
+
+  it('removes a selection that is exactly a saved passage from the selection menu', async () => {
+    supportHighlights();
+    const onDeleteMark = vi.fn().mockResolvedValue(undefined);
+    renderModal({ explanation: { content: TEXT }, marks: [mark], onDeleteMark });
+
+    selectText('beta');
+    expect(await screen.findByText('✓ Already saved')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '🗑 Remove' }));
+
+    expect(await screen.findByText('✓ Highlight removed')).toBeTruthy();
+    expect(onDeleteMark).toHaveBeenCalledWith(1);
+    expect(screen.queryByText('✓ Already saved')).toBeNull();
+  });
+});
+
 describe('ChapterExplanationModal image panel', () => {
   const images = [1, 2, 3].map(id => ({ id, originalName: `image-${id}.png` }));
 

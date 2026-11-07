@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { captureAnchor, findAnchorRanges, highlightsSupported } from '../../utils/explanationAnchor';
+import { captureAnchor, findAnchorMatches, highlightsSupported } from '../../utils/explanationAnchor';
 
 /**
  * Saving passages selected in the rendered explanation (`contentRef`): the
- * current selection, its optional note, and the "saved / undo" notice. The
+ * current selection, its optional note, and the "saved / removed" notices (each
+ * with Undo). The
  * selection is captured into state (mouse, keyboard and touch alike) so the
  * action bar in `menuRef` keeps working even after the browser drops the native
  * selection, e.g. when the note input takes focus.
@@ -14,6 +15,7 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
   const [noteDraft, setNoteDraft] = useState('');
   const [savingMark, setSavingMark] = useState(false);
   const [savedNotice, setSavedNotice] = useState(null); // { id } of the passage just saved
+  const [removedNotice, setRemovedNotice] = useState(null); // { mark, range } of the highlight just removed
   const [markError, setMarkError] = useState('');
   const selectionRef = useRef(null);
   useEffect(() => { selectionRef.current = selection; }, [selection]);
@@ -52,6 +54,7 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
       if (prev && prev.anchor.startOffset === anchor.startOffset && prev.anchor.endOffset === anchor.endOffset) return;
       setSelection({ anchor, range: range.cloneRange() });
       setSavedNotice(null);
+      setRemovedNotice(null);
       setNoteOpen(false);
       setNoteDraft('');
       setMarkError('');
@@ -77,21 +80,23 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
     return () => CSS.highlights.delete('mark-pending');
   }, [selection]);
 
-  // The "saved / undo" notice disappears on its own, or as soon as the reader
-  // interacts with anything else.
+  // The notices disappear on their own, or as soon as the reader interacts
+  // with anything else.
+  const hasNotice = !!(savedNotice || removedNotice);
   useEffect(() => {
-    if (!savedNotice) return undefined;
-    const timer = setTimeout(() => setSavedNotice(null), 6000);
+    if (!hasNotice) return undefined;
+    const dismiss = () => { setSavedNotice(null); setRemovedNotice(null); };
+    const timer = setTimeout(dismiss, 6000);
     const onPointerDown = (e) => {
       if (menuRef.current?.contains(e.target)) return;
-      setSavedNotice(null);
+      dismiss();
     };
     document.addEventListener('pointerdown', onPointerDown, true);
     return () => {
       clearTimeout(timer);
       document.removeEventListener('pointerdown', onPointerDown, true);
     };
-  }, [savedNotice, menuRef]);
+  }, [savedNotice, removedNotice, hasNotice, menuRef]);
 
   const dismissSelection = () => {
     window.getSelection()?.removeAllRanges();
@@ -127,32 +132,82 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
     }
   };
 
-  // Leaving reading mode (Edit) drops the selection and the notice.
+  // Removes a saved passage (from the hover card or the selection menu) and
+  // offers Undo. Rejects when the delete fails so the caller can say so.
+  const remove = async (mark, range) => {
+    setMarkError('');
+    await onDeleteMark?.(mark.id);
+    setSavedNotice(null);
+    setRemovedNotice({ mark, range });
+  };
+
+  // The selection menu's "Remove" for a selection that is exactly a saved passage.
+  const removeSelected = async (mark) => {
+    if (!selection) return;
+    const { range } = selection;
+    try {
+      await remove(mark, range);
+      dismissSelection();
+    } catch {
+      setMarkError('Could not remove. Try again.');
+    }
+  };
+
+  // Re-creates the removed passage (same text, position and note; new id).
+  const undoRemove = async () => {
+    if (!removedNotice) return;
+    const { mark } = removedNotice;
+    setMarkError('');
+    try {
+      await onSaveMark?.({
+        quote: mark.quote,
+        prefix: mark.prefix,
+        suffix: mark.suffix,
+        startOffset: mark.startOffset,
+        endOffset: mark.endOffset,
+        note: mark.note ?? '',
+      });
+      setRemovedNotice(null);
+    } catch {
+      setMarkError('Could not restore.');
+    }
+  };
+
+  // Leaving reading mode (Edit) drops the selection and the notices.
   const reset = () => {
     clearSelection();
     setSavedNotice(null);
+    setRemovedNotice(null);
   };
 
   return {
-    selection, noteOpen, setNoteOpen, noteDraft, setNoteDraft, savingMark, savedNotice, markError, save, undo, reset,
+    selection, noteOpen, setNoteOpen, noteDraft, setNoteDraft, savingMark, savedNotice, removedNotice, markError,
+    save, undo, remove, removeSelected, undoRemove, reset,
   };
 }
+
+const NO_MATCHES = [];
 
 /**
  * Saved passages stay highlighted in the text, like a highlighter pen, unless
  * the reader turned highlights off. Rebuilt whenever the list or the rendered
- * content changes.
+ * content changes. Returns the located passages as [{ mark, range }].
  */
 export function useSavedPassageHighlights({ contentRef, editing, showHighlights, explanation, marks }) {
-  const savedKey = marks.map(m => `${m.id}:${m.startOffset}:${m.endOffset}`).join(',');
+  const [matches, setMatches] = useState(NO_MATCHES);
+  const savedKey = marks.map(m => `${m.id}:${m.startOffset}:${m.endOffset}:${m.note ?? ''}`).join(',');
   useEffect(() => {
-    if (editing || !showHighlights || !highlightsSupported()) return undefined;
     const root = contentRef.current;
-    if (!root) return undefined;
-    const ranges = findAnchorRanges(root, marks);
-    if (!ranges.length) return undefined;
-    CSS.highlights.set('mark-saved', new Highlight(...ranges));
+    if (editing || !showHighlights || !highlightsSupported() || !root) {
+      setMatches(NO_MATCHES);
+      return undefined;
+    }
+    const found = findAnchorMatches(root, marks);
+    setMatches(found.length ? found : NO_MATCHES);
+    if (!found.length) return undefined;
+    CSS.highlights.set('mark-saved', new Highlight(...found.map(m => m.range)));
     return () => CSS.highlights.delete('mark-saved');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, showHighlights, explanation, savedKey]);
+  return matches;
 }
