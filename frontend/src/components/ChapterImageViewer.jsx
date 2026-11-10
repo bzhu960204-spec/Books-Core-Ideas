@@ -54,6 +54,7 @@ export default function ChapterImageViewer({ chapterId, chapterTitle, onClose })
       if (saved.length > 0) setMode('browse');
     } catch (err) {
       reportError('Could not upload the images', err);
+      await refresh().catch(() => {}); // earlier batches may already be saved
     } finally {
       setUploading(false);
     }

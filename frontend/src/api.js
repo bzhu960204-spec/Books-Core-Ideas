@@ -139,9 +139,27 @@ export const excerptBankApi = {
   search: ({ q = '', bookId = null } = {}, opts) => get(`/excerpts${query({ q, bookId })}`, opts),
 };
 
+// Files per upload request: keeps each request well under the server's multipart limits.
+export const IMAGE_UPLOAD_BATCH_SIZE = 20;
+
+// Sends the files in sequential batches (so they keep their order) and merges the reports.
+// If a batch fails, the earlier ones stay saved and the error is rethrown.
+async function uploadImages(chapterId, files) {
+  const all = Array.from(files);
+  const result = { images: [], skipped: [] };
+  for (let i = 0; i < all.length; i += IMAGE_UPLOAD_BATCH_SIZE) {
+    const batch = all.slice(i, i + IMAGE_UPLOAD_BATCH_SIZE);
+    const { images = [], skipped = [] } =
+      await postForm(`/chapters/${chapterId}/images`, fileForm('files', batch));
+    result.images.push(...images);
+    result.skipped.push(...skipped);
+  }
+  return result;
+}
+
 export const chapterImageApi = {
   getAll: (chapterId, opts) => get(`/chapters/${chapterId}/images`, opts),
-  upload: (chapterId, files) => postForm(`/chapters/${chapterId}/images`, fileForm('files', files)),
+  upload: uploadImages,
   delete: (chapterId, imageId) => del(`/chapters/${chapterId}/images/${imageId}`),
   getUrl: (chapterId, imageId) => `${API_BASE}/chapters/${chapterId}/images/${imageId}/data`,
   getBlob: (chapterId, imageId, opts) =>

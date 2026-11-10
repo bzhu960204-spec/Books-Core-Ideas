@@ -133,6 +133,20 @@ describe('api requests (FE-07 characterization)', () => {
     expect(calls[2].options.body.get('file').name).toBe('b.png');
   });
 
+  it('uploads many images in sequential batches and merges the reports', async () => {
+    let n = 0;
+    const calls = recordFetch(() => new Response(
+      JSON.stringify({ images: [{ id: ++n }], skipped: [{ name: `s${n}`, reason: 'x' }] }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    const files = Array.from({ length: 45 }, (_, i) => new File(['x'], `${i}.png`));
+    const result = await chapterImageApi.upload(4, files);
+
+    expect(calls.map(c => c.options.body.getAll('files').length)).toEqual([20, 20, 5]);
+    expect(calls[2].options.body.getAll('files')[0].name).toBe('40.png');
+    expect(result.images.map(i => i.id)).toEqual([1, 2, 3]);
+    expect(result.skipped).toHaveLength(3);
+  });
+
   it('builds image URLs without a request', () => {
     expect(chapterImageApi.getUrl(4, 10)).toBe('/api/chapters/4/images/10/data');
   });
