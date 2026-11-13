@@ -139,6 +139,18 @@
   box-shadow: 0 2px 12px var(--shadow);
 }
 
+.chapter-item--dragging {
+  opacity: 0.45;
+}
+
+.chapter-item--drop-before {
+  box-shadow: 0 -4px 0 -1px var(--accent);
+}
+
+.chapter-item--drop-after {
+  box-shadow: 0 4px 0 -1px var(--accent);
+}
+
 .chapter-header {
   display: flex;
   align-items: center;

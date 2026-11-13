@@ -1,6 +1,7 @@
 package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.ChapterDto;
+import com.bookscoreideas.dto.ChapterOrderRequest;
 import com.bookscoreideas.dto.ChapterRequest;
 import com.bookscoreideas.service.ChapterService;
 import com.bookscoreideas.web.Responses;
@@ -29,6 +30,13 @@ public class ChapterController {
     public ResponseEntity<ChapterDto> createChapter(@PathVariable Long bookId,
                                                     @Valid @RequestBody ChapterRequest request) {
         return Responses.created(chapterService.create(bookId, request), "Book", bookId);
+    }
+
+    @PutMapping("/order")
+    public ResponseEntity<Void> reorderChapters(@PathVariable Long bookId,
+                                                @Valid @RequestBody ChapterOrderRequest request) {
+        chapterService.reorder(bookId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{chapterId}")

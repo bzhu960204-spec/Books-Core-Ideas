@@ -21,6 +21,8 @@ const JSON_CALLS = [
   [() => bookApi.export(3), 'GET', '/api/books/3/export'],
   [() => chapterApi.create(3, { title: 'c' }), 'POST', '/api/books/3/chapters', { title: 'c' }],
   [() => chapterApi.update(3, 4, { title: 'c' }), 'PUT', '/api/books/3/chapters/4', { title: 'c' }],
+  [() => chapterApi.reorder(3, [{ id: 4, partId: null, orderIndex: 1 }]), 'PUT', '/api/books/3/chapters/order',
+    { chapters: [{ id: 4, partId: null, orderIndex: 1 }] }],
   [() => chapterApi.delete(3, 4), 'DELETE', '/api/books/3/chapters/4'],
   [() => partApi.create(3, { title: 'p' }), 'POST', '/api/books/3/parts', { title: 'p' }],
   [() => partApi.update(3, 5, { title: 'p' }), 'PUT', '/api/books/3/parts/5', { title: 'p' }],

@@ -21,6 +21,7 @@ import { BookImportModal, ChapterImportModal } from './bookDetail/ImportModals';
 import { explanationExportChapters } from './bookDetail/explanationExport';
 import { useBookDetailData } from './bookDetail/useBookDetailData';
 import { useChapterDrag } from './bookDetail/useChapterDrag';
+import { applyChapterPlacements, planChapterMove } from './bookDetail/chapterOrder';
 import { useExplanationReader } from './bookDetail/useExplanationReader';
 
 // Bundles jszip; loaded when "Export Explanations" is first opened (FE-04).
@@ -78,30 +79,25 @@ export default function BookDetailPage() {
     marks,
   });
 
-  // Move a chapter to another part (targetPartId = null → "Ungrouped"). Only the
-  // chapter's part_id changes, so its ideas/excerpts/explanation stay attached.
-  const handleChapterReassign = async (chapterId, targetPartId) => {
-    if (chapterId == null) return;
-    const chapter = chapters.find(c => c.id === chapterId);
-    if (!chapter) return;
-    const currentPartId = chapter.partId ?? null;
-    const newPartId = targetPartId ?? null;
-    if (currentPartId === newPartId) return;
-    updateChapter(chapterId, c => ({ ...c, partId: newPartId }));
+  // Move a chapter to another position, in its list or in another part
+  // (targetPartId = null → "Ungrouped" / a plain book), in front of
+  // beforeChapterId (null → at the end). The moved chapter keeps its ideas,
+  // excerpts and explanation; the chapters of the lists involved are renumbered in
+  // one request (see chapterOrder.js).
+  const handleChapterMove = async (chapterId, targetPartId, beforeChapterId) => {
+    const placements = planChapterMove(chapters, parts, chapterId, targetPartId, beforeChapterId);
+    if (!placements) return;
+    const previous = chapters;
+    updateDetail(d => ({ ...d, chapters: applyChapterPlacements(d.chapters, placements) }));
     try {
-      await chapterApi.update(id, chapterId, {
-        title: chapter.title,
-        orderIndex: chapter.orderIndex,
-        summary: chapter.summary,
-        partId: newPartId,
-      });
+      await chapterApi.reorder(id, placements);
     } catch (err) {
-      updateChapter(chapterId, c => ({ ...c, partId: currentPartId }));
+      updateDetail(d => ({ ...d, chapters: previous }));
       reportError('Could not move the chapter', err);
     }
     refresh();
   };
-  const drag = useChapterDrag(handleChapterReassign);
+  const drag = useChapterDrag(handleChapterMove);
 
   const handleStatusChange = async (status) => {
     const newStatus = status || null;
@@ -296,12 +292,13 @@ export default function BookDetailPage() {
       key={chapter.id}
       chapter={chapter}
       idx={idx}
-      isParts={isParts}
       imagesEnabled={book.chapterImagesEnabled}
       expanded={!!expandedChapters[chapter.id]}
       hasBookmark={!!bookmarkedChapterIds[chapter.id]}
       latestBookmark={latestBookmark}
       dragHandle={drag.dragHandle(chapter.id)}
+      dragging={drag.draggedChapterId === chapter.id}
+      dropIndicator={drag.dropIndicator(chapter.id)}
       cardRef={el => chapterRefs.current[chapter.id] = el}
       actions={chapterActions}
     />
@@ -372,7 +369,7 @@ export default function BookDetailPage() {
             <p className="empty-state-text">No chapters yet. Add the book's structure to start logging ideas.</p>
           </div>
         ) : (
-          <div className="chapter-list">
+          <div className="chapter-list" {...drag.dropTarget('chapters', null)}>
             {chapters.map((chapter, idx) => renderChapter(chapter, idx))}
           </div>
         )

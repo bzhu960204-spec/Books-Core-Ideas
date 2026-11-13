@@ -89,6 +89,9 @@ export const bookApi = {
 export const chapterApi = {
   create: (bookId, chapter) => post(`/books/${bookId}/chapters`, chapter),
   update: (bookId, chapterId, chapter) => put(`/books/${bookId}/chapters/${chapterId}`, chapter),
+  // Sets the part and position number of several chapters in one transaction:
+  // chapters = [{ id, partId, orderIndex }].
+  reorder: (bookId, chapters) => put(`/books/${bookId}/chapters/order`, { chapters }),
   delete: (bookId, chapterId) => del(`/books/${bookId}/chapters/${chapterId}`),
 };
 

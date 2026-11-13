@@ -18,6 +18,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -67,6 +68,69 @@ class ChapterApiTest extends IntegrationTest {
         JsonNode updated = putJson("/api/books/" + book + "/chapters/" + created.get("id").asLong(), update);
         assertThat(updated.get("title").asString()).isEqualTo("C2");
         assertThat(updated.get("partId").isNull()).isTrue();
+    }
+
+    @Test
+    void reorderMovesChaptersBetweenPartsAndRenumbersThem() throws Exception {
+        long book = postForId("/api/books", Map.of("title", "Order", "structureType", "PARTS"));
+        long p1 = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1));
+        long p2 = postForId("/api/books/" + book + "/parts", Map.of("title", "P2", "orderIndex", 2));
+        long a = postForId("/api/books/" + book + "/chapters", Map.of("title", "A", "orderIndex", 1, "partId", p1));
+        long b = postForId("/api/books/" + book + "/chapters", Map.of("title", "B", "orderIndex", 2, "partId", p1));
+        long c = postForId("/api/books/" + book + "/chapters", Map.of("title", "C", "orderIndex", 1, "partId", p2));
+
+        // B moves in front of C in P2; A is left alone in P1.
+        Map<String, Object> body = Map.of("chapters", List.of(
+                placement(b, p2, 1), placement(c, p2, 2)));
+        mockMvc.perform(put("/api/books/" + book + "/chapters/order").contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isNoContent());
+
+        JsonNode list = getJson("/api/books/" + book + "/chapters");
+        assertThat(list).hasSize(3);
+        for (JsonNode ch : list) {
+            long id = ch.get("id").asLong();
+            if (id == a) {
+                assertThat(ch.get("partId").asLong()).isEqualTo(p1);
+                assertThat(ch.get("orderIndex").asInt()).isEqualTo(1);
+            } else if (id == b) {
+                assertThat(ch.get("partId").asLong()).isEqualTo(p2);
+                assertThat(ch.get("orderIndex").asInt()).isEqualTo(1);
+            } else {
+                assertThat(ch.get("partId").asLong()).isEqualTo(p2);
+                assertThat(ch.get("orderIndex").asInt()).isEqualTo(2);
+            }
+        }
+    }
+
+    @Test
+    void reorderRejectsForeignChaptersAndPartsWithoutChangingAnything() throws Exception {
+        long book = postForId("/api/books", Map.of("title", "Mine"));
+        long other = postForId("/api/books", Map.of("title", "Other"));
+        long mine = postForId("/api/books/" + book + "/chapters", Map.of("title", "M", "orderIndex", 1));
+        long foreign = postForId("/api/books/" + other + "/chapters", Map.of("title", "F", "orderIndex", 1));
+        long foreignPart = postForId("/api/books/" + other + "/parts", Map.of("title", "Foreign"));
+
+        for (Map<String, Object> body : List.of(
+                Map.<String, Object>of("chapters", List.of(placement(mine, null, 5), placement(foreign, null, 6))),
+                Map.<String, Object>of("chapters", List.of(placement(mine, foreignPart, 5))),
+                Map.<String, Object>of("chapters", List.of(placement(mine, null, 5), placement(mine, null, 6))))) {
+            mockMvc.perform(put("/api/books/" + book + "/chapters/order").contentType(APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(body)))
+                    .andExpect(status().isBadRequest());
+        }
+        assertThat(getJson("/api/books/" + book + "/chapters").get(0).get("orderIndex").asInt()).isEqualTo(1);
+        mockMvc.perform(put("/api/books/999999/chapters/order").contentType(APPLICATION_JSON)
+                        .content("{\"chapters\":[]}"))
+                .andExpect(status().isNotFound());
+    }
+
+    private static Map<String, Object> placement(long id, Long partId, int orderIndex) {
+        Map<String, Object> placement = new HashMap<>();
+        placement.put("id", id);
+        placement.put("partId", partId);
+        placement.put("orderIndex", orderIndex);
+        return placement;
     }
 
     @Test

@@ -1,7 +1,7 @@
 // Characterization tests for FE-01: what the book page does for the user, written
 // against the single-file page and kept passing while it is split into parts.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import BookDetailPage from './BookDetailPage';
@@ -319,8 +319,8 @@ describe('parts', () => {
     expect(within(partItem('Part Two')).getByText('Book One chapter 1')).toBeTruthy();
     await waitFor(() => expect(writes).toHaveLength(1));
     expect(writes[0]).toEqual({
-      method: 'PUT', path: '/api/books/1/chapters/101',
-      body: { title: 'Book One chapter 1', orderIndex: 1, summary: null, partId: 11 },
+      method: 'PUT', path: '/api/books/1/chapters/order',
+      body: { chapters: [{ id: 101, partId: 11, orderIndex: 3 }] },
     });
 
     await waitFor(() => expect(within(partItem('Part One')).getByText('Book One chapter 1')).toBeTruthy());
@@ -328,14 +328,53 @@ describe('parts', () => {
     fireEvent.dragOver(partItem('Unassigned chapters'));
     fireEvent.drop(partItem('Unassigned chapters'));
     await waitFor(() => expect(writes).toHaveLength(2));
-    expect(writes[1]).toMatchObject({ path: '/api/books/1/chapters/102', body: { partId: null } });
+    expect(writes[1]).toMatchObject({
+      path: '/api/books/1/chapters/order',
+      body: { chapters: [{ id: 102, partId: null, orderIndex: 4 }] },
+    });
 
-    // Dropping a chapter on its own part writes nothing.
+    // Dropping a chapter where it already is writes nothing.
     await waitFor(() => expect(within(partItem('Part One')).getByText('Book One chapter 1')).toBeTruthy());
     fireEvent.dragStart(handle('Book One chapter 1'), { dataTransfer: {} });
     fireEvent.drop(partItem('Part One'));
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(writes).toHaveLength(2);
+  });
+
+  it('reorders the chapters of a plain book by dragging', async () => {
+    const { writes } = renderBook(bookDetail(1, 'Book One', 3));
+    await screen.findByText('Book One chapter 1');
+    const card = (title) => screen.getByText(title).closest('.chapter-item');
+    const titles = () => [...document.querySelectorAll('.chapter-item .chapter-title')].map(e => e.textContent);
+    // jsdom has no layout: put the cards' headers 100px apart.
+    ['Book One chapter 1', 'Book One chapter 2', 'Book One chapter 3'].forEach((title, i) => {
+      card(title).firstElementChild.getBoundingClientRect = () => ({ top: i * 100, height: 50 });
+    });
+    const list = document.querySelector('.chapter-list');
+
+    // jsdom's drag events carry no coordinates: add them.
+    const dragAt = (type, target, clientY) => {
+      const event = createEvent[type](target);
+      Object.defineProperty(event, 'clientY', { value: clientY });
+      fireEvent(target, event);
+    };
+
+    // Over the top half of chapter 1, chapter 3 is shown going in front of it.
+    fireEvent.dragStart(card('Book One chapter 3').querySelector('.chapter-drag-handle'), { dataTransfer: {} });
+    dragAt('dragOver', list, 10);
+    expect(card('Book One chapter 1').classList.contains('chapter-item--drop-before')).toBe(true);
+    dragAt('drop', list, 10);
+
+    expect(titles()).toEqual(['Book One chapter 3', 'Book One chapter 1', 'Book One chapter 2']);
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toEqual({
+      method: 'PUT', path: '/api/books/1/chapters/order',
+      body: { chapters: [
+        { id: 103, partId: null, orderIndex: 1 },
+        { id: 101, partId: null, orderIndex: 2 },
+        { id: 102, partId: null, orderIndex: 3 },
+      ] },
+    });
   });
 
   it('lists explanations for export in reading order, numbered across parts', async () => {

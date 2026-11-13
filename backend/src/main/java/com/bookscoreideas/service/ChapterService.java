@@ -1,6 +1,7 @@
 package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.ChapterDto;
+import com.bookscoreideas.dto.ChapterOrderRequest;
 import com.bookscoreideas.dto.ChapterRequest;
 import com.bookscoreideas.dto.KeyIdeaDto;
 import com.bookscoreideas.entity.Chapter;
@@ -77,6 +78,34 @@ public class ChapterService {
             existing.setSummary(request.summary());
             return toDto(chapterRepository.save(existing));
         });
+    }
+
+    /**
+     * Applies the new part and position number of several chapters at once, so a
+     * drag-and-drop either reorders everything or nothing.
+     */
+    @Transactional
+    public void reorder(Long bookId, ChapterOrderRequest request) {
+        NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
+        Map<Long, ChapterOrderRequest.Placement> placements = new HashMap<>();
+        for (ChapterOrderRequest.Placement placement : request.chapters()) {
+            if (placements.put(placement.id(), placement) != null) {
+                throw new IllegalArgumentException("Chapter " + placement.id() + " is listed more than once");
+            }
+        }
+        Map<Long, Chapter> chapters = new HashMap<>();
+        for (Chapter chapter : chapterRepository.findAllById(placements.keySet())) {
+            if (chapter.getBook().getId().equals(bookId)) chapters.put(chapter.getId(), chapter);
+        }
+        for (ChapterOrderRequest.Placement placement : placements.values()) {
+            Chapter chapter = chapters.get(placement.id());
+            if (chapter == null) {
+                throw new IllegalArgumentException(
+                        "Chapter " + placement.id() + " does not belong to book " + bookId);
+            }
+            applyPart(chapter, bookId, placement.partId());
+            chapter.setOrderIndex(placement.orderIndex());
+        }
     }
 
     /** @return false if the chapter does not exist in this book */

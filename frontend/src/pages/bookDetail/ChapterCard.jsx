@@ -1,37 +1,39 @@
 import ReactMarkdown from 'react-markdown';
 
 // A chapter row: header with badges and actions (click to expand), and when
-// expanded, its key ideas. In a parts book the ⠿ handle drags it to another part.
+// expanded, its key ideas. The ⠿ handle drags it to another position or part.
 // `actions` holds the page's handlers (see BookDetailPage).
 export default function ChapterCard({
   chapter,
   idx,
-  isParts,
   imagesEnabled,
   expanded,
   hasBookmark,
   latestBookmark,
   dragHandle,
+  dragging,
+  dropIndicator,
   cardRef,
   actions,
 }) {
   const ideas = chapter.keyIdeas;
   const excerpts = chapter.excerpts;
   const isLatestBookmark = latestBookmark?.chapterId === chapter.id;
+  const className = ['chapter-item']
+    .concat(dragging ? 'chapter-item--dragging' : [], dropIndicator ? `chapter-item--drop-${dropIndicator}` : [])
+    .join(' ');
 
   return (
-    <div className="chapter-item" ref={cardRef}>
+    <div className={className} ref={cardRef} data-chapter-id={chapter.id}>
       <div className="chapter-header" onClick={() => actions.toggleChapter(chapter.id)}>
         <div className="chapter-header-left">
-          {isParts && (
-            <span
-              className="chapter-drag-handle"
-              draggable
-              onClick={e => e.stopPropagation()}
-              {...dragHandle}
-              title="Drag to move this chapter to another part"
-            >⠿</span>
-          )}
+          <span
+            className="chapter-drag-handle"
+            draggable
+            onClick={e => e.stopPropagation()}
+            {...dragHandle}
+            title="Drag to reorder this chapter or move it to another part"
+          >⠿</span>
           <span className="chapter-number">{chapter.orderIndex || idx + 1}</span>
           <div>
             <div className="chapter-title">{chapter.title}</div>

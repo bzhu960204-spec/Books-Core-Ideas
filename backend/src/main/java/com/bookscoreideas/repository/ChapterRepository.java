@@ -32,7 +32,7 @@ public interface ChapterRepository extends JpaRepository<Chapter, Long> {
                    c.summary AS summary, p.id AS partId
             FROM Chapter c LEFT JOIN c.part p
             WHERE c.book.id = :bookId
-            ORDER BY c.orderIndex ASC
+            ORDER BY c.orderIndex ASC, c.id ASC
             """)
     List<ChapterRow> findRowsByBookId(@Param("bookId") Long bookId);
 
