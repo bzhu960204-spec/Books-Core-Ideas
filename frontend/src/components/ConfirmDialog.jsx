@@ -7,7 +7,9 @@ import Modal from './Modal';
  * caller closes the dialog when its action succeeds; on failure it reports the
  * error and the dialog stays open for another try.
  */
-export default function ConfirmDialog({ title = 'Confirm', message, confirmLabel = 'Delete', onConfirm, onClose }) {
+export default function ConfirmDialog({
+  title = 'Confirm', message, children, confirmLabel = 'Delete', cancelLabel = 'Cancel', onConfirm, onClose,
+}) {
   const [busy, setBusy] = useState(false);
 
   // Esc closes only this dialog, not the reader or panel it was opened from.
@@ -33,8 +35,9 @@ export default function ConfirmDialog({ title = 'Confirm', message, confirmLabel
   return (
     <Modal title={title} onClose={onClose} closeOnEsc={false}>
       <p className="confirm-text">{message}</p>
+      {children}
       <div className="modal-actions">
-        <button className="btn btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+        <button className="btn btn-secondary" onClick={onClose} disabled={busy}>{cancelLabel}</button>
         <button className="btn btn-danger" onClick={confirm} disabled={busy}>{confirmLabel}</button>
       </div>
     </Modal>

@@ -226,8 +226,39 @@ describe('ExplanationMarksPanel', () => {
     expect(screen.getByText('No saved passages yet.')).toBeTruthy();
   });
 
-  it('flags passages whose position may have changed', () => {
-    render(<Harness staleIds={{ 2: true }} />);
-    expect(screen.getAllByText('⚠ Position may have changed')).toHaveLength(1);
+  it('flags orphaned passages apart, last, and offers Re-link instead of Jump to', async () => {
+    const onRelink = vi.fn();
+    const onJump = vi.fn();
+    render(<Harness
+      initialMarks={[mark(2, 1, { orphaned: true }), mark(3, 1)]}
+      initialChapterId={1}
+      onRelink={onRelink}
+      onJump={onJump}
+    />);
+    expect(screen.getAllByText('⚠ Orphaned')).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: '⚠ Orphaned (1)' })).toBeTruthy();
+    expect(chapterButtons()[0].textContent).toBe('Alpha⚠2');
+
+    const items = document.querySelectorAll('.marks-item');
+    expect([...items].map(i => i.getAttribute('data-mark-id'))).toEqual(['3', '2']);
+    fireEvent.click(within(items[1]).getByRole('button', { name: 'Re-link' }));
+    expect(onRelink).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
+    expect(within(items[1]).queryByRole('button', { name: 'Jump to' })).toBeNull();
+    fireEvent.click(within(items[0]).getByRole('button', { name: 'Jump to' }));
+    expect(onJump).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }));
+  });
+
+  it('deletes all orphaned passages of the chapter after confirming', async () => {
+    const onDelete = vi.fn();
+    render(<Harness
+      initialMarks={[mark(2, 1, { orphaned: true }), mark(3, 1), mark(4, 1, { orphaned: true })]}
+      initialChapterId={1}
+      onDelete={onDelete}
+    />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete all' }));
+    fireEvent.click(within(screen.getByRole('heading', { name: 'Confirm' }).closest('[role="dialog"]')).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(onDelete.mock.calls.map(c => c[0])).toEqual([2, 4]));
+    await waitFor(() => expect(screen.queryByRole('heading', { name: /Orphaned/ })).toBeNull());
+    expect(screen.getByText('quote 3')).toBeTruthy();
   });
 });

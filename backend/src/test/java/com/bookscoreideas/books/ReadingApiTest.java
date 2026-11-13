@@ -159,7 +159,8 @@ class ReadingApiTest extends IntegrationTest {
         JsonNode created = postJson("/api/chapters/" + chapter + "/marks", body);
         postJson("/api/chapters/" + chapter + "/marks", Map.of("quote", "first", "startOffset", 10));
         assertThat(fieldNames(created)).containsExactlyInAnyOrder("id", "bookId", "bookTitle", "chapterId", "chapterTitle",
-                "chapterOrderIndex", "quote", "prefix", "suffix", "startOffset", "endOffset", "note", "createdAt", "updatedAt");
+                "chapterOrderIndex", "quote", "prefix", "suffix", "startOffset", "endOffset", "note", "orphaned",
+                "createdAt", "updatedAt");
         assertThat(created.get("prefix").asString()).hasSize(200);
         assertThat(created.get("note").asString()).hasSize(1000).startsWith("n");
         assertThat(created.get("suffix").asString()).isEmpty();
@@ -177,6 +178,43 @@ class ReadingApiTest extends IntegrationTest {
 
         mockMvc.perform(delete("/api/marks/" + id)).andExpect(status().isNoContent());
         mockMvc.perform(delete("/api/marks/" + id)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void passagesAreOrphanedAndRelinkedWhenTheExplanationChanges() throws Exception {
+        long other = postForId("/api/books/" + book + "/chapters", Map.of("title", "Ch2", "orderIndex", 2));
+        long kept = postForId("/api/chapters/" + chapter + "/marks",
+                Map.of("quote", "kept", "prefix", "a ", "suffix", " b", "startOffset", 2, "endOffset", 6, "note", "n"));
+        long lost = postForId("/api/chapters/" + chapter + "/marks", Map.of("quote", "lost", "startOffset", 20));
+        long foreign = postForId("/api/chapters/" + other + "/marks", Map.of("quote", "foreign"));
+        assertThat(getJson("/api/chapters/" + chapter + "/marks")).allMatch(m -> !m.get("orphaned").asBoolean());
+
+        JsonNode updated = putJson("/api/chapters/" + chapter + "/marks/anchors", Map.of("marks", List.of(
+                Map.of("id", kept, "prefix", "x ", "suffix", " y", "startOffset", 7, "endOffset", 11, "orphaned", false),
+                Map.of("id", lost, "orphaned", true),
+                Map.of("id", foreign, "orphaned", true))));
+        assertThat(updated).hasSize(2);
+        JsonNode keptMark = updated.get(0);
+        assertThat(keptMark.get("id").asLong()).isEqualTo(kept);
+        assertThat(keptMark.get("startOffset").asInt()).isEqualTo(7);
+        assertThat(keptMark.get("prefix").asString()).isEqualTo("x ");
+        assertThat(keptMark.get("quote").asString()).isEqualTo("kept");
+        assertThat(keptMark.get("note").asString()).isEqualTo("n");
+        assertThat(updated.get(1).get("orphaned").asBoolean()).isTrue();
+        assertThat(updated.get(1).get("quote").asString()).isEqualTo("lost");
+        assertThat(getJson("/api/chapters/" + other + "/marks").get(0).get("orphaned").asBoolean()).isFalse();
+
+        JsonNode relinked = putJson("/api/chapters/" + chapter + "/marks/anchors", Map.of("marks", List.of(
+                Map.of("id", lost, "quote", "new text", "prefix", "", "suffix", "!", "startOffset", 0, "endOffset", 8))));
+        JsonNode lostMark = relinked.get(0);
+        assertThat(lostMark.get("id").asLong()).isEqualTo(lost);
+        assertThat(lostMark.get("orphaned").asBoolean()).isFalse();
+        assertThat(lostMark.get("quote").asString()).isEqualTo("new text");
+        assertThat(lostMark.get("suffix").asString()).isEqualTo("!");
+
+        mockMvc.perform(put("/api/chapters/999999/marks/anchors").contentType(APPLICATION_JSON)
+                        .content("{\"marks\":[]}"))
+                .andExpect(status().isNotFound());
     }
 
     /** Regression: listing bookmarks / saved passages loaded the chapter (and its explanation) and book per row. */

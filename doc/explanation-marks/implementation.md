@@ -51,9 +51,10 @@
 | `GET /api/books/{bookId}/marks` | 本书全部片段 | 按 章节 `orderIndex` → `startOffset` → `id` 排序。FE-03 后详情页改从聚合接口 `GET /api/books/{id}/detail` 取片段，本接口保留 |
 | `GET /api/chapters/{chapterId}/marks` | 单章片段（可选接口） | 前端目前未使用 |
 | `PATCH /api/marks/{id}` | 修改批注 | 空批注视为清空 |
+| `PUT /api/chapters/{chapterId}/marks/anchors` | 批量更新片段锚点 / 孤立状态 | 见第 6.1 节；非本章的 id 忽略；章节不存在 → 404；返回本章全部片段 |
 | `DELETE /api/marks/{id}` | 删除 | 不存在 → 404，成功 → 204 |
 
-响应 DTO：`id, bookId, bookTitle, chapterId, chapterTitle, chapterOrderIndex, quote, prefix, suffix, startOffset, endOffset, note, createdAt, updatedAt`。最初是手工拼的 `Map`，BE-01 后为 `MarkDto` record（字段不变）。
+响应 DTO：`id, bookId, bookTitle, chapterId, chapterTitle, chapterOrderIndex, quote, prefix, suffix, startOffset, endOffset, note, orphaned, createdAt, updatedAt`。最初是手工拼的 `Map`，BE-01 后为 `MarkDto` record。
 
 > **迁移注意**（已过时，留作记录）：当时全新空库会在 Flyway **V2** 失败（`BOOKS` 表不存在），与本功能无关。BUG-01 / DB-01 后空库从 V0 起完整迁移，Flyway 是唯一的 schema 来源，见 [database-schema-and-flyway.md](../database-schema-and-flyway.md)。
 
@@ -80,7 +81,7 @@
 | `onSaveMark(mark)` | 返回保存后的片段（用于 Undo） |
 | `onDeleteMark(id)` | Undo 使用 |
 | `initialAnchor` | 跳转目标；渲染后滚动并闪烁 |
-| `onAnchorResult({id, exact})` | 回报定位是否命中，面板据此标注 `⚠ Position may have changed` |
+| `onAnchorResult({id, exact})` | 回报跳转定位是否命中；与片段的 `orphaned` 不一致时，页面静默校正（用于历史数据） |
 
 ### 4.3 选区与菜单状态
 
@@ -151,7 +152,21 @@
    → 菜单锚在选区起点，避开末端。用户也可在浏览器设置中关闭它。
 4. **保存时自己调用 `removeAllRanges()` 会触发 `selectionchange`。**
    → "保存/Undo"提示不依赖折叠选区来清除，而是监听菜单外的 `pointerdown`，避免被自己的清除操作立刻吞掉。
-5. 偏移基于渲染后的纯文本。**讲解被改写**后，偏移会漂移；此时依赖 `prefix+quote+suffix` 文本匹配，找不到则兜底滚动并提示"位置可能已变"。
+5. 偏移基于渲染后的纯文本。**讲解被改写**后偏移会漂移，因此保存讲解时会重新定位并刷新所有片段的锚点；找不到的标为孤立，见第 6.1 节。
+
+---
+
+## 6.1 编辑讲解后的片段：孤立（orphaned）处理
+
+保存讲解**不会删除**片段；片段只靠文本匹配定位，所以编辑可能让它找不到原文。处理流程：
+
+1. **保存前预检**（`ChapterExplanationModal.handleSave` → `utils/markReanchor.planReanchor`）：把当前内容与草稿各自解析成 DOM（`DOMParser`，不加载图片），用 `relocateAnchors` 对比。原本能找到、保存后找不到的片段（`newlyLost`）→ 弹出确认框，列出受影响片段（最多 5 条），`Keep editing` / `Save anyway`。
+2. **保存后同步**：保存成功后，`useExplanationReader.save` 把 `anchorUpdates` 通过 `PUT /api/chapters/{id}/marks/anchors` 写回：仍能找到的片段刷新 `prefix/suffix/startOffset/endOffset`（偏移不再漂移，重复检测也准确），找不到的置 `orphaned = true`（保留 `quote`、批注与旧锚点），原先孤立但又找到的恢复为 `orphaned = false`。无变化的片段不发送。内容已保存，同步失败只提示，不回滚。
+3. **Saved Passages 面板**：每章把孤立片段单独列在末尾的 `⚠ Orphaned (N)` 区，侧栏章节旁带 `⚠`；孤立片段显示 `⚠ Orphaned`，主操作为 `Re-link`（代替 `Jump to`），另有 `Delete all` 批量删除（带确认）。
+4. **Re-link**：打开该章讲解并显示提示条，选中新文字后菜单出现 `🔗 Re-link here`；片段的 `quote` 与锚点换成新选区，批注保留，`orphaned` 清除（同一个 `PUT .../marks/anchors`，带 `quote`）。
+5. 孤立片段不参与重复检测；`Jump to` 命中/未命中也会校正 `orphaned`（历史数据：V11 之前保存的片段默认 `false`，直到跳转或下次保存讲解才会被发现）。
+
+整库归档（migration 格式 v2）不含 `orphaned`，导入后统一为 `false`，同样在下次保存讲解或跳转时被重新判定。
 
 ---
 

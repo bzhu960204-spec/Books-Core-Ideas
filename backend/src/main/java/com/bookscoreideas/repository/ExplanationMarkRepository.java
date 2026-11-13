@@ -29,6 +29,7 @@ public interface ExplanationMarkRepository extends JpaRepository<ExplanationMark
         Integer getStartOffset();
         Integer getEndOffset();
         String getNote();
+        boolean getOrphaned();
         LocalDateTime getCreatedAt();
         LocalDateTime getUpdatedAt();
     }
@@ -38,7 +39,7 @@ public interface ExplanationMarkRepository extends JpaRepository<ExplanationMark
                    c.id AS chapterId, c.title AS chapterTitle, c.orderIndex AS chapterOrderIndex,
                    m.quote AS quote, m.prefix AS prefix, m.suffix AS suffix,
                    m.startOffset AS startOffset, m.endOffset AS endOffset, m.note AS note,
-                   m.createdAt AS createdAt, m.updatedAt AS updatedAt
+                                      m.orphaned AS orphaned, m.createdAt AS createdAt, m.updatedAt AS updatedAt
             FROM ExplanationMark m JOIN m.chapter c JOIN m.book bk
             """;
 

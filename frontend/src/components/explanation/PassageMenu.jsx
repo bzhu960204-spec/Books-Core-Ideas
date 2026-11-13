@@ -4,10 +4,10 @@ const NOTE_MAX = 1000;
 // saved" + Remove), the one just saved ("Passage saved" / Undo) or the one just
 // removed ("Highlight removed" / Undo). mouseDown is prevented outside the note
 // input so clicking a button keeps the text selection.
-export default function PassageMenu({ menuRef, passages, duplicate }) {
+export default function PassageMenu({ menuRef, passages, duplicate, relinkMark = null }) {
   const {
     selection, noteOpen, setNoteOpen, noteDraft, setNoteDraft, savingMark, markError, save, undo,
-    removedNotice, removeSelected, undoRemove,
+    removedNotice, removeSelected, undoRemove, relink,
   } = passages;
   const showingRemoved = !selection && !passages.savedNotice && !!removedNotice;
 
@@ -48,6 +48,10 @@ export default function PassageMenu({ menuRef, passages, duplicate }) {
                 🗑 Remove
               </button>
             </>
+          ) : relinkMark ? (
+            <button className="btn btn-primary btn-sm" onClick={() => relink(relinkMark.id)} disabled={savingMark}>
+              {savingMark ? 'Re-linking…' : '🔗 Re-link here'}
+            </button>
           ) : (
             <>
               <button className="btn btn-primary btn-sm" onClick={save} disabled={savingMark}>

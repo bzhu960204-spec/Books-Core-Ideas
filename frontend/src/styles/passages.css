@@ -336,6 +336,44 @@
 .marks-stale {
   color: var(--danger);
 }
+.marks-item.is-orphaned .marks-quote {
+  border-left-color: var(--danger);
+  opacity: 0.85;
+}
+.marks-orphans {
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--danger);
+}
+.marks-orphans-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.marks-orphans-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--danger);
+}
+.marks-orphans-hint {
+  margin: 0.3rem 0 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.orphan-warning-list {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+.mark-relink-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
 .marks-error {
   margin-bottom: 0.75rem;
   color: var(--danger);

@@ -30,7 +30,7 @@ function buildTextIndex(root) {
   const chars = [];
   const map = [];
   const nodeInfo = new Map();
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const walker = (root.ownerDocument || document).createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let prevBlock = null;
 
   const pushSpace = (node, offset) => {
@@ -116,7 +116,7 @@ function closest(candidates, target) {
   return candidates.reduce((best, c) => (Math.abs(c - target) < Math.abs(best - target) ? c : best));
 }
 
-function locate(index, anchor) {
+function locateStart(index, anchor) {
   const total = index.text.length;
   const quote = anchor?.quote || '';
   const prefix = anchor?.prefix || '';
@@ -132,14 +132,50 @@ function locate(index, anchor) {
     const plain = allIndexesOf(index.text, quote);
     if (plain.length) quoteStart = closest(plain, savedStart);
   }
-  if (quoteStart < 0 || !quote) return { range: null, exact: false, ratio };
+  return { start: quote ? quoteStart : -1, ratio };
+}
 
+function locate(index, anchor) {
+  const { start: quoteStart, ratio } = locateStart(index, anchor);
+  if (quoteStart < 0) return { range: null, exact: false, ratio };
+
+  const quote = anchor.quote;
   const first = index.map[quoteStart];
   const last = index.map[quoteStart + quote.length - 1];
   const range = document.createRange();
   range.setStart(first.node, first.offset);
   range.setEnd(last.node, last.offset + 1);
   return { range, exact: true, ratio };
+}
+
+// The text of `html` as a detached, inert DOM (no images load, no scripts run),
+// for locating passages in an explanation that is not on screen.
+export function parseExplanationHtml(html) {
+  return new DOMParser().parseFromString(html || '', 'text/html').body;
+}
+
+// Re-finds saved passages in `rootEl` without building ranges. Returns
+// { found: Map(id -> fresh anchor { prefix, suffix, startOffset, endOffset }), lost: [mark] }.
+export function relocateAnchors(rootEl, marks, pad = CONTEXT_PAD) {
+  const found = new Map();
+  const lost = [];
+  if (!marks.length) return { found, lost };
+  const index = buildTextIndex(rootEl);
+  for (const mark of marks) {
+    const { start } = locateStart(index, mark);
+    if (start < 0) {
+      lost.push(mark);
+      continue;
+    }
+    const end = start + mark.quote.length;
+    found.set(mark.id, {
+      prefix: index.text.slice(Math.max(0, start - pad), start),
+      suffix: index.text.slice(end, end + pad),
+      startOffset: start,
+      endOffset: end,
+    });
+  }
+  return { found, lost };
 }
 
 // Locates a saved passage in `rootEl`. Returns

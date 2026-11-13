@@ -9,7 +9,7 @@ import { captureAnchor, findAnchorMatches, highlightsSupported } from '../../uti
  * action bar in `menuRef` keeps working even after the browser drops the native
  * selection, e.g. when the note input takes focus.
  */
-export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDeleteMark }) {
+export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDeleteMark, onRelinkMark }) {
   const [selection, setSelection] = useState(null); // { anchor, range }
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
@@ -119,6 +119,21 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
     }
   };
 
+  // Points an orphaned passage at the current selection.
+  const relink = async (markId) => {
+    if (!selection || savingMark) return;
+    setSavingMark(true);
+    setMarkError('');
+    try {
+      await onRelinkMark?.(markId, selection.anchor);
+      dismissSelection();
+    } catch {
+      setMarkError('Could not re-link. Try again.');
+    } finally {
+      setSavingMark(false);
+    }
+  };
+
   const undo = async () => {
     if (!savedNotice) return;
     const notice = savedNotice;
@@ -182,7 +197,7 @@ export function usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDe
 
   return {
     selection, noteOpen, setNoteOpen, noteDraft, setNoteDraft, savingMark, savedNotice, removedNotice, markError,
-    save, undo, remove, removeSelected, undoRemove, reset,
+    save, undo, remove, removeSelected, undoRemove, relink, reset,
   };
 }
 

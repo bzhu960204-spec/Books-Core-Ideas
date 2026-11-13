@@ -20,6 +20,7 @@ public record MarkDto(
         Integer startOffset,
         Integer endOffset,
         String note,
+        boolean orphaned,
         String createdAt,
         String updatedAt) {
 
@@ -33,15 +34,15 @@ public record MarkDto(
                 chapter != null ? chapter.getTitle() : "",
                 chapter != null ? chapter.getOrderIndex() : null,
                 mark.getQuote(), mark.getPrefix(), mark.getSuffix(), mark.getStartOffset(), mark.getEndOffset(),
-                mark.getNote(), mark.getCreatedAt(), mark.getUpdatedAt());
+                mark.getNote(), mark.isOrphaned(), mark.getCreatedAt(), mark.getUpdatedAt());
     }
 
     public static MarkDto of(Long id, Long bookId, String bookTitle, Long chapterId, String chapterTitle,
                              Integer chapterOrderIndex, String quote, String prefix, String suffix,
-                             Integer startOffset, Integer endOffset, String note,
+                             Integer startOffset, Integer endOffset, String note, boolean orphaned,
                              LocalDateTime createdAt, LocalDateTime updatedAt) {
         return new MarkDto(id, bookId, bookTitle, chapterId, chapterTitle, chapterOrderIndex,
-                orEmpty(quote), orEmpty(prefix), orEmpty(suffix), startOffset, endOffset, orEmpty(note),
+                orEmpty(quote), orEmpty(prefix), orEmpty(suffix), startOffset, endOffset, orEmpty(note), orphaned,
                 createdAt != null ? createdAt.toString() : "",
                 updatedAt != null ? updatedAt.toString() : "");
     }

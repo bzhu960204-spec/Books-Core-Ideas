@@ -13,12 +13,13 @@ function formatTime(iso) {
 // Add / Edit note opens the panel's focus dialog; notes are edited only there.
 export default function MarkItem({
   mark,
-  stale,
   onFocus,
   onJump,
+  onRelink,
   onDelete,
 }) {
   const [expanded, setExpanded] = useState(false);
+  const orphaned = !!mark.orphaned;
 
   const long = mark.quote.length > QUOTE_PREVIEW_CHARS;
   const shown = long && !expanded ? `${mark.quote.slice(0, QUOTE_PREVIEW_CHARS).trimEnd()}…` : mark.quote;
@@ -40,7 +41,7 @@ export default function MarkItem({
   };
 
   return (
-    <article className="marks-item" data-mark-id={mark.id}>
+    <article className={`marks-item${orphaned ? ' is-orphaned' : ''}`} data-mark-id={mark.id}>
       <blockquote
         className="marks-quote is-clickable"
         role="button"
@@ -62,13 +63,15 @@ export default function MarkItem({
       {mark.note && <p className="marks-note">{mark.note}</p>}
       <div className="marks-meta">
         <span>{formatTime(mark.createdAt)}</span>
-        {stale && (
-          <span className="marks-stale" title="The explanation changed; the passage could not be found">
-            ⚠ Position may have changed
+        {orphaned && (
+          <span className="marks-stale" title="The explanation was edited and this text is no longer in it">
+            ⚠ Orphaned
           </span>
         )}
         <span style={{ flex: 1 }} />
-        <button className="btn btn-primary btn-sm" onClick={() => onJump(mark)}>Jump to</button>
+        {orphaned
+          ? <button className="btn btn-primary btn-sm" onClick={() => onRelink(mark)}>Re-link</button>
+          : <button className="btn btn-primary btn-sm" onClick={() => onJump(mark)}>Jump to</button>}
         <button className="btn btn-secondary btn-sm" onClick={() => onFocus(mark, { editNote: true })}>
           {mark.note ? 'Edit note' : 'Add note'}
         </button>

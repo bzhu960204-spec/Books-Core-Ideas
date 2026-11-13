@@ -43,6 +43,10 @@ public class ExplanationMark {
     @Column(length = 1000)
     private String note;
 
+    // True when the explanation was edited so that the quote can no longer be found.
+    @Column(nullable = false)
+    private boolean orphaned;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -77,6 +81,8 @@ public class ExplanationMark {
     public void setEndOffset(Integer endOffset) { this.endOffset = endOffset; }
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
+    public boolean isOrphaned() { return orphaned; }
+    public void setOrphaned(boolean orphaned) { this.orphaned = orphaned; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

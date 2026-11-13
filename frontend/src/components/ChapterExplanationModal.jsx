@@ -11,11 +11,14 @@ import MarkPopover from './explanation/MarkPopover';
 import { useFloatingMenu } from './explanation/useFloatingMenu';
 import { useMarkHover } from './explanation/useMarkHover';
 import { highlightsSupported } from '../utils/explanationAnchor';
+import { planReanchor } from '../utils/markReanchor';
 import { usePassageMarks, useSavedPassageHighlights } from './explanation/usePassageMarks';
 import { useReaderPreferences } from './explanation/useReaderPreferences';
 import { useReadingPosition } from './explanation/useReadingPosition';
 import ChapterImagePanel from './explanation/ChapterImagePanel';
 import PanelResizer from './explanation/PanelResizer';
+
+const ORPHAN_LIST_MAX = 5;
 
 // View / edit a single chapter's "explanation" (详解) document. Mirrors the
 // review reader: rendered HTML in view mode, RichTextEditor in edit mode, with
@@ -40,6 +43,9 @@ export default function ChapterExplanationModal({
   onDeleteMark,
   onUpdateMarkNote,
   onAnchorResult,
+  relinkMark = null,
+  onRelinkMark,
+  onCancelRelink,
   marks = [],
   bookmarking = false,
   saving = false,
@@ -58,12 +64,13 @@ export default function ChapterExplanationModal({
   const [fullscreen, setFullscreen] = useState(false);
   const [bookmarkSaved, setBookmarkSaved] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [orphanWarning, setOrphanWarning] = useState(null); // { newlyLost, updates } of a save awaiting a decision
   const bodyRef = useRef(null);
   const splitRef = useRef(null);
   const contentRef = useRef(null);
   const menuRef = useRef(null);
 
-  const passages = usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDeleteMark });
+  const passages = usePassageMarks({ editing, contentRef, menuRef, onSaveMark, onDeleteMark, onRelinkMark });
   const prefs = useReaderPreferences();
   const showImagePanel = imageCount > 0 && prefs.imagePanelOpen;
 
@@ -110,13 +117,29 @@ export default function ChapterExplanationModal({
   });
 
   const handleSave = async () => {
+    // Saving can make saved passages unfindable: tell the reader first.
+    const plan = planReanchor(explanationHtml, normalizeReviewContent(draft), marks);
+    if (plan.newlyLost.length) {
+      setOrphanWarning(plan);
+      return;
+    }
+    await saveDraft(plan);
+  };
+
+  const saveDraft = async (plan) => {
     try {
-      await onSave?.({ content: draft });
+      await onSave?.(plan.updates.length ? { content: draft, anchorUpdates: plan.updates } : { content: draft });
     } catch {
       return; // reported by the page; keep the draft in the editor
     }
     setEditing(false);
     setFullscreen(false);
+  };
+
+  const confirmOrphaning = async () => {
+    const plan = orphanWarning;
+    setOrphanWarning(null);
+    await saveDraft(plan);
   };
 
   // Record a "read up to here" bookmark at the current scroll position.
@@ -138,7 +161,8 @@ export default function ChapterExplanationModal({
 
   const { selection } = passages;
   const duplicate = selection
-    ? marks.find(m => m.startOffset === selection.anchor.startOffset && m.endOffset === selection.anchor.endOffset)
+    ? marks.find(m => !m.orphaned && m.startOffset === selection.anchor.startOffset
+      && m.endOffset === selection.anchor.endOffset)
     : null;
 
   return (
@@ -160,6 +184,15 @@ export default function ChapterExplanationModal({
         {anchorMissed && (
           <div className="mark-missed-notice" role="status">
             ⚠ The saved passage could not be found — the explanation may have changed. Showing the nearest position.
+          </div>
+        )}
+        {relinkMark && !editing && (
+          <div className="mark-missed-notice mark-relink-notice" role="status">
+            <span>
+              Select the new text for this orphaned passage, then click “Re-link here”:{' '}
+              <em>{relinkMark.quote.length > 120 ? `${relinkMark.quote.slice(0, 120).trimEnd()}…` : relinkMark.quote}</em>
+            </span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onCancelRelink}>Cancel</button>
           </div>
         )}
       </header>
@@ -203,7 +236,7 @@ export default function ChapterExplanationModal({
       </div>
 
       {!editing && (selection || noticeShowing) && (
-        <PassageMenu menuRef={menuRef} passages={passages} duplicate={duplicate} />
+        <PassageMenu menuRef={menuRef} passages={passages} duplicate={duplicate} relinkMark={relinkMark} />
       )}
 
       {!editing && hover.card && (
@@ -241,6 +274,26 @@ export default function ChapterExplanationModal({
         onClose={onClose}
         onEdit={() => { passages.reset(); setEditing(true); }}
       />
+
+      {orphanWarning && (
+        <ConfirmDialog
+          title="Saved passages will be orphaned"
+          message={`This edit removes or changes the text of ${orphanWarning.newlyLost.length} saved ${orphanWarning.newlyLost.length === 1 ? 'passage' : 'passages'}. They are kept (with their notes) but marked Orphaned in Saved Passages, where you can re-link them to new text or delete them.`}
+          confirmLabel="Save anyway"
+          cancelLabel="Keep editing"
+          onConfirm={confirmOrphaning}
+          onClose={() => setOrphanWarning(null)}
+        >
+          <ul className="orphan-warning-list">
+            {orphanWarning.newlyLost.slice(0, ORPHAN_LIST_MAX).map(m => (
+              <li key={m.id}>{m.quote.length > 90 ? `${m.quote.slice(0, 90).trimEnd()}…` : m.quote}</li>
+            ))}
+            {orphanWarning.newlyLost.length > ORPHAN_LIST_MAX && (
+              <li>…and {orphanWarning.newlyLost.length - ORPHAN_LIST_MAX} more</li>
+            )}
+          </ul>
+        </ConfirmDialog>
+      )}
 
       {confirmingDelete && (
         <ConfirmDialog

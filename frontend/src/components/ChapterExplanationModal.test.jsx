@@ -369,6 +369,74 @@ describe('ChapterExplanationModal saved passages', () => {
     expect(screen.getByRole('status').textContent).toMatch(/could not be found/);
   });
 
+  describe('when an edit changes the text of saved passages', () => {
+    const beta = { id: 1, quote: 'beta', prefix: 'Alpha ', suffix: ' gamma', startOffset: 6, endOffset: 10 };
+
+    const editTo = async (html) => {
+      fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+      fireEvent.change(await screen.findByTestId('editor'), { target: { value: html } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    };
+
+    it('asks before saving an edit that orphans a passage, and saves it only on confirmation', async () => {
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      renderModal({ explanation: { content: TEXT }, marks: [beta], onSave });
+
+      await editTo('<p>Alpha gamma delta.</p>');
+      expect(await screen.findByRole('heading', { name: 'Saved passages will be orphaned' })).toBeTruthy();
+      expect(screen.getByText('beta')).toBeTruthy();
+      expect(onSave).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+      expect(screen.queryByRole('heading', { name: 'Saved passages will be orphaned' })).toBeNull();
+      expect(screen.getByTestId('editor').value).toBe('<p>Alpha gamma delta.</p>');
+      expect(onSave).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Save anyway' }));
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith({
+        content: '<p>Alpha gamma delta.</p>', anchorUpdates: [{ id: 1, orphaned: true }],
+      }));
+      await waitFor(() => expect(screen.queryByTestId('editor')).toBeNull());
+    });
+
+    it('saves without asking when the passages are still there, and refreshes where they are', async () => {
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      renderModal({ explanation: { content: TEXT }, marks: [beta], onSave });
+
+      await editTo('<p>Intro. Alpha beta gamma delta.</p>');
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith({
+        content: '<p>Intro. Alpha beta gamma delta.</p>',
+        anchorUpdates: [{
+          id: 1, prefix: 'Intro. Alpha ', suffix: ' gamma delta.', startOffset: 13, endOffset: 17, orphaned: false,
+        }],
+      }));
+      expect(screen.queryByRole('heading', { name: 'Saved passages will be orphaned' })).toBeNull();
+    });
+
+    it('does not ask again for a passage that was already orphaned', async () => {
+      const onSave = vi.fn().mockResolvedValue(undefined);
+      const gone = { id: 2, quote: 'missing words', prefix: '', suffix: '', startOffset: 3, orphaned: true };
+      renderModal({ explanation: { content: TEXT }, marks: [gone], onSave });
+
+      await editTo('<p>Alpha beta.</p>');
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith({ content: '<p>Alpha beta.</p>' }));
+    });
+  });
+
+  it('re-links an orphaned passage to the selected text', async () => {
+    const onRelinkMark = vi.fn().mockResolvedValue(undefined);
+    const relinkMark = { id: 5, quote: 'gone text', orphaned: true };
+    renderModal({ explanation: { content: TEXT }, relinkMark, onRelinkMark });
+    expect(screen.getByText(/Select the new text/)).toBeTruthy();
+
+    selectText('gamma');
+    fireEvent.click(await screen.findByRole('button', { name: '🔗 Re-link here' }));
+    await waitFor(() => expect(onRelinkMark).toHaveBeenCalledWith(5, {
+      quote: 'gamma', prefix: 'Alpha beta ', suffix: ' delta.', startOffset: 11, endOffset: 16,
+    }));
+  });
+
   it('highlights saved and pending passages, and remembers turning highlights off', async () => {
     const highlights = supportHighlights();
     const marks = [{ id: 1, quote: 'beta', prefix: 'Alpha ', suffix: ' gamma', startOffset: 6, endOffset: 10 }];

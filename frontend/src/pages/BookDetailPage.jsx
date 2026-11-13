@@ -75,6 +75,7 @@ export default function BookDetailPage() {
     refresh,
     deepLink: location.state?.openExplanation,
     bookLoaded: book != null,
+    marks,
   });
 
   // Move a chapter to another part (targetPartId = null → "Ungrouped"). Only the
@@ -145,6 +146,12 @@ export default function BookDetailPage() {
   const jumpToMark = (mark) => {
     setShowMarks(false);
     reader.open(mark.chapterId, false, null, mark);
+  };
+
+  // Open the chapter to pick new text for an orphaned passage.
+  const relinkMark = (mark) => {
+    setShowMarks(false);
+    reader.open(mark.chapterId, false, null, null, mark);
   };
 
   // Jump straight to the most recently bookmarked chapter and scroll position.
@@ -473,6 +480,9 @@ export default function BookDetailPage() {
           onDeleteMark={reader.deleteMark}
           onUpdateMarkNote={reader.updateMarkNote}
           marks={marks.filter(m => m.chapterId === reader.modal.chapterId)}
+          relinkMark={reader.modal.relinkMark}
+          onRelinkMark={reader.relinkMark}
+          onCancelRelink={reader.cancelRelink}
           onAnchorResult={reader.onAnchorResult}
         />
       )}
@@ -485,8 +495,8 @@ export default function BookDetailPage() {
           isParts={isParts}
           initialChapterId={marksChapterId}
           onChapterChange={setMarksChapterId}
-          staleIds={reader.staleMarkIds}
           onJump={jumpToMark}
+          onRelink={relinkMark}
           onUpdateNote={reader.updateMarkNote}
           onDelete={reader.deleteMark}
           onClose={() => setShowMarks(false)}

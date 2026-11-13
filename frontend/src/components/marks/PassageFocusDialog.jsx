@@ -24,10 +24,10 @@ export default function PassageFocusDialog({
   marks,
   markId,
   chapterTitle,
-  staleIds = {},
   onNavigate,
   onSaveNote,
   onJump,
+  onRelink,
   onDelete,
   onClose,
 }) {
@@ -133,9 +133,9 @@ export default function PassageFocusDialog({
           <div className="passage-focus-sub">
             <span>Passage {index + 1} of {marks.length}</span>
             {formatTime(mark.createdAt) && <span>· {formatTime(mark.createdAt)}</span>}
-            {staleIds[mark.id] && (
-              <span className="marks-stale" title="The explanation changed; the passage could not be found">
-                ⚠ Position may have changed
+            {mark.orphaned && (
+              <span className="marks-stale" title="The explanation was edited and this text is no longer in it">
+                ⚠ Orphaned
               </span>
             )}
           </div>
@@ -196,7 +196,9 @@ export default function PassageFocusDialog({
             onClick={() => guard(() => onNavigate(nextId))}
           >Next →</button>
           <span style={{ flex: 1 }} />
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => guard(() => onJump(mark))}>Jump to</button>
+          {mark.orphaned
+            ? <button type="button" className="btn btn-primary btn-sm" onClick={() => guard(() => onRelink(mark))}>Re-link</button>
+            : <button type="button" className="btn btn-primary btn-sm" onClick={() => guard(() => onJump(mark))}>Jump to</button>}
           <button type="button" className="btn btn-danger btn-sm" onClick={() => guard(() => onDelete(mark))}>Delete</button>
         </div>
       </Modal>

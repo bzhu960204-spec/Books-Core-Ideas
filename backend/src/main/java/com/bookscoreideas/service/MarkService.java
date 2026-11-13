@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Saved passages ("marks") from chapter explanations. Each mark stores the
@@ -86,10 +89,43 @@ public class MarkService {
         return true;
     }
 
+    /**
+     * How one passage of a chapter stands after its explanation changed. Orphaned = its text
+     * is gone: only the flag is set, quote, note and the old anchor are kept. Otherwise it
+     * is found (again): the flag is cleared, and every non-null field replaces the stored one
+     * (re-linking sends a new quote too).
+     */
+    public record AnchorUpdate(Long id, String quote, String prefix, String suffix, Integer startOffset,
+                               Integer endOffset, boolean orphaned) {
+    }
+
+    /**
+     * Applies the updates to the chapter's passages; ids that are not the chapter's are ignored.
+     * @return the chapter's passages after the update, or empty if the chapter does not exist
+     */
+    @Transactional
+    public Optional<List<MarkDto>> updateAnchors(Long chapterId, List<AnchorUpdate> updates) {
+        if (!chapterRepository.existsById(chapterId)) return Optional.empty();
+        Map<Long, ExplanationMark> marks = markRepository.findByChapterIdOrderByIdAsc(chapterId).stream()
+                .collect(Collectors.toMap(ExplanationMark::getId, Function.identity()));
+        for (AnchorUpdate update : updates) {
+            ExplanationMark mark = marks.get(update.id());
+            if (mark == null) continue;
+            mark.setOrphaned(update.orphaned());
+            if (update.orphaned()) continue;
+            if (update.quote() != null && !update.quote().isBlank()) mark.setQuote(update.quote());
+            if (update.prefix() != null) mark.setPrefix(truncate(update.prefix(), MAX_CONTEXT));
+            if (update.suffix() != null) mark.setSuffix(truncate(update.suffix(), MAX_CONTEXT));
+            if (update.startOffset() != null) mark.setStartOffset(update.startOffset());
+            if (update.endOffset() != null) mark.setEndOffset(update.endOffset());
+        }
+        return Optional.of(listByChapter(chapterId));
+    }
+
     private static MarkDto toDto(ExplanationMarkRepository.MarkRow r) {
         return MarkDto.of(r.getId(), r.getBookId(), r.getBookTitle(), r.getChapterId(), r.getChapterTitle(),
                 r.getChapterOrderIndex(), r.getQuote(), r.getPrefix(), r.getSuffix(), r.getStartOffset(),
-                r.getEndOffset(), r.getNote(), r.getCreatedAt(), r.getUpdatedAt());
+                r.getEndOffset(), r.getNote(), r.getOrphaned(), r.getCreatedAt(), r.getUpdatedAt());
     }
 
     private static String truncate(String text, int max) {

@@ -40,6 +40,8 @@ const JSON_CALLS = [
   [() => bookmarkApi.list(3), 'GET', '/api/bookmarks?bookId=3'],
   [() => bookmarkApi.delete(8), 'DELETE', '/api/bookmarks/8'],
   [() => markApi.create(4, { quote: 'q' }), 'POST', '/api/chapters/4/marks', { quote: 'q' }],
+  [() => markApi.updateAnchors(4, [{ id: 9, orphaned: true }]), 'PUT', '/api/chapters/4/marks/anchors',
+    { marks: [{ id: 9, orphaned: true }] }],
   [() => markApi.updateNote(9, 'n'), 'PATCH', '/api/marks/9', { note: 'n' }],
   [() => markApi.delete(9), 'DELETE', '/api/marks/9'],
   [() => ideaBankApi.search(), 'GET', '/api/ideas'],

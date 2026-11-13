@@ -127,6 +127,9 @@ export const bookmarkApi = {
 // Passages saved from chapter explanations (text + location), listed per book.
 export const markApi = {
   create: (chapterId, mark) => post(`/chapters/${chapterId}/marks`, mark),
+  // Where the chapter's passages stand after its explanation changed (or re-link one):
+  // [{ id, orphaned, quote?, prefix?, suffix?, startOffset?, endOffset? }]. Answers the chapter's passages.
+  updateAnchors: (chapterId, marks) => put(`/chapters/${chapterId}/marks/anchors`, { marks }),
   updateNote: (id, note) => patch(`/marks/${id}`, { note }),
   delete: (id) => del(`/marks/${id}`),
 };

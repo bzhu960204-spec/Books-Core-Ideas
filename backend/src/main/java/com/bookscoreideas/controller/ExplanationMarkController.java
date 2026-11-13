@@ -1,5 +1,6 @@
 package com.bookscoreideas.controller;
 
+import com.bookscoreideas.dto.MarkAnchorsRequest;
 import com.bookscoreideas.dto.MarkDto;
 import com.bookscoreideas.dto.MarkNoteRequest;
 import com.bookscoreideas.dto.MarkRequest;
@@ -36,6 +37,16 @@ public class ExplanationMarkController {
     @GetMapping("/chapters/{chapterId}/marks")
     public List<MarkDto> listByChapter(@PathVariable Long chapterId) {
         return markService.listByChapter(chapterId);
+    }
+
+    @PutMapping("/chapters/{chapterId}/marks/anchors")
+    public ResponseEntity<List<MarkDto>> updateAnchors(@PathVariable Long chapterId,
+                                                       @Valid @RequestBody MarkAnchorsRequest body) {
+        var updates = body.marks().stream()
+                .map(e -> new MarkService.AnchorUpdate(e.id(), e.quote(), e.prefix(), e.suffix(),
+                        e.startOffset(), e.endOffset(), Boolean.TRUE.equals(e.orphaned())))
+                .toList();
+        return Responses.ok(markService.updateAnchors(chapterId, updates), "Chapter", chapterId);
     }
 
     @PatchMapping("/marks/{id}")

@@ -11,7 +11,9 @@ const sameOrder = (a, b) => a.length === b.length && a.every((id, i) => id === b
 // Lists the passages saved from this book's explanations: chapters that have
 // passages on the left (in book order), the selected chapter's passages on the
 // right. Clicking a passage opens a focus dialog to read it with its context
-// and write a note; jump / delete are available from both places.
+// and write a note; jump / delete are available from both places. Passages
+// whose text an edit removed ("orphaned") are listed apart, last, to re-link
+// to new text or delete.
 export default function ExplanationMarksPanel({
   marks,
   chapters = [],
@@ -19,8 +21,8 @@ export default function ExplanationMarksPanel({
   isParts = false,
   initialChapterId = null,
   onChapterChange,
-  staleIds = {},
   onJump,
+  onRelink,
   onUpdateNote,
   onDelete,
   onClose,
@@ -29,6 +31,7 @@ export default function ExplanationMarksPanel({
   const [focus, setFocus] = useState(null); // { id } | null
   const [error, setError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteOrphans, setDeleteOrphans] = useState(false);
   const contentRef = useRef(null);
   const activeChapterRef = useRef(null);
   const lastFocusedRef = useRef(null);
@@ -47,7 +50,13 @@ export default function ExplanationMarksPanel({
     setView({ selectedId, order });
   }
   const current = groups.find(g => g.chapterId === selectedId) ?? null;
-  const focusOpen = focus != null && !!current?.items.some(m => m.id === focus.id);
+  const items = useMemo(() => {
+    if (!current) return [];
+    return [...current.items.filter(m => !m.orphaned), ...current.items.filter(m => m.orphaned)];
+  }, [current]);
+  const live = items.filter(m => !m.orphaned);
+  const orphans = items.filter(m => m.orphaned);
+  const focusOpen = focus != null && items.some(m => m.id === focus.id);
 
   useEffect(() => {
     if (selectedId != null) onChapterChange?.(selectedId);
@@ -98,7 +107,6 @@ export default function ExplanationMarksPanel({
     // Show the next passage of the chapter, else the previous one, else close.
     let nextFocus;
     if (focusOpen && focus.id === target.id) {
-      const items = current.items;
       const at = items.findIndex(m => m.id === target.id);
       nextFocus = items[at + 1] ?? items[at - 1] ?? null;
     }
@@ -115,6 +123,17 @@ export default function ExplanationMarksPanel({
         setFocus({ id: target.id });
       }
       setError('Could not delete the passage. Try again.');
+    }
+  };
+
+  const confirmDeleteOrphans = async () => {
+    const targets = orphans;
+    setDeleteOrphans(false);
+    setError('');
+    try {
+      for (const mark of targets) await onDelete(mark.id);
+    } catch {
+      setError('Could not delete all orphaned passages. Try again.');
     }
   };
 
@@ -135,7 +154,7 @@ export default function ExplanationMarksPanel({
       className={`marks-modal${maximized ? ' is-maximized' : ''}`}
       title={`Saved Passages (${marks.length})`}
       onClose={onClose}
-      closeOnEsc={!deleteTarget && !focusOpen}
+      closeOnEsc={!deleteTarget && !deleteOrphans && !focusOpen}
       headerActions={maximizeButton}
     >
       {marks.length === 0 ? (
@@ -161,6 +180,9 @@ export default function ExplanationMarksPanel({
                   onClick={() => selectChapter(group.chapterId)}
                 >
                   <span className="marks-chapter-title">{title}</span>
+                  {group.items.some(m => m.orphaned) && (
+                    <span className="marks-stale" title="Has orphaned passages" aria-label="Has orphaned passages">⚠</span>
+                  )}
                   <span className="marks-chapter-count">{group.items.length}</span>
                 </button>
               );
@@ -177,17 +199,43 @@ export default function ExplanationMarksPanel({
                 </div>
                 {error && <div className="marks-error" role="alert">{error}</div>}
                 <div className="marks-panel">
-                  {current.items.map(mark => (
+                  {live.map(mark => (
                     <MarkItem
                       key={mark.id}
                       mark={mark}
-                      stale={!!staleIds[mark.id]}
                       onFocus={openFocus}
                       onJump={onJump}
+                      onRelink={onRelink}
                       onDelete={setDeleteTarget}
                     />
                   ))}
                 </div>
+                {orphans.length > 0 && (
+                  <section className="marks-orphans" aria-label="Orphaned passages">
+                    <div className="marks-orphans-header">
+                      <h5 className="marks-orphans-title">⚠ Orphaned ({orphans.length})</h5>
+                      <button className="btn btn-danger btn-sm" onClick={() => setDeleteOrphans(true)}>
+                        Delete all
+                      </button>
+                    </div>
+                    <p className="marks-orphans-hint">
+                      The explanation was edited and their text is no longer in it. Re-link a passage to new text
+                      (its note is kept), or delete it.
+                    </p>
+                    <div className="marks-panel">
+                      {orphans.map(mark => (
+                        <MarkItem
+                          key={mark.id}
+                          mark={mark}
+                          onFocus={openFocus}
+                          onJump={onJump}
+                          onRelink={onRelink}
+                          onDelete={setDeleteTarget}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
             )}
           </div>
@@ -197,15 +245,23 @@ export default function ExplanationMarksPanel({
 
     {focusOpen && (
       <PassageFocusDialog
-        marks={current.items}
+        marks={items}
         markId={focus.id}
         chapterTitle={current.title}
-        staleIds={staleIds}
         onNavigate={navigateFocus}
         onSaveNote={saveNote}
         onJump={onJump}
+        onRelink={onRelink}
         onDelete={setDeleteTarget}
         onClose={() => setFocus(null)}
+      />
+    )}
+
+    {deleteOrphans && (
+      <ConfirmDialog
+        message={`Delete the ${orphans.length} orphaned ${orphans.length === 1 ? 'passage' : 'passages'} of this chapter? This cannot be undone.`}
+        onConfirm={confirmDeleteOrphans}
+        onClose={() => setDeleteOrphans(false)}
       />
     )}
 

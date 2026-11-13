@@ -19,6 +19,7 @@
 | V8 `normalize_schema` | 把老库与空库统一成同一份结构：约束/索引统一命名、外键列都有命名索引、`STRUCTURE_TYPE` 等列类型/默认值对齐、标志列 NOT NULL（DB-01） |
 | V9 `foreign_keys_and_cascades` | 外键删除规则（见下表）、补齐书单相关外键、子表外键列 NOT NULL、复合外键保证冗余 `book_id` 一致（DB-02） |
 | V10 `modeling_details` | `READING_STATUS` 的 `''` → NULL，`READING_STATUS` / `STRUCTURE_TYPE` 加 CHECK（对应 Java 枚举）；书评、讲解的 `UPDATED_AT` 由 DATE 改为 TIMESTAMP（DB-06） |
+| V11 `mark_orphaned` | `EXPLANATION_MARKS.ORPHANED`（BOOLEAN，默认 FALSE）：编辑讲解后找不到原文的片段标为孤立（见 [explanation-marks/implementation.md](explanation-marks/implementation.md) 第 6.1 节） |
 
 ### 外键删除规则（V9 起）
 
