@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import LazyRichTextEditor from './LazyRichTextEditor';
@@ -17,13 +17,16 @@ import { useReaderPreferences } from './explanation/useReaderPreferences';
 import { useReadingPosition } from './explanation/useReadingPosition';
 import ChapterImagePanel from './explanation/ChapterImagePanel';
 import PanelResizer from './explanation/PanelResizer';
+import ExplanationOutline from './explanation/ExplanationOutline';
+import { MIN_OUTLINE_ENTRIES, extractOutline } from '../utils/explanationOutline';
 
 const ORPHAN_LIST_MAX = 5;
 
 // View / edit a single chapter's "explanation" (详解) document. Mirrors the
 // review reader: rendered HTML in view mode, RichTextEditor in edit mode, with
 // a distraction-free fullscreen toggle. In view mode, selecting text offers to
-// save it as a passage; `initialAnchor` scrolls to and flashes a saved passage.
+// save it as a passage; `initialAnchor` scrolls to and flashes a saved passage,
+// and a floating outline of the headings jumps around a long explanation.
 // A chapter with images can show them in a resizable side panel (`chapterId`,
 // `imageCount`). The parts live in ./explanation.
 export default function ChapterExplanationModal({
@@ -80,6 +83,10 @@ export default function ChapterExplanationModal({
     () => normalizeReviewContent(explanation?.content),
     [explanation?.content],
   );
+  const outline = useMemo(() => extractOutline(explanationHtml), [explanationHtml]);
+  const hasOutline = outline.length >= MIN_OUTLINE_ENTRIES;
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const closeOutline = useCallback(() => setOutlineOpen(false), []);
 
   // In fullscreen, Esc exits fullscreen first instead of closing the modal.
   useEffect(() => {
@@ -202,22 +209,32 @@ export default function ChapterExplanationModal({
         className="reader-split"
         style={showImagePanel ? { '--image-panel-ratio': prefs.imagePanelRatio } : undefined}
       >
-        <div
-          ref={bodyRef}
-          className={`review-reader-body ${editing ? 'is-editing' : ''}`}
-        >
-          {editing ? (
-            <LazyRichTextEditor
-              value={draft}
-              onChange={setDraft}
-              placeholder="Paste or write the chapter explanation… Markdown paste supported."
-              fill
-            />
-          ) : (
-            <ExplanationHtml
+        <div className="reader-text-pane">
+          <div
+            ref={bodyRef}
+            className={`review-reader-body ${editing ? 'is-editing' : ''}`}
+          >
+            {editing ? (
+              <LazyRichTextEditor
+                value={draft}
+                onChange={setDraft}
+                placeholder="Paste or write the chapter explanation… Markdown paste supported."
+                fill
+              />
+            ) : (
+              <ExplanationHtml
+                contentRef={contentRef}
+                html={explanationHtml}
+                fontScale={prefs.fontScale}
+              />
+            )}
+          </div>
+          {!editing && hasOutline && outlineOpen && (
+            <ExplanationOutline
+              entries={outline}
               contentRef={contentRef}
-              html={explanationHtml}
-              fontScale={prefs.fontScale}
+              bodyRef={bodyRef}
+              onClose={closeOutline}
             />
           )}
         </div>
@@ -262,6 +279,9 @@ export default function ChapterExplanationModal({
         imageCount={imageCount}
         imagePanelOpen={showImagePanel}
         onToggleImagePanel={prefs.toggleImagePanel}
+        hasOutline={hasOutline}
+        outlineOpen={outlineOpen}
+        onToggleOutline={() => setOutlineOpen(v => !v)}
         hasContent={hasContent}
         saving={saving}
         onCancelEdit={() => { setEditing(false); setFullscreen(false); }}
@@ -272,7 +292,7 @@ export default function ChapterExplanationModal({
         onBookmark={handleBookmark}
         onDelete={() => setConfirmingDelete(true)}
         onClose={onClose}
-        onEdit={() => { passages.reset(); setEditing(true); }}
+        onEdit={() => { passages.reset(); setOutlineOpen(false); setEditing(true); }}
       />
 
       {orphanWarning && (

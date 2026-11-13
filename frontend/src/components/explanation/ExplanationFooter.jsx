@@ -2,7 +2,7 @@ import { highlightsSupported } from '../../utils/explanationAnchor';
 
 // The reader's bottom bar. Editing: fullscreen, images (when the chapter has any), Cancel
 // (only when there is saved content to return to), Save. Reading: fullscreen, images,
-// font size, highlights, bookmark, Delete, Close, Edit.
+// outline (when the text has enough headings), font size, highlights, bookmark, Delete, Close, Edit.
 export default function ExplanationFooter({
   editing,
   fullscreen,
@@ -10,6 +10,9 @@ export default function ExplanationFooter({
   imageCount = 0,
   imagePanelOpen = false,
   onToggleImagePanel,
+  hasOutline = false,
+  outlineOpen = false,
+  onToggleOutline,
   hasContent,
   saving,
   onCancelEdit,
@@ -73,6 +76,19 @@ export default function ExplanationFooter({
             {fullscreen ? '⤡ Exit Fullscreen' : '⛶ Fullscreen'}
           </button>
           {imagesToggle}
+          {hasOutline && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              data-outline-toggle
+              onClick={onToggleOutline}
+              aria-pressed={outlineOpen}
+              title="Jump to a heading"
+              style={{ marginLeft: '0.35rem' }}
+            >
+              ☰ Outline
+            </button>
+          )}
           <div className="reader-font-controls" role="group" aria-label="Font size">
             <button
               type="button"

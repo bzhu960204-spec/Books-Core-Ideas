@@ -269,6 +269,47 @@ describe('ChapterExplanationModal reading controls', () => {
   });
 });
 
+const HEADED = '<h2>Intro</h2><p>a</p><h3>Detail</h3><p>b</p><h2>Wrap up</h2><p>c</p>';
+
+describe('ChapterExplanationModal outline', () => {
+  it('only offers an outline when the explanation has enough headings', () => {
+    renderModal({ explanation: { content: '<h2>One</h2><p>a</p><h2>Two</h2>' } });
+    expect(screen.queryByRole('button', { name: /Outline/ })).toBeNull();
+  });
+
+  it('opens over the text, jumps to a heading and closes', () => {
+    renderModal({ explanation: { content: HEADED } });
+    expect(screen.queryByRole('navigation', { name: 'Outline' })).toBeNull();
+
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    fireEvent.click(screen.getByRole('button', { name: /Outline/ }));
+    const nav = screen.getByRole('navigation', { name: 'Outline' });
+    expect(Array.from(nav.querySelectorAll('button')).map(b => b.textContent)).toEqual(['Intro', 'Detail', 'Wrap up']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wrap up' }));
+    expect(scrollIntoView.mock.contexts.at(-1).textContent).toBe('Wrap up');
+    expect(screen.queryByRole('navigation', { name: 'Outline' })).toBeNull();
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('closes on Esc without closing the modal, and the button toggles it', () => {
+    const onClose = vi.fn();
+    renderModal({ explanation: { content: HEADED }, onClose });
+    const toggle = screen.getByRole('button', { name: /Outline/ });
+
+    fireEvent.click(toggle);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('navigation', { name: 'Outline' })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(toggle);
+    fireEvent.pointerDown(toggle);
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('navigation', { name: 'Outline' })).toBeNull();
+  });
+});
+
 describe('ChapterExplanationModal saved passages', () => {
   it('saves a selected passage with a note, and undo deletes it', async () => {
     const onSaveMark = vi.fn().mockResolvedValue({ id: 42 });

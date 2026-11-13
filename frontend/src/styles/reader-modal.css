@@ -79,6 +79,49 @@
   min-height: 0;
 }
 
+/* The text and, over its right edge, the floating outline. */
+.reader-text-pane {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.reader-outline {
+  position: absolute;
+  top: 0.75rem;
+  right: 1.5rem;
+  z-index: 5;
+  width: min(20rem, 85%);
+  max-height: calc(100% - 1.5rem);
+  overflow-y: auto;
+  padding: 0.35rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.reader-outline ul { list-style: none; margin: 0; padding: 0; }
+.reader-outline-item {
+  display: block;
+  width: 100%;
+  padding: 0.3rem 0.6rem;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.reader-outline-item:hover { background: var(--bg-secondary, var(--bg-card)); color: var(--text-primary); }
+.reader-outline-item.is-active { color: var(--accent); font-weight: 600; }
+
 .modal--xl.review-reader-modal.has-image-panel:not(.is-fullscreen) {
   width: 96%;
   max-width: min(1600px, 96vw);
