@@ -47,7 +47,7 @@
 
 | 方法 & 路径 | 说明 | 备注 |
 |---|---|---|
-| `POST /api/chapters/{chapterId}/marks` | 新建片段 | `quote` 为空 → 400；章节不存在 → 404；`prefix`/`suffix` 截断到 200，`note` 截断到 1000 |
+| `POST /api/chapters/{chapterId}/marks` | 新建片段 | `quote` 为空 → 400；章节不存在 → 404；`prefix`/`suffix` 截断到 200，`note` 截断到 10000（V14 前为 1000） |
 | `GET /api/books/{bookId}/marks` | 本书全部片段 | 按 章节 `orderIndex` → `startOffset` → `id` 排序。FE-03 后详情页改从聚合接口 `GET /api/books/{id}/detail` 取片段，本接口保留 |
 | `GET /api/chapters/{chapterId}/marks` | 单章片段（可选接口） | 前端目前未使用 |
 | `PATCH /api/marks/{id}` | 修改批注 | 空批注视为清空 |
@@ -55,6 +55,8 @@
 | `DELETE /api/marks/{id}` | 删除 | 不存在 → 404，成功 → 204 |
 
 响应 DTO：`id, bookId, bookTitle, chapterId, chapterTitle, chapterOrderIndex, quote, prefix, suffix, startOffset, endOffset, note, orphaned, createdAt, updatedAt`。最初是手工拼的 `Map`，BE-01 后为 `MarkDto` record。
+
+> **批注格式**：`note` 按 Markdown 存储与渲染（`components/notes/NoteMarkdown.jsx`：GFM、单个换行即换行、`$…$` / `$$…$$` 公式由 KaTeX 渲染，不渲染原始 HTML）。编辑器 `components/notes/NoteEditor.jsx` 提供 Write / Preview 切换；粘贴网页上已渲染的富文本（如 AI 回答）时，用 turndown 把 HTML 转成 Markdown 再插入（`utils/htmlToMarkdown.js`），剪贴板本身是 Markdown 源码时原样粘贴。收藏章节的批注同样适用。
 
 > **迁移注意**（已过时，留作记录）：当时全新空库会在 Flyway **V2** 失败（`BOOKS` 表不存在），与本功能无关。BUG-01 / DB-01 后空库从 V0 起完整迁移，Flyway 是唯一的 schema 来源，见 [database-schema-and-flyway.md](../database-schema-and-flyway.md)。
 

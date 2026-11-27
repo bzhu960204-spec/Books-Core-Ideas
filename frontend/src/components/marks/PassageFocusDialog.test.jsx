@@ -67,6 +67,27 @@ describe('PassageFocusDialog', () => {
     expect(onSaveNote).not.toHaveBeenCalled();
   });
 
+  it('previews the draft as Markdown', () => {
+    setup(1);
+    type('## Heading\n- **bold** item');
+    fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Heading' })).toBeTruthy();
+    expect(screen.getByText('bold').tagName).toBe('STRONG');
+    fireEvent.click(screen.getByRole('tab', { name: 'Write' }));
+    expect(note().value).toBe('## Heading\n- **bold** item');
+  });
+
+  it('pastes rendered rich text as Markdown at the cursor', () => {
+    setup(2);
+    note().setSelectionRange(3, 3);
+    fireEvent.paste(note(), {
+      clipboardData: {
+        getData: (type) => ({ 'text/html': '<ul><li><b>A</b></li><li>B</li></ul>', 'text/plain': 'A B' })[type] || '',
+      },
+    });
+    expect(note().value).toBe('old- **A**\n- B note');
+  });
+
   it('keeps the draft and shows an error when saving fails', async () => {
     setup(1, { onSaveNote: async () => { throw new Error('x'); } });
     type('draft');

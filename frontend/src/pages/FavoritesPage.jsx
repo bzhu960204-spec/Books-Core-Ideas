@@ -6,6 +6,8 @@ import { useBooks, useDebouncedValue, useFavorites, useRefresh } from '../querie
 import BookPicker from '../components/BookPicker';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { attempt } from '../components/feedback/toast';
+import NoteEditor from '../components/notes/NoteEditor';
+import NoteMarkdown from '../components/notes/NoteMarkdown';
 
 const NONE = [];
 const NOTE_MAX = 500;
@@ -64,18 +66,18 @@ function FavoriteCard({ favorite, onOpen, onSaveNote, onRemove }) {
         {favorite.chapterSummary && (
           <div className="favorite-summary"><ReactMarkdown>{favorite.chapterSummary}</ReactMarkdown></div>
         )}
-        {!editing && favorite.note && <p className="favorite-note">“{favorite.note}”</p>}
+        {!editing && favorite.note && <NoteMarkdown className="favorite-note">{favorite.note}</NoteMarkdown>}
       </div>
 
       {editing && (
         <div className="favorite-note-editor">
-          <textarea
+          <NoteEditor
             className="form-textarea"
             rows={2}
             maxLength={NOTE_MAX}
             value={note}
-            onChange={e => setNote(e.target.value)}
-            placeholder="Why is this chapter worth re-reading?"
+            onChange={setNote}
+            placeholder="Why is this chapter worth re-reading? (Markdown supported)"
             aria-label="Note"
             autoFocus
           />

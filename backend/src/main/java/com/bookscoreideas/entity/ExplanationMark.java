@@ -40,7 +40,7 @@ public class ExplanationMark {
 
     private Integer endOffset;
 
-    @Column(length = 1000)
+    @Column(length = 10000)
     private String note;
 
     // True when the explanation was edited so that the quote can no longer be found.

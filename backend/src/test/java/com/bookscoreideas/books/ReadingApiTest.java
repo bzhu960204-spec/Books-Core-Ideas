@@ -155,14 +155,14 @@ class ReadingApiTest extends IntegrationTest {
         body.put("startOffset", 50);
         body.put("endOffset", 56);
         body.put("prefix", "p".repeat(250));
-        body.put("note", "  " + "n".repeat(1200));
+        body.put("note", "  " + "n".repeat(10200));
         JsonNode created = postJson("/api/chapters/" + chapter + "/marks", body);
         postJson("/api/chapters/" + chapter + "/marks", Map.of("quote", "first", "startOffset", 10));
         assertThat(fieldNames(created)).containsExactlyInAnyOrder("id", "bookId", "bookTitle", "chapterId", "chapterTitle",
                 "chapterOrderIndex", "quote", "prefix", "suffix", "startOffset", "endOffset", "note", "orphaned",
                 "createdAt", "updatedAt");
         assertThat(created.get("prefix").asString()).hasSize(200);
-        assertThat(created.get("note").asString()).hasSize(1000).startsWith("n");
+        assertThat(created.get("note").asString()).hasSize(10000).startsWith("n");
         assertThat(created.get("suffix").asString()).isEmpty();
 
         JsonNode byBook = getJson("/api/books/" + book + "/marks");

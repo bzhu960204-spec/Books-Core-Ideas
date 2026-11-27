@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class MarkService {
 
     public static final int MAX_CONTEXT = 200;
-    public static final int MAX_NOTE = 1000;
+    public static final int MAX_NOTE = 10000;
 
     /** Fields of a new mark; context and note are trimmed/truncated here. */
     public record NewMark(String quote, String prefix, String suffix, Integer startOffset, Integer endOffset,

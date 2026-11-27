@@ -22,6 +22,7 @@
 | V11 `mark_orphaned` | `EXPLANATION_MARKS.ORPHANED`（BOOLEAN，默认 FALSE）：编辑讲解后找不到原文的片段标为孤立（见 [explanation-marks/implementation.md](explanation-marks/implementation.md) 第 6.1 节） |
 | V12 `add_chapter_favorites` | 新表 `CHAPTER_FAVORITES`（收藏章节）：每章最多一行（`UK_CHAPTER_FAVORITES_CHAPTER`），复合外键 `(CHAPTER_ID, BOOK_ID) → CHAPTERS` 级联删除（见 [chapter-favorites-feature.md](chapter-favorites-feature.md)） |
 | V13 `drop_key_ideas_and_excerpts` | 删除 `KEY_IDEAS`、`EXCERPTS` 两张表（连同其索引和外键）：想法、摘录功能以及想法库、摘录库已移除，章节只保留讲解。执行前的数据见备份 `data-20261127-213511-before-chapter-favorites.zip`（1,285 条想法、932 条摘录） |
+| V14 `widen_mark_note` | `EXPLANATION_MARKS.NOTE` 由 VARCHAR(1000) 放宽到 VARCHAR(10000)：批注改为 Markdown，常从 AI 回答粘贴，超出 1000 字会被截断 |
 
 ### 外键删除规则（V9 起）
 

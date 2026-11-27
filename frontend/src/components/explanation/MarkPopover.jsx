@@ -1,7 +1,8 @@
 import { useLayoutEffect, useState } from 'react';
 import { isoDay } from '../../utils/dates';
-
-const NOTE_MAX = 1000;
+import NoteEditor from '../notes/NoteEditor';
+import NoteMarkdown from '../notes/NoteMarkdown';
+import { NOTE_MAX } from '../notes/noteLimits';
 
 // The card shown over a saved passage: its note, with Edit / Remove. `editing`
 // lives with the hover state (Esc cancels it there); the draft and request
@@ -69,21 +70,24 @@ export default function MarkPopover({
         )}
       </div>
       {editing ? (
-        <textarea
+        <NoteEditor
+          preview={false}
           className="form-input mark-popover-input"
           aria-label="Note"
-          placeholder="Add a note (optional)"
+          placeholder="Add a note (optional, Markdown supported)"
           maxLength={NOTE_MAX}
           rows={3}
           value={draft}
           autoFocus
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={setDraft}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveNote(); }
           }}
         />
       ) : (
-        <div className={`mark-popover-note ${mark.note ? '' : 'is-empty'}`}>{mark.note || 'No note'}</div>
+        mark.note
+          ? <NoteMarkdown className="mark-popover-note">{mark.note}</NoteMarkdown>
+          : <div className="mark-popover-note is-empty">No note</div>
       )}
       <div className="mark-popover-foot">
         {mark.createdAt && <span className="mark-popover-date">Saved {isoDay(mark.createdAt)}</span>}

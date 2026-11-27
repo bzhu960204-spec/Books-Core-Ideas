@@ -106,11 +106,10 @@
   background: var(--bg-secondary);
 }
 .mark-popover-note {
-  max-height: 10em;
+  max-height: 14em;
   overflow-y: auto;
   font-size: 0.9rem;
   line-height: 1.5;
-  white-space: pre-wrap;
   word-break: break-word;
   color: var(--text-primary);
 }
@@ -321,8 +320,13 @@
   margin: 0.4rem 0 0 0.75rem;
   font-size: 0.9rem;
   color: var(--text-secondary);
-  white-space: pre-wrap;
   word-break: break-word;
+}
+.marks-note.is-collapsed {
+  max-height: 12em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, #000 70%, transparent);
 }
 .marks-meta {
   display: flex;

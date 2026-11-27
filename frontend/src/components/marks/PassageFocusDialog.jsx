@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Modal from '../Modal';
 import ConfirmDialog from '../ConfirmDialog';
-
-const NOTE_MAX = 1000;
+import NoteEditor from '../notes/NoteEditor';
+import { NOTE_MAX } from '../notes/noteLimits';
 const SAVED_FLASH_MS = 2000;
 
 function formatTime(iso) {
@@ -150,19 +150,17 @@ export default function PassageFocusDialog({
             <label htmlFor="passage-focus-note">Note</label>
             <span className="passage-focus-count">{draft.length} / {NOTE_MAX}</span>
           </div>
-          <textarea
+          <NoteEditor
+            key={markId}
             id="passage-focus-note"
-            ref={textareaRef}
+            inputRef={textareaRef}
             className="form-input passage-focus-note"
             rows={4}
             maxLength={NOTE_MAX}
             autoFocus
             value={draft}
-            placeholder="Write your thoughts about this passage…"
-            onChange={(e) => {
-              const value = e.target.value;
-              setState(prev => ({ ...prev, draft: value }));
-            }}
+            placeholder="Write your thoughts about this passage… (Markdown supported)"
+            onChange={(value) => setState(prev => ({ ...prev, draft: value }))}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();

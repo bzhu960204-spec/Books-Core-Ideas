@@ -46,7 +46,7 @@ describe('FavoritesPage', () => {
   it('lists favorite chapters of every book, newest first or grouped by book', async () => {
     renderPage();
 
-    expect(await screen.findByText('“the turning point”')).toBeTruthy();
+    expect(await screen.findByText('the turning point')).toBeTruthy();
     expect(chapterTitles()).toEqual(['1Zeta chapter 1', '2Zeta chapter 2', '3Alpha chapter 3No explanation']);
     expect(screen.getByText('3 chapters')).toBeTruthy();
 
@@ -75,7 +75,7 @@ describe('FavoritesPage', () => {
 
     await waitFor(() => expect(writes).toEqual([
       { method: 'PUT', path: '/api/chapters/201/favorite', body: { note: 'read before exams' } }]));
-    expect(await screen.findByText('“read before exams”')).toBeTruthy();
+    expect(await screen.findByText('read before exams')).toBeTruthy();
 
     fireEvent.click(within(card).getByTitle('Remove from Favorite Chapters'));
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
@@ -87,7 +87,7 @@ describe('FavoritesPage', () => {
 
   it('searches on the server', async () => {
     const { requests } = renderPage();
-    await screen.findByText('“the turning point”');
+    await screen.findByText('the turning point');
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Search favorite chapters' }), { target: { value: 'turning' } });
 

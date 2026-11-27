@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import NoteMarkdown from '../notes/NoteMarkdown';
 
 const QUOTE_PREVIEW_CHARS = 280;
+const NOTE_PREVIEW_CHARS = 400;
+const NOTE_PREVIEW_LINES = 8;
 
 function formatTime(iso) {
   if (!iso) return '';
@@ -19,10 +22,13 @@ export default function MarkItem({
   onDelete,
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
   const orphaned = !!mark.orphaned;
 
   const long = mark.quote.length > QUOTE_PREVIEW_CHARS;
   const shown = long && !expanded ? `${mark.quote.slice(0, QUOTE_PREVIEW_CHARS).trimEnd()}…` : mark.quote;
+  const note = mark.note || '';
+  const longNote = note.length > NOTE_PREVIEW_CHARS || note.split('\n').length > NOTE_PREVIEW_LINES;
 
   const openFromQuote = (e) => {
     // Dragging to select text for copying must not open the dialog.
@@ -60,7 +66,18 @@ export default function MarkItem({
           {expanded ? 'Show less' : 'Show more'}
         </button>
       )}
-      {mark.note && <p className="marks-note">{mark.note}</p>}
+      {note && (
+        <NoteMarkdown className={`marks-note${longNote && !noteExpanded ? ' is-collapsed' : ''}`}>{note}</NoteMarkdown>
+      )}
+      {longNote && (
+        <button
+          type="button"
+          className="btn-link marks-expand"
+          onClick={() => setNoteExpanded(prev => !prev)}
+        >
+          {noteExpanded ? 'Collapse note' : 'Expand note'}
+        </button>
+      )}
       <div className="marks-meta">
         <span>{formatTime(mark.createdAt)}</span>
         {orphaned && (
