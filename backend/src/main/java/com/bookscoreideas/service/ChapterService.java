@@ -3,19 +3,15 @@ package com.bookscoreideas.service;
 import com.bookscoreideas.dto.ChapterDto;
 import com.bookscoreideas.dto.ChapterOrderRequest;
 import com.bookscoreideas.dto.ChapterRequest;
-import com.bookscoreideas.dto.KeyIdeaDto;
 import com.bookscoreideas.entity.Chapter;
-import com.bookscoreideas.entity.KeyIdea;
 import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.repository.BookRepository;
 import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.bookscoreideas.web.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,30 +23,20 @@ public class ChapterService {
     private final ChapterRepository chapterRepository;
     private final BookRepository bookRepository;
     private final PartRepository partRepository;
-    private final KeyIdeaRepository keyIdeaRepository;
 
     public ChapterService(ChapterRepository chapterRepository, BookRepository bookRepository,
-                          PartRepository partRepository, KeyIdeaRepository keyIdeaRepository) {
+                          PartRepository partRepository) {
         this.chapterRepository = chapterRepository;
         this.bookRepository = bookRepository;
         this.partRepository = partRepository;
-        this.keyIdeaRepository = keyIdeaRepository;
     }
 
-    /** A book's chapters with their ideas, in two queries however many chapters there are. */
+    /** A book's chapters, in one query however many chapters there are. */
     @Transactional(readOnly = true)
     public List<ChapterDto> list(Long bookId) {
         NotFoundException.requireExists(bookRepository.existsById(bookId), "Book", bookId);
-        List<ChapterRepository.ChapterRow> chapters = chapterRepository.findRowsByBookId(bookId);
-        if (chapters.isEmpty()) return List.of();
-        Map<Long, List<KeyIdeaDto>> ideas = new HashMap<>();
-        for (KeyIdea idea : keyIdeaRepository.findByChapterIds(
-                chapters.stream().map(ChapterRepository.ChapterRow::getId).toList())) {
-            ideas.computeIfAbsent(idea.getChapter().getId(), id -> new ArrayList<>()).add(KeyIdeaDto.from(idea));
-        }
-        return chapters.stream()
-                .map(c -> new ChapterDto(c.getId(), c.getTitle(), c.getOrderIndex(), c.getSummary(),
-                        c.getPartId(), ideas.getOrDefault(c.getId(), List.of())))
+        return chapterRepository.findRowsByBookId(bookId).stream()
+                .map(c -> new ChapterDto(c.getId(), c.getTitle(), c.getOrderIndex(), c.getSummary(), c.getPartId()))
                 .toList();
     }
 
@@ -132,6 +118,6 @@ public class ChapterService {
     }
 
     private static ChapterDto toDto(Chapter chapter) {
-        return ChapterDto.from(chapter, chapter.getKeyIdeas().stream().map(KeyIdeaDto::from).toList());
+        return ChapterDto.from(chapter);
     }
 }

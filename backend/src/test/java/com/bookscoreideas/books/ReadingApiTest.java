@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Explanations, reviews, bookmarks and saved passages (BE-01 ③). */
+/** Explanations, reviews, bookmarks, saved passages and favorite chapters (BE-01 ③). */
 class ReadingApiTest extends IntegrationTest {
 
     @Autowired private JdbcTemplate jdbc;
@@ -217,6 +217,53 @@ class ReadingApiTest extends IntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void favoriteChapters() throws Exception {
+        String url = "/api/chapters/" + chapter + "/favorite";
+        putJson("/api/chapters/" + chapter + "/explanation", Map.of("content", "<p>worth re-reading</p>"));
+        long plain = postForId("/api/books/" + book + "/chapters", Map.of("title", "Plain", "orderIndex", 2));
+        long otherBook = postForId("/api/books", Map.of("title", "Other " + System.nanoTime(), "author", "Zed"));
+        long otherChapter = postForId("/api/books/" + otherBook + "/chapters", Map.of("title", "Elsewhere"));
+
+        JsonNode created = putJson(url, Map.of("note", "  the key chapter  "));
+        assertThat(fieldNames(created)).containsExactlyInAnyOrder("id", "chapterId", "chapterTitle", "chapterOrderIndex",
+                "chapterSummary", "hasExplanation", "bookId", "bookTitle", "bookAuthor", "bookCoverUrl", "note",
+                "createdAt");
+        assertThat(created.get("note").asString()).isEqualTo("the key chapter");
+        assertThat(created.get("hasExplanation").asBoolean()).isTrue();
+        assertThat(created.get("bookAuthor").asString()).isEqualTo("Au");
+
+        // Upsert: starring again (no body) keeps the favorite and its note; a note replaces it, blank clears it.
+        String again = mockMvc.perform(put(url)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(again).get("id").asLong()).isEqualTo(created.get("id").asLong());
+        assertThat(objectMapper.readTree(again).get("note").asString()).isEqualTo("the key chapter");
+        assertThat(putJson(url, Map.of("note", "   ")).get("note").asString()).isEmpty();
+        mockMvc.perform(put(url).contentType(APPLICATION_JSON).content("{\"note\":\"" + "n".repeat(501) + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        putJson("/api/chapters/" + plain + "/favorite", Map.of());
+        putJson("/api/chapters/" + otherChapter + "/favorite", Map.of("note", "different book"));
+        jdbc.update("UPDATE chapter_favorites SET created_at = TIMESTAMP '2020-01-01 00:00:00' WHERE chapter_id = ?", chapter);
+
+        JsonNode mine = getJson("/api/favorites?bookId=" + book);
+        assertThat(mine).extracting(f -> f.get("chapterTitle").asString()).containsExactly("Plain", "Ch");
+        assertThat(mine.get(0).get("hasExplanation").asBoolean()).isFalse();
+        assertThat(getJson("/api/favorites")).extracting(f -> f.get("chapterId").asLong())
+                .contains(chapter, plain, otherChapter);
+        assertThat(getJson("/api/favorites?q=DIFFERENT")).extracting(f -> f.get("chapterId").asLong())
+                .containsExactly(otherChapter);
+        assertThat(getJson("/api/favorites?bookId=" + book + "&q=zed")).isEmpty();
+        assertThat(getJson("/api/favorites?bookId=" + otherBook + "&q=zed")).hasSize(1);
+
+        mockMvc.perform(delete(url)).andExpect(status().isNoContent());
+        // Idempotent: unstarring twice is fine; only a missing chapter is a 404.
+        mockMvc.perform(delete(url)).andExpect(status().isNoContent());
+        assertThat(getJson("/api/favorites?bookId=" + book)).extracting(f -> f.get("chapterId").asLong())
+                .containsExactly(plain);
+        mockMvc.perform(put("/api/chapters/999999/favorite")).andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/chapters/999999/favorite")).andExpect(status().isNotFound());
+    }
+
     /** Regression: listing bookmarks / saved passages loaded the chapter (and its explanation) and book per row. */
     @Test
     void historyListsDoNotQueryPerRow() throws Exception {
@@ -224,14 +271,17 @@ class ReadingApiTest extends IntegrationTest {
         long fewChapter = postForId("/api/books/" + fewBook + "/chapters", Map.of("title", "F"));
         postForId("/api/chapters/" + fewChapter + "/bookmarks", Map.of());
         postForId("/api/chapters/" + fewChapter + "/marks", Map.of("quote", "q"));
+        putJson("/api/chapters/" + fewChapter + "/favorite", Map.of());
         for (int i = 0; i < 4; i++) {
             long c = postForId("/api/books/" + book + "/chapters", Map.of("title", "M" + i, "orderIndex", i + 10));
             postForId("/api/chapters/" + c + "/bookmarks", Map.of());
             postForId("/api/chapters/" + c + "/marks", Map.of("quote", "q" + i));
+            putJson("/api/chapters/" + c + "/favorite", Map.of());
         }
 
         assertThat(statementsFor("/api/bookmarks?bookId=" + book)).isEqualTo(statementsFor("/api/bookmarks?bookId=" + fewBook));
         assertThat(statementsFor("/api/books/" + book + "/marks")).isEqualTo(statementsFor("/api/books/" + fewBook + "/marks"));
+        assertThat(statementsFor("/api/favorites?bookId=" + book)).isEqualTo(statementsFor("/api/favorites?bookId=" + fewBook));
     }
 
     private long statementsFor(String url) throws Exception {

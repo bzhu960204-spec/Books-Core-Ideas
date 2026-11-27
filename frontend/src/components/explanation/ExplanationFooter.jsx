@@ -2,7 +2,8 @@ import { highlightsSupported } from '../../utils/explanationAnchor';
 
 // The reader's bottom bar. Editing: fullscreen, images (when the chapter has any), Cancel
 // (only when there is saved content to return to), Save. Reading: fullscreen, images,
-// outline (when the text has enough headings), font size, highlights, bookmark, Delete, Close, Edit.
+// outline (when the text has enough headings), font size, highlights, favorite, bookmark,
+// Delete, Close, Edit.
 export default function ExplanationFooter({
   editing,
   fullscreen,
@@ -18,6 +19,8 @@ export default function ExplanationFooter({
   onCancelEdit,
   onSave,
   prefs,
+  favorite = false,
+  onToggleFavorite,
   bookmarking,
   bookmarkSaved,
   onBookmark,
@@ -124,6 +127,17 @@ export default function ExplanationFooter({
             </button>
           )}
           <span style={{ flex: 1 }} />
+          {hasContent && onToggleFavorite && (
+            <button
+              type="button"
+              className={`btn btn-secondary btn-sm reader-favorite${favorite ? ' reader-favorite--on' : ''}`}
+              onClick={onToggleFavorite}
+              aria-pressed={favorite}
+              title={favorite ? 'Remove from Favorite Chapters' : 'Add to Favorite Chapters, to find it again later'}
+            >
+              {favorite ? '★ Favorited' : '☆ Favorite'}
+            </button>
+          )}
           {hasContent && (
             <button
               className="btn btn-primary btn-sm"

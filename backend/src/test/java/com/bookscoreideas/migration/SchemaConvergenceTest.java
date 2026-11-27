@@ -60,8 +60,9 @@ class SchemaConvergenceTest {
         try (Connection c = connect(legacy); Statement s = c.createStatement()) {
             assertThat(row(s, "SELECT TITLE, STRUCTURE_TYPE, CHAPTER_IMAGES_ENABLED FROM BOOKS"))
                     .containsExactly("Legacy", "CHAPTERS", "FALSE");
-            assertThat(row(s, "SELECT CONTENT, HIGHLIGHTED FROM KEY_IDEAS")).containsExactly("idea", "FALSE");
-            assertThat(row(s, "SELECT CONTENT, HIGHLIGHTED FROM EXCERPTS")).containsExactly("quote", "TRUE");
+            // V13 drops the removed key ideas and excerpts, rows and all.
+            assertThat(row(s, "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES "
+                    + "WHERE TABLE_NAME IN ('KEY_IDEAS', 'EXCERPTS')")).containsExactly("0");
             assertThat(row(s, "SELECT SUMMARY, PART_ID FROM CHAPTERS")).containsExactly("long summary", "1");
             assertThat(row(s, "SELECT CONTENT FROM CHAPTER_EXPLANATIONS")).containsExactly("<p>expl</p>");
             for (String table : List.of("PARTS", "BOOK_REVIEWS", "CHAPTER_IMAGES", "READING_BOOKMARKS",

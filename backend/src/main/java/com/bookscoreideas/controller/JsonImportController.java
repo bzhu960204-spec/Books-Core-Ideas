@@ -2,7 +2,6 @@ package com.bookscoreideas.controller;
 
 import com.bookscoreideas.dto.BookDto;
 import com.bookscoreideas.dto.jsonimport.BookImportRequest;
-import com.bookscoreideas.dto.jsonimport.ContentImportRequest;
 import com.bookscoreideas.dto.jsonimport.ImportSummaryDto;
 import com.bookscoreideas.dto.jsonimport.StructureImportRequest;
 import com.bookscoreideas.service.JsonImportService;
@@ -34,17 +33,10 @@ public class JsonImportController {
         return Responses.created(importService.importBooks(request));
     }
 
-    /** Parts and/or chapters (with their content) into an existing book. */
+    /** Parts and/or chapters into an existing book. */
     @PostMapping("/{bookId}/import")
     public ResponseEntity<ImportSummaryDto> importStructure(@PathVariable Long bookId,
                                                             @Valid @RequestBody StructureImportRequest request) {
         return Responses.ok(importService.importStructure(bookId, request), "Book", bookId);
-    }
-
-    /** Key ideas and/or excerpts into existing chapters of a book. */
-    @PostMapping("/{bookId}/import/content")
-    public ResponseEntity<ImportSummaryDto> importContent(@PathVariable Long bookId,
-                                                          @Valid @RequestBody ContentImportRequest request) {
-        return Responses.ok(importService.importContent(bookId, request), "Book", bookId);
     }
 }

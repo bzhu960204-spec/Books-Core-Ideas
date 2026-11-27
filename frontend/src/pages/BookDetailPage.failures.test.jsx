@@ -48,6 +48,14 @@ const toast = async () => (await screen.findByRole('alert')).textContent;
 const dialog = (title) => screen.getByRole('heading', { name: title }).closest('[role="dialog"]');
 
 describe('book page failures', () => {
+  it('puts the star back and says so when favoriting a chapter fails', async () => {
+    renderBook((method, path) => (path.endsWith('/favorite') ? 500 : null));
+
+    fireEvent.click(await screen.findByTitle('Add to Favorite Chapters'));
+
+    expect(await toast()).toContain('Could not add the chapter to favorites — Failed: PUT /api/chapters/101/favorite');
+    expect(screen.getByTitle('Add to Favorite Chapters').textContent).toBe('☆');
+  });
   it('keeps the chapter form and its input when saving fails', async () => {
     renderBook((method) => (method === 'POST' ? 500 : null));
 
@@ -78,9 +86,8 @@ describe('book page failures', () => {
 
   it('says the server cannot be reached when it is down', async () => {
     renderBook((method) => (method === 'PUT' ? 'network' : null));
-    fireEvent.click(await screen.findByText('Book One chapter 1'));
-    fireEvent.click(screen.getByTitle('Add to Idea Bank'));
-    expect(await toast()).toContain('Could not change the highlight — Cannot reach the server. Is the backend running?');
+    fireEvent.click(await screen.findByTitle('Add to Favorite Chapters'));
+    expect(await toast()).toContain('Could not add the chapter to favorites — Cannot reach the server. Is the backend running?');
   });
 
   it('reports a failed JSON export', async () => {

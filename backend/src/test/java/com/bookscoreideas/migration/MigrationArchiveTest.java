@@ -46,14 +46,13 @@ class MigrationArchiveTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1));
         long ch1 = postForId("/api/books/" + book + "/chapters", Map.of("title", "C1", "orderIndex", 1, "partId", part));
         long ch2 = postForId("/api/books/" + book + "/chapters", Map.of("title", "C2", "orderIndex", 2, "partId", part));
-        postForId("/api/chapters/" + ch1 + "/ideas", Map.of("content", "idea", "tags", "t", "highlighted", true));
-        postForId("/api/chapters/" + ch1 + "/excerpts", Map.of("content", "quote", "note", "n"));
         putJson("/api/chapters/" + ch1 + "/explanation", Map.of("content", "<p>Alpha beta gamma</p>"));
         postForId("/api/chapters/" + ch1 + "/marks", Map.of("quote", "beta", "prefix", "Alpha ", "suffix", " gamma",
                 "startOffset", 6, "endOffset", 10, "note", "remember"));
         postForId("/api/chapters/" + ch1 + "/bookmarks", Map.of("scrollRatio", 0.3, "note", "first"));
         postForId("/api/chapters/" + ch2 + "/bookmarks", Map.of("scrollRatio", 0.8, "note", "second"));
         postForId("/api/books/" + book + "/reviews", Map.of("title", "Verdict", "content", "<p>good</p>"));
+        putJson("/api/chapters/" + ch1 + "/favorite", Map.of("note", "re-read"));
         String shelf = "Shelf " + suffix;
         String other = "Other " + suffix;
         long root = postForId("/api/book-collections", Map.of("name", shelf));
@@ -67,6 +66,7 @@ class MigrationArchiveTest extends IntegrationTest {
         jdbc.update("UPDATE READING_BOOKMARKS SET CREATED_AT = TIMESTAMP '2020-03-04 05:06:07' WHERE CHAPTER_ID = ?", ch1);
         jdbc.update("UPDATE EXPLANATION_MARKS SET CREATED_AT = TIMESTAMP '2020-04-05 06:07:08', "
                 + "UPDATED_AT = TIMESTAMP '2020-04-06 06:07:08' WHERE CHAPTER_ID = ?", ch1);
+        jdbc.update("UPDATE CHAPTER_FAVORITES SET CREATED_AT = TIMESTAMP '2020-05-06 07:08:09' WHERE CHAPTER_ID = ?", ch1);
 
         Map<String, byte[]> original = unzip(export(book));
         JsonNode manifest = objectMapper.readTree(original.get("manifest.json"));
@@ -79,6 +79,9 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(exportedCh1.get("explanation").get("updatedAt").asString()).isEqualTo("2020-02-03T04:05:06.789");
         assertThat(exportedCh1.get("bookmarks")).hasSize(1);
         assertThat(exportedCh1.get("marks")).hasSize(1);
+        assertThat(exportedCh1.get("favorite").get("note").asString()).isEqualTo("re-read");
+        assertThat(exportedCh1.get("favorite").get("createdAt").asString()).isEqualTo("2020-05-06T07:08:09");
+        assertThat(exported.get("parts").get(0).get("chapters").get(1).get("favorite").isNull()).isTrue();
         assertThat(exported.get("parts").get(0).get("chapters").get(1).get("bookmarks")).hasSize(1);
         assertThat(paths(exported)).containsExactlyInAnyOrder(List.of(shelf, "Child"), List.of(other));
 
@@ -101,6 +104,11 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(marks.get(0).get("quote").asString()).isEqualTo("beta");
         assertThat(marks.get(0).get("startOffset").asInt()).isEqualTo(6);
         assertThat(marks.get(0).get("bookId").asLong()).isEqualTo(imported);
+        JsonNode favorites = getJson("/api/favorites?bookId=" + imported);
+        assertThat(favorites).hasSize(1);
+        assertThat(favorites.get(0).get("chapterTitle").asString()).isEqualTo("C1");
+        assertThat(favorites.get(0).get("note").asString()).isEqualTo("re-read");
+        assertThat(favorites.get(0).get("createdAt").asString()).isEqualTo("2020-05-06T07:08:09");
         JsonNode folders = getJson("/api/book-collections");
         assertThat(folders).filteredOn(f -> f.get("name").asString().equals(shelf)).hasSize(1);
         assertThat(folders).filteredOn(f -> f.get("name").asString().equals("Child")
@@ -114,6 +122,7 @@ class MigrationArchiveTest extends IntegrationTest {
         long chapter = postForId("/api/books/" + book + "/chapters", Map.of("title", "C"));
         postForId("/api/chapters/" + chapter + "/bookmarks", Map.of("scrollRatio", 0.5));
         postForId("/api/chapters/" + chapter + "/marks", Map.of("quote", "q"));
+        putJson("/api/chapters/" + chapter + "/favorite", Map.of());
         postForId("/api/books/" + book + "/reviews", Map.of("title", "r", "content", "c"));
         addToCollection(postForId("/api/book-collections", Map.of("name", "Preview " + book)), book);
 
@@ -127,10 +136,14 @@ class MigrationArchiveTest extends IntegrationTest {
         assertThat(entry.get("reviewCount").asInt()).isEqualTo(1);
         assertThat(entry.get("bookmarkCount").asInt()).isEqualTo(1);
         assertThat(entry.get("markCount").asInt()).isEqualTo(1);
+        assertThat(entry.get("favoriteCount").asInt()).isEqualTo(1);
         assertThat(entry.get("collectionCount").asInt()).isEqualTo(1);
     }
 
-    /** v1 archives (before BE-08) keep importing; their explanation dates are no longer dropped. */
+    /**
+     * v1 archives (before BE-08) keep importing; their explanation dates are no longer dropped.
+     * Key ideas and excerpts in older archives are ignored (the features were removed).
+     */
     @Test
     void version1ArchiveStillImports() throws Exception {
         String title = "Legacy archive " + System.nanoTime();
@@ -147,7 +160,7 @@ class MigrationArchiveTest extends IntegrationTest {
         long book = bookIdByTitle(title);
         JsonNode chapters = getJson("/api/books/" + book + "/chapters");
         assertThat(chapters).hasSize(1);
-        assertThat(chapters.get(0).get("keyIdeas")).hasSize(1);
+        assertThat(chapters.get(0).has("keyIdeas")).isFalse();
         JsonNode explanation = getJson("/api/chapters/" + chapters.get(0).get("id").asLong() + "/explanation");
         assertThat(explanation.get("content").asString()).isEqualTo("<p>e</p>");
         // A day-only date (archives before DB-06) becomes the start of that day.
@@ -184,7 +197,7 @@ class MigrationArchiveTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1"));
         postForId("/api/books/" + book + "/chapters", Map.of("title", "Grouped", "orderIndex", 1, "partId", part));
         long loose = postForId("/api/books/" + book + "/chapters", Map.of("title", "Loose", "orderIndex", 2));
-        postForId("/api/chapters/" + loose + "/excerpts", Map.of("content", "kept"));
+        putJson("/api/chapters/" + loose + "/explanation", Map.of("content", "<p>kept</p>"));
         byte[] zip = export(book);
         mockMvc.perform(delete("/api/books/" + book)).andExpect(status().isNoContent());
 
@@ -196,8 +209,8 @@ class MigrationArchiveTest extends IntegrationTest {
         JsonNode looseCopy = chapters.get(1);
         assertThat(looseCopy.get("title").asString()).isEqualTo("Loose");
         assertThat(looseCopy.get("partId").isNull()).isTrue();
-        assertThat(getJson("/api/chapters/" + looseCopy.get("id").asLong() + "/excerpts").get(0).get("content").asString())
-                .isEqualTo("kept");
+        assertThat(getJson("/api/chapters/" + looseCopy.get("id").asLong() + "/explanation").get("content").asString())
+                .isEqualTo("<p>kept</p>");
         assertThat(chapters.get(0).get("partId").asLong())
                 .isEqualTo(getJson("/api/books/" + imported + "/parts").get(0).get("id").asLong());
     }

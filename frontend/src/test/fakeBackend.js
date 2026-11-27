@@ -16,7 +16,7 @@ const notFound = (path) =>
  * `fail(method, path)` may return a status to answer with a ProblemDetail error instead,
  * or 'network' to fail as fetch does when the server is down.
  */
-export function installFakeBackend({ details = [], ideas = [], delay = () => null, fail = () => null } = {}) {
+export function installFakeBackend({ details = [], delay = () => null, fail = () => null } = {}) {
   const requests = [];
   const writes = []; // { method, path, body } of every non-GET request
   let nextId = 9000;
@@ -25,12 +25,20 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
   for (const d of details) for (const c of d.chapters) chapters.set(String(c.id), c);
 
   const write = (method, path, body) => {
+    // Favorites are kept, so a refresh after starring shows the star (as the real server does).
+    const favorite = path.match(/^\/api\/chapters\/(\d+)\/favorite$/);
+    if (favorite && chapters.has(favorite[1])) {
+      const c = chapters.get(favorite[1]);
+      c.favorite = method === 'PUT';
+      if (method === 'PUT' && body?.note !== undefined) c.favoriteNote = body.note;
+      if (method === 'DELETE') delete c.favoriteNote;
+    }
     if (method === 'DELETE') return new Response(null, { status: 204 });
     if (path === '/api/books/import') {
       return json(body.books.map(b => ({ ...b, id: nextId++, chapterCount: (b.chapters || []).length })), 201);
     }
-    if (/^\/api\/books\/\d+\/import(\/content)?$/.test(path)) {
-      return json({ parts: 0, chapters: 0, ideas: 0, excerpts: 0 });
+    if (/^\/api\/books\/\d+\/import$/.test(path)) {
+      return json({ parts: 0, chapters: 0 });
     }
     // Any other create/update: echo the body with an id, as the real endpoints do.
     return json({ ...body, id: nextId++ }, method === 'POST' ? 201 : 200);
@@ -41,10 +49,20 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
     if (method !== 'GET') return write(method, path, body);
     if (path === '/api/books') return json(details.map(d => d.book));
     if (path === '/api/books/categories') return json([]);
-    if (path === '/api/ideas' || path === '/api/excerpts') return json(ideas);
     if (path === '/api/bookmarks') {
       const d = byId.get(query.get('bookId'));
       return json(d ? d.bookmarks : details.flatMap(x => x.bookmarks));
+    }
+    if (path === '/api/favorites') {
+      const bookId = query.get('bookId');
+      return json(details
+        .filter(d => !bookId || String(d.book.id) === bookId)
+        .flatMap(d => d.chapters.filter(c => c.favorite).map(c => ({
+          id: c.id, chapterId: c.id, chapterTitle: c.title, chapterOrderIndex: c.orderIndex,
+          chapterSummary: c.summary, hasExplanation: c.hasExplanation, bookId: d.book.id,
+          bookTitle: d.book.title, bookAuthor: d.book.author, bookCoverUrl: d.book.coverUrl,
+          note: c.favoriteNote ?? '', createdAt: '2026-03-04T10:00:00',
+        }))));
     }
     if ((m = path.match(/^\/api\/books\/(\d+)(\/.*)?$/))) {
       const d = byId.get(m[1]);
@@ -55,8 +73,8 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
         case '/parts': return json(d.parts);
         case '/marks': return json(d.marks);
         case '/chapters':
-          return json(d.chapters.map(({ id, title, orderIndex, summary, partId, keyIdeas }) =>
-            ({ id, title, orderIndex, summary, partId, keyIdeas })));
+          return json(d.chapters.map(({ id, title, orderIndex, summary, partId }) =>
+            ({ id, title, orderIndex, summary, partId })));
         case '/explanation-chapter-ids': return json(d.chapters.filter(c => c.hasExplanation).map(c => c.id));
         case '/export': return json({ title: d.book.title, chapters: [] });
         default: return notFound(path);
@@ -68,11 +86,9 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
       if (!c.hasExplanation) return new Response(null, { status: 204 });
       return json({ chapterId: c.id, content: `<p>Explanation of ${c.title}</p>`, updatedAt: '2026-01-02T09:30:00' });
     }
-    if ((m = path.match(/^\/api\/chapters\/(\d+)\/(ideas|excerpts|images)$/))) {
+    if ((m = path.match(/^\/api\/chapters\/(\d+)\/images$/))) {
       const c = chapters.get(m[1]);
       if (!c) return notFound(path);
-      if (m[2] === 'ideas') return json(c.keyIdeas);
-      if (m[2] === 'excerpts') return json(c.excerpts);
       return json(Array.from({ length: c.imageCount }, (_, i) => ({ id: i + 1, originalName: `${i + 1}.png` })));
     }
     return notFound(path);
@@ -99,16 +115,15 @@ export function installFakeBackend({ details = [], ideas = [], delay = () => nul
   return { requests, writes };
 }
 
-/** A detail response for a CHAPTERS book with `chapterCount` chapters, two excerpts each. */
+/** A detail response for a CHAPTERS book with `chapterCount` chapters; the first has an explanation. */
 export function bookDetail(id, title, chapterCount = 3) {
   const chapters = Array.from({ length: chapterCount }, (_, i) => {
     const chapterId = id * 100 + i + 1;
     return {
       id: chapterId, title: `${title} chapter ${i + 1}`, orderIndex: i + 1, summary: null, partId: null,
-      keyIdeas: [{ id: chapterId * 10, content: `Idea of ${chapterId}`, example: null, tags: null, highlighted: false, orderIndex: 1 }],
-      excerpts: [1, 2].map(n => ({ id: chapterId * 10 + n, content: `Excerpt ${n}`, note: null, source: null, orderIndex: n, highlighted: false })),
       imageCount: 0,
       hasExplanation: i === 0,
+      favorite: false,
     };
   });
   return {

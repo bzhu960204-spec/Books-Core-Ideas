@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Everything the book page shows, in one response (FE-03): the same data as
- * GET /books/{id}, /parts, /chapters, each chapter's /excerpts, image count and
+ * GET /books/{id}, /parts, /chapters, each chapter's image count and
  * explanation flag, /bookmarks?bookId (newest first) and /books/{id}/marks.
  */
 public record BookDetailDto(

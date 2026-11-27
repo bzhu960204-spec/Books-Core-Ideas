@@ -1,12 +1,9 @@
-import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { bookApi, chapterApi, partApi, ideaApi, excerptApi, explanationApi } from '../api';
+import { bookApi, chapterApi, partApi, explanationApi, favoriteApi } from '../api';
 import { useRefresh } from '../queries';
 import ChapterForm from '../components/ChapterForm';
 import PartForm from '../components/PartForm';
-import IdeaForm from '../components/IdeaForm';
-import ExcerptForm from '../components/ExcerptForm';
-import ExcerptReader from '../components/ExcerptReader';
 import ChapterImageViewer from '../components/ChapterImageViewer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ChapterExplanationModal from '../components/ChapterExplanationModal';
@@ -17,7 +14,7 @@ import NotFoundPage from './NotFoundPage';
 import BookHeader from './bookDetail/BookHeader';
 import ChapterCard from './bookDetail/ChapterCard';
 import PartList from './bookDetail/PartList';
-import { BookImportModal, ChapterImportModal } from './bookDetail/ImportModals';
+import { BookImportModal } from './bookDetail/ImportModals';
 import { explanationExportChapters } from './bookDetail/explanationExport';
 import { useBookDetailData } from './bookDetail/useBookDetailData';
 import { useChapterDrag } from './bookDetail/useChapterDrag';
@@ -27,7 +24,7 @@ import { useExplanationReader } from './bookDetail/useExplanationReader';
 // Bundles jszip; loaded when "Export Explanations" is first opened (FE-04).
 const ExplanationExportModal = lazy(() => import('../components/ExplanationExportModal'));
 
-// The book page: header, the book's parts / chapters / ideas, and every dialog
+// The book page: header, the book's parts / chapters, and every dialog
 // opened from them. The page owns which dialog is open and the writes; the
 // pieces live in ./bookDetail.
 export default function BookDetailPage() {
@@ -47,9 +44,6 @@ export default function BookDetailPage() {
   } = useBookDetailData(id);
 
   const [collapsedParts, setCollapsedParts] = useState({});
-  const [expandedChapters, setExpandedChapters] = useState({});
-  const [scrollToChapter, setScrollToChapter] = useState(null);
-  const chapterRefs = useRef({});
 
   // Form states
   const [showChapterForm, setShowChapterForm] = useState(false);
@@ -57,14 +51,8 @@ export default function BookDetailPage() {
   const [addChapterPartId, setAddChapterPartId] = useState(null); // part to add the new chapter to
   const [showPartForm, setShowPartForm] = useState(false);
   const [editPart, setEditPart] = useState(null);
-  const [showIdeaForm, setShowIdeaForm] = useState(null); // chapterId
-  const [editIdea, setEditIdea] = useState(null);
-  const [showExcerptForm, setShowExcerptForm] = useState(null); // chapterId
-  const [editExcerpt, setEditExcerpt] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null); // { type, id, chapterId?, name }
+  const [deleteTarget, setDeleteTarget] = useState(null); // { type, id, name }
   const [showJsonImport, setShowJsonImport] = useState(false);
-  const [showChapterImport, setShowChapterImport] = useState(null); // chapterId
-  const [excerptReader, setExcerptReader] = useState(null); // { chapterId, startIndex }
   const [imageViewer, setImageViewer] = useState(null); // chapterId
   const [showMarks, setShowMarks] = useState(false);
   const [marksChapterId, setMarksChapterId] = useState(null); // chapter last viewed in Saved Passages
@@ -81,9 +69,9 @@ export default function BookDetailPage() {
 
   // Move a chapter to another position, in its list or in another part
   // (targetPartId = null → "Ungrouped" / a plain book), in front of
-  // beforeChapterId (null → at the end). The moved chapter keeps its ideas,
-  // excerpts and explanation; the chapters of the lists involved are renumbered in
-  // one request (see chapterOrder.js).
+  // beforeChapterId (null → at the end). The moved chapter keeps its
+  // explanation; the chapters of the lists involved are renumbered in one
+  // request (see chapterOrder.js).
   const handleChapterMove = async (chapterId, targetPartId, beforeChapterId) => {
     const placements = planChapterMove(chapters, parts, chapterId, targetPartId, beforeChapterId);
     if (!placements) return;
@@ -123,20 +111,6 @@ export default function BookDetailPage() {
     } catch (err) {
       reportError('Could not export the book', err);
     }
-  };
-
-  useEffect(() => {
-    if (scrollToChapter && chapterRefs.current[scrollToChapter]) {
-      chapterRefs.current[scrollToChapter].scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setScrollToChapter(null);
-    }
-  }, [scrollToChapter, expandedChapters]);
-
-  // Ideas and excerpts come with the chapters, so expanding needs no request.
-  const toggleChapter = (chapterId) => {
-    const isExpanded = expandedChapters[chapterId];
-    setExpandedChapters(isExpanded ? {} : { [chapterId]: true });
-    if (!isExpanded) setScrollToChapter(chapterId);
   };
 
   const jumpToMark = (mark) => {
@@ -185,39 +159,17 @@ export default function BookDetailPage() {
     refresh();
   };
 
-  // Idea CRUD
-  const handleSaveIdea = async (form) => {
-    const chapterId = editIdea ? editIdea.chapterId : showIdeaForm;
-    const saved = await attempt('Could not save the idea', () => (editIdea
-      ? ideaApi.update(chapterId, editIdea.id, form)
-      : ideaApi.create(chapterId, form)));
-    if (!saved) return;
-    setShowIdeaForm(null);
-    setEditIdea(null);
-    refresh();
-  };
-
-  const handleToggleHighlight = async (idea, chapterId) => {
-    await attempt('Could not change the highlight', () =>
-      ideaApi.update(chapterId, idea.id, { ...idea, highlighted: !idea.highlighted }));
-    refresh();
-  };
-
-  const handleToggleExcerptHighlight = async (excerpt) => {
-    await attempt('Could not change the highlight', () =>
-      excerptApi.update(excerpt.chapterId || excerptReader?.chapterId, excerpt.id, { ...excerpt, highlighted: !excerpt.highlighted }));
-    refresh();
-  };
-
-  // Excerpt CRUD
-  const handleSaveExcerpt = async (form) => {
-    const chapterId = editExcerpt ? editExcerpt.chapterId : showExcerptForm;
-    const saved = await attempt('Could not save the excerpt', () => (editExcerpt
-      ? excerptApi.update(chapterId, editExcerpt.id, form)
-      : excerptApi.create(chapterId, form)));
-    if (!saved) return;
-    setShowExcerptForm(null);
-    setEditExcerpt(null);
+  // Star / unstar a chapter for Favorite Chapters; the star changes at once and is
+  // put back if the request fails.
+  const handleToggleFavorite = async (chapterId) => {
+    const favorite = !chapterById(chapterId)?.favorite;
+    updateChapter(chapterId, c => ({ ...c, favorite }));
+    try {
+      await (favorite ? favoriteApi.add(chapterId) : favoriteApi.remove(chapterId));
+    } catch (err) {
+      updateChapter(chapterId, c => ({ ...c, favorite: !favorite }));
+      reportError(favorite ? 'Could not add the chapter to favorites' : 'Could not remove the chapter from favorites', err);
+    }
     refresh();
   };
 
@@ -226,8 +178,6 @@ export default function BookDetailPage() {
     switch (target.type) {
       case 'chapter': return chapterApi.delete(id, target.id);
       case 'part': return partApi.delete(id, target.id);
-      case 'idea': return ideaApi.delete(target.chapterId, target.id);
-      case 'excerpt': return excerptApi.delete(target.chapterId, target.id);
       default: return Promise.resolve();
     }
   };
@@ -236,14 +186,6 @@ export default function BookDetailPage() {
     if (!deleteTarget) return;
     const deleted = await attempt(`Could not delete the ${deleteTarget.type}`, () => deleteRequest(deleteTarget));
     if (!deleted) return;
-    if (deleteTarget.type === 'excerpt') {
-      const remaining = (chapterById(deleteTarget.chapterId)?.excerpts ?? []).filter(e => e.id !== deleteTarget.id);
-      updateChapter(deleteTarget.chapterId, c => ({ ...c, excerpts: remaining }));
-      if (remaining.length > 0) {
-        const newIndex = Math.min(deleteTarget.readerIndex ?? 0, remaining.length - 1);
-        setExcerptReader({ chapterId: deleteTarget.chapterId, startIndex: newIndex });
-      }
-    }
     setDeleteTarget(null);
     refresh();
   };
@@ -269,22 +211,11 @@ export default function BookDetailPage() {
 
   // What a chapter row can do (see ChapterCard).
   const chapterActions = {
-    toggleChapter,
-    importIntoChapter: (chapterId) => setShowChapterImport(chapterId),
     openImages: (chapterId) => setImageViewer(chapterId),
-    readExcerpts: (chapterId) => setExcerptReader({ chapterId, startIndex: 0 }),
     openExplanation: reader.open,
+    toggleFavorite: (chapter) => handleToggleFavorite(chapter.id),
     editChapter: (chapter) => { setEditChapter(chapter); setShowChapterForm(true); },
     deleteChapter: (chapter) => setDeleteTarget({ type: 'chapter', id: chapter.id, name: chapter.title }),
-    addIdea: (chapterId) => setShowIdeaForm(chapterId),
-    toggleIdeaHighlight: handleToggleHighlight,
-    editIdea: (idea, chapterId) => setEditIdea({ ...idea, chapterId }),
-    deleteIdea: (idea, chapterId) => setDeleteTarget({
-      type: 'idea',
-      id: idea.id,
-      chapterId,
-      name: idea.content.substring(0, 50),
-    }),
   };
 
   const renderChapter = (chapter, idx) => (
@@ -293,19 +224,14 @@ export default function BookDetailPage() {
       chapter={chapter}
       idx={idx}
       imagesEnabled={book.chapterImagesEnabled}
-      expanded={!!expandedChapters[chapter.id]}
       hasBookmark={!!bookmarkedChapterIds[chapter.id]}
       latestBookmark={latestBookmark}
       dragHandle={drag.dragHandle(chapter.id)}
       dragging={drag.draggedChapterId === chapter.id}
       dropIndicator={drag.dropIndicator(chapter.id)}
-      cardRef={el => chapterRefs.current[chapter.id] = el}
       actions={chapterActions}
     />
   );
-
-  const readerChapterId = excerptReader?.chapterId;
-  const readerExcerpts = readerChapterId != null ? chapterById(readerChapterId)?.excerpts : undefined;
 
   return (
     <div>
@@ -366,7 +292,7 @@ export default function BookDetailPage() {
         chapters.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">📑</div>
-            <p className="empty-state-text">No chapters yet. Add the book's structure to start logging ideas.</p>
+            <p className="empty-state-text">No chapters yet. Add the book's structure to get started.</p>
           </div>
         ) : (
           <div className="chapter-list" {...drag.dropTarget('chapters', null)}>
@@ -377,49 +303,6 @@ export default function BookDetailPage() {
 
       {showJsonImport && (
         <BookImportModal bookId={id} isParts={isParts} onClose={() => setShowJsonImport(false)} />
-      )}
-
-      {showChapterImport && (
-        <ChapterImportModal
-          bookId={id}
-          chapterId={showChapterImport}
-          chapterTitle={chapterById(showChapterImport)?.title}
-          onClose={() => setShowChapterImport(null)}
-        />
-      )}
-
-      {(showExcerptForm || editExcerpt) && (
-        <ExcerptForm
-          key={editExcerpt?.id ?? 'new'}
-          excerpt={editExcerpt}
-          onSave={handleSaveExcerpt}
-          onClose={() => { setShowExcerptForm(null); setEditExcerpt(null); }}
-        />
-      )}
-
-      {excerptReader && readerExcerpts && (
-        <ExcerptReader
-          excerpts={readerExcerpts}
-          startIndex={excerptReader.startIndex}
-          chapterTitle={chapterById(readerChapterId)?.title || ''}
-          onClose={() => setExcerptReader(null)}
-          onToggleHighlight={handleToggleExcerptHighlight}
-          onEdit={(ex) => {
-            setExcerptReader(null);
-            setEditExcerpt({ ...ex, chapterId: readerChapterId });
-          }}
-          onDelete={(ex) => {
-            const currentIdx = readerExcerpts.findIndex(e => e.id === ex.id);
-            setExcerptReader(null);
-            setDeleteTarget({
-              type: 'excerpt',
-              id: ex.id,
-              chapterId: readerChapterId,
-              name: ex.content.substring(0, 50),
-              readerIndex: Math.max(0, currentIdx),
-            });
-          }}
-        />
       )}
 
       {imageViewer && (
@@ -448,15 +331,6 @@ export default function BookDetailPage() {
         />
       )}
 
-      {(showIdeaForm || editIdea) && (
-        <IdeaForm
-          key={editIdea?.id ?? 'new'}
-          idea={editIdea}
-          onSave={handleSaveIdea}
-          onClose={() => { setShowIdeaForm(null); setEditIdea(null); }}
-        />
-      )}
-
       {reader.modal && (
         <ChapterExplanationModal
           chapterId={reader.modal.chapterId}
@@ -477,6 +351,8 @@ export default function BookDetailPage() {
           onDeleteMark={reader.deleteMark}
           onUpdateMarkNote={reader.updateMarkNote}
           marks={marks.filter(m => m.chapterId === reader.modal.chapterId)}
+          favorite={!!chapterById(reader.modal.chapterId)?.favorite}
+          onToggleFavorite={() => handleToggleFavorite(reader.modal.chapterId)}
           relinkMark={reader.modal.relinkMark}
           onRelinkMark={reader.relinkMark}
           onCancelRelink={reader.cancelRelink}

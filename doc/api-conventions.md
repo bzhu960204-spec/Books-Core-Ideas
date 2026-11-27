@@ -7,11 +7,11 @@
 | 情况 | 状态码 | 例子 |
 |---|---|---|
 | 读取 / 更新成功 | 200 + 资源 | `GET /api/books/{id}`、`PUT /api/books/{id}`、`PATCH /api/marks/{id}` |
-| 新建成功 | **201** + 新建的资源（不带 `Location` 头：多数子资源没有单独的 GET） | `POST /api/books`、`POST /api/chapters/{id}/ideas` |
+| 新建成功 | **201** + 新建的资源（不带 `Location` 头：多数子资源没有单独的 GET） | `POST /api/books`、`POST /api/chapters/{id}/marks` |
 | 删除成功 | **204**，无响应体 | `DELETE /api/books/{id}` |
 | 资源不存在，或父资源不存在（如 `/books/999/chapters`） | **404** ProblemDetail | `{"status":404,"detail":"Book not found: 999"}` |
 | 可选的单个资源为空：资源本身不存在，但这是正常状态 | **204** | 章节还没有讲解：`GET /api/chapters/{id}/explanation`；书还没有书签：`GET /api/books/{id}/bookmarks/latest` |
-| 查询参数筛选不到结果 | 200 + `[]` | `GET /api/ideas?bookId=999`（筛选条件，不是父资源） |
+| 查询参数筛选不到结果 | 200 + `[]` | `GET /api/bookmarks?bookId=999`（筛选条件，不是父资源） |
 | 请求体不合法（缺字段、超长、越界、类型错误、JSON 格式错误） | 400 ProblemDetail，`detail` 写明字段 | `title: size must be between 0 and 255`、`scrollRatio: must be a valid Double` |
 | 违反数据库约束（理论上校验已拦住） | 409 ProblemDetail | |
 | 未预期的错误 | 500 ProblemDetail（只返回通用提示，详情写日志） | |
@@ -19,13 +19,13 @@
 非 CRUD 的动作按语义处理：
 - 把书加入书单 `POST /api/book-collections/{id}/books/{bookId}`：这是建立关联，不是新建资源，返回 204；
 - 讲解的 `PUT /api/chapters/{id}/explanation` 是 upsert，返回 200；
+- 收藏章节的 `PUT /api/chapters/{id}/favorite` 同样是 upsert，返回 200；`DELETE` 取消收藏是幂等的：章节存在就返回 204（本来没收藏也一样），章节不存在才是 404；
 - 迁移导出、导入、预览返回 200：导入的响应是逐本书的报告，其中可能有跳过或失败的书。
 - 章节图片上传 `POST /api/chapters/{id}/images`（BUG-10）同样返回报告：`{ "images": [新建的图片], "skipped": [{ "name", "reason" }] }`。至少保存一张时为 **201**，一张都没保存时为 **200**。`reason` 是给用户看的一句话。
 - JSON 导入（FE-08）：每个请求**一个事务**，任何一处不合法都不会留下任何数据。
   - `POST /api/books/import`：`{ "books": [...] }`，返回 **201** 和新建的书（`BookDto` 列表，顺序与请求相同）；
-  - `POST /api/books/{id}/import`：`{ "mode": "ADD"|"REPLACE", "parts": [...], "chapters": [...] }`，导入已有书的结构；
-  - `POST /api/books/{id}/import/content`：`{ "mode", "chapters": [{ "chapterId" | "chapter": 标题, "ideas", "excerpts" }] }`，向已有章节导入想法和摘录。
-  - 后两个返回 200 和 `{ parts, chapters, ideas, excerpts }`（新建的数量）。书不存在时返回 404；章节找不到、结构不符（如向 CHAPTERS 书导入 parts）时返回 400。
+  - `POST /api/books/{id}/import`：`{ "mode": "ADD"|"REPLACE", "parts": [...], "chapters": [...] }`，导入已有书的结构，返回 200 和 `{ parts, chapters }`（新建的数量）。书不存在时返回 404；结构不符（如向 CHAPTERS 书导入 parts）时返回 400。
+  - 想法、摘录功能已移除（V13）：旧 JSON 中章节的 `keyIdeas`、`excerpts` 字段会被忽略。
 
 ## 错误格式
 

@@ -14,6 +14,8 @@
   - 端口用 18083/18084（Vite 用 15173），不和日常 dev 的 8080/5173 冲突。
   - 应用只监听 `127.0.0.1`（SEC-03）。脚本和工具访问它时写 `http://127.0.0.1:<端口>`，不要写 `localhost`：在 Windows 上，`localhost` 会先尝试 `::1`，每个请求要多等约 2 秒。浏览器不受影响。
 - **dev 带 devtools**：`backend/target/classes` 一变化就会自动重启，并**对真实库执行 Flyway 迁移**。所以在本仓库执行 Maven（`mvnw.cmd` compile/test/package）之前，先确认 8080 上没有服务在运行。
+  - **VS Code 的 Java 扩展会自动编译**，保存 `.java` 或新建 `db/migration/V*.sql` 时就会更新 `backend/target/classes`，不需要执行 Maven。所以改动数据库结构时，在**新建迁移脚本之前**就停掉 `start-dev`（`stop-dev.ps1`）。曾因此让 V12 提前在真实库上执行，见 [chapter-favorites-feature.md](chapter-favorites-feature.md) 第 7 节。
+  - start-dev 的后端端口记录在 `.bci-dev-state.json`（不一定是 8080）。
   - [tools/rehearsal/build-jar.ps1](../tools/rehearsal/build-jar.ps1) `-Ref <提交>` 在临时 git worktree 中构建，不碰 `backend/target`。
 - **涉及数据库结构的改动**，按顺序：
   1. 停掉应用（`stop-dev.ps1`）；

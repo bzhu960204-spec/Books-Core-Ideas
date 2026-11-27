@@ -110,8 +110,7 @@ class BookResponseTest extends IntegrationTest {
     private long bookWithChapters(String title, int chapters) throws Exception {
         long id = postForId("/api/books", Map.of("title", title));
         for (int i = 1; i <= chapters; i++) {
-            long chapter = postForId("/api/books/" + id + "/chapters", Map.of("title", title + " ch" + i, "orderIndex", i));
-            postForId("/api/chapters/" + chapter + "/ideas", Map.of("content", "idea " + i));
+            postForId("/api/books/" + id + "/chapters", Map.of("title", title + " ch" + i, "orderIndex", i));
         }
         return id;
     }

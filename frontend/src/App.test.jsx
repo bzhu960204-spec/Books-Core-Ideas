@@ -52,8 +52,8 @@ describe('App routes', () => {
     renderApp('/');
     expect(await screen.findByText('Book One')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('link', { name: /Idea Bank/ }));
-    expect(await screen.findByRole('heading', { name: /Idea Bank/ }, LAZY)).toBeTruthy();
+    fireEvent.click(screen.getByRole('link', { name: /Review Bank/ }));
+    expect(await screen.findByRole('heading', { name: /Review Bank/ }, LAZY)).toBeTruthy();
   });
 });
 

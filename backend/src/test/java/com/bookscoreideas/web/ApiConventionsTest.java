@@ -41,8 +41,6 @@ class ApiConventionsTest extends IntegrationTest {
         long book = created(json(post("/api/books"), Map.of("title", "Conventions", "structureType", "PARTS")));
         long part = created(json(post("/api/books/" + book + "/parts"), Map.of("title", "P")));
         long chapter = created(json(post("/api/books/" + book + "/chapters"), Map.of("title", "C", "partId", part)));
-        created(json(post("/api/chapters/" + chapter + "/ideas"), Map.of("content", "i")));
-        created(json(post("/api/chapters/" + chapter + "/excerpts"), Map.of("content", "e")));
         created(json(post("/api/books/" + book + "/reviews"), Map.of("title", "r", "content", "c")));
         created(json(post("/api/chapters/" + chapter + "/bookmarks"), Map.of("scrollRatio", 0.5)));
         created(json(post("/api/chapters/" + chapter + "/marks"), Map.of("quote", "q")));
@@ -58,8 +56,6 @@ class ApiConventionsTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P"));
         long chapter = postForId("/api/books/" + book + "/chapters", Map.of("title", "C", "partId", part));
         long other = postForId("/api/books/" + book + "/chapters", Map.of("title", "C2", "partId", part));
-        long idea = postForId("/api/chapters/" + chapter + "/ideas", Map.of("content", "i"));
-        long excerpt = postForId("/api/chapters/" + chapter + "/excerpts", Map.of("content", "e"));
         long review = postForId("/api/books/" + book + "/reviews", Map.of("title", "r", "content", "c"));
         long bookmark = postForId("/api/chapters/" + chapter + "/bookmarks", Map.of("scrollRatio", 0.5));
         long mark = postForId("/api/chapters/" + chapter + "/marks", Map.of("quote", "q"));
@@ -71,8 +67,6 @@ class ApiConventionsTest extends IntegrationTest {
 
         for (String url : new String[]{
                 "/api/chapters/" + chapter + "/images/" + image,
-                "/api/chapters/" + chapter + "/ideas/" + idea,
-                "/api/chapters/" + chapter + "/excerpts/" + excerpt,
                 "/api/marks/" + mark, // before the explanation: deleting it removes its marks
                 "/api/chapters/" + chapter + "/explanation",
                 "/api/bookmarks/" + bookmark,
@@ -95,8 +89,6 @@ class ApiConventionsTest extends IntegrationTest {
             "/api/books/" + MISSING + "/explanation-chapter-ids",
             "/api/books/" + MISSING + "/bookmarks/latest",
             "/api/book-collections/for-book/" + MISSING,
-            "/api/chapters/" + MISSING + "/ideas",
-            "/api/chapters/" + MISSING + "/excerpts",
             "/api/chapters/" + MISSING + "/images",
             "/api/chapters/" + MISSING + "/marks",
             "/api/chapters/" + MISSING + "/explanation"})
@@ -118,8 +110,7 @@ class ApiConventionsTest extends IntegrationTest {
 
     // Characterisation: query parameters filter a search; an unknown book just matches nothing.
     @ParameterizedTest(name = "GET {0} -> 200 []")
-    @ValueSource(strings = {"/api/ideas?bookId=" + MISSING, "/api/excerpts?bookId=" + MISSING,
-            "/api/bookmarks?bookId=" + MISSING})
+    @ValueSource(strings = {"/api/bookmarks?bookId=" + MISSING, "/api/favorites?bookId=" + MISSING})
     void searchFiltersMatchNothing(String url) throws Exception {
         String body = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(objectMapper.readTree(body)).isEmpty();
@@ -163,9 +154,11 @@ class ApiConventionsTest extends IntegrationTest {
             "DELETE /api/books/" + MISSING,
             "GET /api/books/" + MISSING + "/export",
             "POST /api/books/" + MISSING + "/chapters",
-            "POST /api/chapters/" + MISSING + "/ideas",
+            "POST /api/chapters/" + MISSING + "/bookmarks",
             "DELETE /api/marks/" + MISSING,
-            "DELETE /api/bookmarks/" + MISSING})
+            "DELETE /api/bookmarks/" + MISSING,
+            "PUT /api/chapters/" + MISSING + "/favorite",
+            "DELETE /api/chapters/" + MISSING + "/favorite"})
     void missingItemsAre404ProblemDetails(String request) throws Exception {
         String[] parts = request.split(" ");
         Map<String, Object> body = Map.of("title", "t", "content", "c");

@@ -6,7 +6,7 @@
 // the others when they are next shown.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { QueryClient, keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { bookApi, bookCollectionApi, bookmarkApi, chapterImageApi, excerptBankApi, ideaBankApi, reviewApi } from './api';
+import { bookApi, bookCollectionApi, bookmarkApi, chapterImageApi, favoriteApi, reviewApi } from './api';
 
 export function createQueryClient() {
   return new QueryClient({
@@ -28,8 +28,7 @@ export const queryKeys = {
   bookDetail: (id) => ['book', String(id), 'detail'],
   reviews: ['reviews'],
   bookmarks: ['bookmarks'],
-  ideaSearch: (params) => ['ideas', params],
-  excerptSearch: (params) => ['excerpts', params],
+  favorites: (params) => ['favorites', params],
   chapterImages: (chapterId) => ['chapter', String(chapterId), 'images'],
   collections: ['collections'],
   collectionBooks: (id, includeDescendants) => ['collections', id, 'books', includeDescendants],
@@ -51,17 +50,10 @@ export const useBookmarks = () =>
   useQuery({ queryKey: queryKeys.bookmarks, queryFn: ({ signal }) => bookmarkApi.list(null, { signal }) });
 
 // Searches keep showing the previous results while the next ones load.
-export const useIdeaSearch = (params) =>
+export const useFavorites = (params) =>
   useQuery({
-    queryKey: queryKeys.ideaSearch(params),
-    queryFn: ({ signal }) => ideaBankApi.search(params, { signal }),
-    placeholderData: keepPreviousData,
-  });
-
-export const useExcerptSearch = (params) =>
-  useQuery({
-    queryKey: queryKeys.excerptSearch(params),
-    queryFn: ({ signal }) => excerptBankApi.search(params, { signal }),
+    queryKey: queryKeys.favorites(params),
+    queryFn: ({ signal }) => favoriteApi.list(params, { signal }),
     placeholderData: keepPreviousData,
   });
 

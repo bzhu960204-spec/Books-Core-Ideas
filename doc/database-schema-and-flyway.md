@@ -20,16 +20,18 @@
 | V9 `foreign_keys_and_cascades` | 外键删除规则（见下表）、补齐书单相关外键、子表外键列 NOT NULL、复合外键保证冗余 `book_id` 一致（DB-02） |
 | V10 `modeling_details` | `READING_STATUS` 的 `''` → NULL，`READING_STATUS` / `STRUCTURE_TYPE` 加 CHECK（对应 Java 枚举）；书评、讲解的 `UPDATED_AT` 由 DATE 改为 TIMESTAMP（DB-06） |
 | V11 `mark_orphaned` | `EXPLANATION_MARKS.ORPHANED`（BOOLEAN，默认 FALSE）：编辑讲解后找不到原文的片段标为孤立（见 [explanation-marks/implementation.md](explanation-marks/implementation.md) 第 6.1 节） |
+| V12 `add_chapter_favorites` | 新表 `CHAPTER_FAVORITES`（收藏章节）：每章最多一行（`UK_CHAPTER_FAVORITES_CHAPTER`），复合外键 `(CHAPTER_ID, BOOK_ID) → CHAPTERS` 级联删除（见 [chapter-favorites-feature.md](chapter-favorites-feature.md)） |
+| V13 `drop_key_ideas_and_excerpts` | 删除 `KEY_IDEAS`、`EXCERPTS` 两张表（连同其索引和外键）：想法、摘录功能以及想法库、摘录库已移除，章节只保留讲解。执行前的数据见备份 `data-20261127-213511-before-chapter-favorites.zip`（1,285 条想法、932 条摘录） |
 
 ### 外键删除规则（V9 起）
 
 | 外键 | 规则 |
 |---|---|
 | 书 → Part / 章节 / 书评 / 书单成员 | `ON DELETE CASCADE` |
-| 章节 → 想法 / 摘录 / 讲解 / 书签 / 标记 | `ON DELETE CASCADE` |
+| 章节 → 讲解 / 书签 / 标记 / 收藏 | `ON DELETE CASCADE` |
 | Part → 章节 | `ON DELETE CASCADE`（复合外键 `(PART_ID, BOOK_ID)`，Part 必须属于同一本书） |
 | 书单 → 子书单 / 成员 | `ON DELETE CASCADE` |
-| 书签 / 标记 → 章节 | 复合外键 `(CHAPTER_ID, BOOK_ID) → CHAPTERS(ID, BOOK_ID)`，保证 `BOOK_ID` 与章节一致 |
+| 书签 / 标记 / 收藏 → 章节 | 复合外键 `(CHAPTER_ID, BOOK_ID) → CHAPTERS(ID, BOOK_ID)`，保证 `BOOK_ID` 与章节一致 |
 | **章节 → 章节图片** | **`ON DELETE RESTRICT`**：图片文件只由 JPA 实体监听器删除，绕过 JPA 的删除不能悄悄删掉图片行 |
 
 应用里的删除仍走 JPA 级联（两者同时生效）。手动用 SQL 删书时，数据库会级联删除；但如果书中有图片，会被拒绝，此时请走 API。
@@ -51,7 +53,7 @@
 
 | 对象 | 格式 | 例 |
 |---|---|---|
-| 外键 | `FK_<子表>_<目标>` | `FK_CHAPTERS_BOOK`、`FK_KEY_IDEAS_CHAPTER` |
+| 外键 | `FK_<子表>_<目标>` | `FK_CHAPTERS_BOOK`、`FK_CHAPTER_EXPLANATIONS_CHAPTER` |
 | 唯一约束 | `UK_<表>_<列…>` | `UK_CHAPTER_EXPLANATIONS_CHAPTER` |
 | CHECK 约束 | `CK_<表>_<列>` | `CK_BOOKS_READING_STATUS` |
 | 索引 | `IDX_<表>_<列>` | `IDX_CHAPTERS_PART` |

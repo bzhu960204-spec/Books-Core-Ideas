@@ -1,18 +1,11 @@
 package com.bookscoreideas.dto.jsonimport;
 
-import com.bookscoreideas.dto.ExcerptRequest;
-import com.bookscoreideas.dto.KeyIdeaRequest;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.List;
-
-/** A chapter to import with its key ideas and excerpts (same limits as creating them one by one). */
+/** A chapter to import (same limits as creating it directly). */
 public record ChapterImport(
         @NotBlank @Size(max = 255) String title,
         Integer orderIndex,
-        String summary,
-        List<@Valid KeyIdeaRequest> keyIdeas,
-        List<@Valid ExcerptRequest> excerpts) {
+        String summary) {
 }

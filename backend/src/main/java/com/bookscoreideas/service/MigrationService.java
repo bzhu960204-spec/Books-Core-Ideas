@@ -201,6 +201,7 @@ public class MigrationService {
                         size(dto.reviews()),
                         chapters.stream().mapToInt(c -> size(c.bookmarks())).sum(),
                         chapters.stream().mapToInt(c -> size(c.marks())).sum(),
+                        (int) chapters.stream().filter(c -> c.favorite() != null).count(),
                         size(dto.collectionPaths())));
             }
 

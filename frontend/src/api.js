@@ -77,7 +77,7 @@ function fileForm(field, files) {
 
 export const bookApi = {
   getAll: (opts) => get('/books', opts),
-  // The book page in one request: book, parts, chapters with ideas/excerpts, bookmarks, marks.
+  // The book page in one request: book, parts, chapters, bookmarks, marks.
   detail: (id, opts) => get(`/books/${id}/detail`, opts),
   getCategories: (opts) => get('/books/categories', opts),
   create: (book) => post('/books', book),
@@ -99,18 +99,6 @@ export const partApi = {
   create: (bookId, part) => post(`/books/${bookId}/parts`, part),
   update: (bookId, partId, part) => put(`/books/${bookId}/parts/${partId}`, part),
   delete: (bookId, partId) => del(`/books/${bookId}/parts/${partId}`),
-};
-
-export const ideaApi = {
-  create: (chapterId, idea) => post(`/chapters/${chapterId}/ideas`, idea),
-  update: (chapterId, ideaId, idea) => put(`/chapters/${chapterId}/ideas/${ideaId}`, idea),
-  delete: (chapterId, ideaId) => del(`/chapters/${chapterId}/ideas/${ideaId}`),
-};
-
-export const excerptApi = {
-  create: (chapterId, excerpt) => post(`/chapters/${chapterId}/excerpts`, excerpt),
-  update: (chapterId, excerptId, excerpt) => put(`/chapters/${chapterId}/excerpts/${excerptId}`, excerpt),
-  delete: (chapterId, excerptId) => del(`/chapters/${chapterId}/excerpts/${excerptId}`),
 };
 
 export const explanationApi = {
@@ -137,12 +125,13 @@ export const markApi = {
   delete: (id) => del(`/marks/${id}`),
 };
 
-export const ideaBankApi = {
-  search: ({ q = '', bookId = null, tag = '' } = {}, opts) => get(`/ideas${query({ q, bookId, tag })}`, opts),
-};
-
-export const excerptBankApi = {
-  search: ({ q = '', bookId = null } = {}, opts) => get(`/excerpts${query({ q, bookId })}`, opts),
+// Favorite chapters: chapters whose explanation is worth re-reading, listed across books.
+export const favoriteApi = {
+  // Upsert. Without a note the current note is kept; a note replaces it ('' clears it).
+  add: (chapterId, note) => put(`/chapters/${chapterId}/favorite`, note === undefined ? {} : { note }),
+  remove: (chapterId) => del(`/chapters/${chapterId}/favorite`),
+  // Newest first; q matches chapter title/summary, book title/author and the note.
+  list: ({ q = '', bookId = null } = {}, opts) => get(`/favorites${query({ q, bookId })}`, opts),
 };
 
 // Files per upload request: keeps each request well under the server's multipart limits.
@@ -176,7 +165,6 @@ export const chapterImageApi = {
 export const importApi = {
   books: (body) => post('/books/import', body),
   structure: (bookId, body) => post(`/books/${bookId}/import`, body),
-  content: (bookId, body) => post(`/books/${bookId}/import/content`, body),
 };
 
 export const migrationApi = {

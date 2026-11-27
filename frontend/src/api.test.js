@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  bookApi, bookCollectionApi, bookmarkApi, chapterApi, chapterImageApi, excerptApi, excerptBankApi,
-  explanationApi, ideaApi, ideaBankApi, importApi, markApi, migrationApi, partApi, reviewApi,
+  bookApi, bookCollectionApi, bookmarkApi, chapterApi, chapterImageApi,
+  explanationApi, importApi, markApi, migrationApi, partApi, reviewApi,
 } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -27,12 +27,6 @@ const JSON_CALLS = [
   [() => partApi.create(3, { title: 'p' }), 'POST', '/api/books/3/parts', { title: 'p' }],
   [() => partApi.update(3, 5, { title: 'p' }), 'PUT', '/api/books/3/parts/5', { title: 'p' }],
   [() => partApi.delete(3, 5), 'DELETE', '/api/books/3/parts/5'],
-  [() => ideaApi.create(4, { content: 'i' }), 'POST', '/api/chapters/4/ideas', { content: 'i' }],
-  [() => ideaApi.update(4, 6, { content: 'i' }), 'PUT', '/api/chapters/4/ideas/6', { content: 'i' }],
-  [() => ideaApi.delete(4, 6), 'DELETE', '/api/chapters/4/ideas/6'],
-  [() => excerptApi.create(4, { content: 'e' }), 'POST', '/api/chapters/4/excerpts', { content: 'e' }],
-  [() => excerptApi.update(4, 7, { content: 'e' }), 'PUT', '/api/chapters/4/excerpts/7', { content: 'e' }],
-  [() => excerptApi.delete(4, 7), 'DELETE', '/api/chapters/4/excerpts/7'],
   [() => explanationApi.get(4), 'GET', '/api/chapters/4/explanation'],
   [() => explanationApi.save(4, { content: 'x' }), 'PUT', '/api/chapters/4/explanation', { content: 'x' }],
   [() => explanationApi.delete(4), 'DELETE', '/api/chapters/4/explanation'],
@@ -46,15 +40,10 @@ const JSON_CALLS = [
     { marks: [{ id: 9, orphaned: true }] }],
   [() => markApi.updateNote(9, 'n'), 'PATCH', '/api/marks/9', { note: 'n' }],
   [() => markApi.delete(9), 'DELETE', '/api/marks/9'],
-  [() => ideaBankApi.search(), 'GET', '/api/ideas'],
-  [() => ideaBankApi.search({ q: 'a b&c', bookId: 3, tag: 't' }), 'GET', '/api/ideas?q=a+b%26c&bookId=3&tag=t'],
-  [() => excerptBankApi.search(), 'GET', '/api/excerpts'],
-  [() => excerptBankApi.search({ q: 'x', bookId: 3 }), 'GET', '/api/excerpts?q=x&bookId=3'],
   [() => chapterImageApi.getAll(4), 'GET', '/api/chapters/4/images'],
   [() => chapterImageApi.delete(4, 10), 'DELETE', '/api/chapters/4/images/10'],
   [() => importApi.books({ books: [] }), 'POST', '/api/books/import', { books: [] }],
   [() => importApi.structure(3, { mode: 'ADD' }), 'POST', '/api/books/3/import', { mode: 'ADD' }],
-  [() => importApi.content(3, { mode: 'ADD' }), 'POST', '/api/books/3/import/content', { mode: 'ADD' }],
   [() => reviewApi.getAll(), 'GET', '/api/reviews'],
   [() => reviewApi.create(3, { title: 'r' }), 'POST', '/api/books/3/reviews', { title: 'r' }],
   [() => reviewApi.update(3, 11, { title: 'r' }), 'PUT', '/api/books/3/reviews/11', { title: 'r' }],
@@ -107,7 +96,7 @@ describe('api requests (FE-07 characterization)', () => {
     const { signal } = new AbortController();
     await bookApi.getAll({ signal });
     await bookCollectionApi.booksIn(12, true, { signal });
-    await ideaBankApi.search({ q: 'x' }, { signal });
+    await bookmarkApi.list(null, { signal });
     expect(calls.map(c => c.options.signal)).toEqual([signal, signal, signal]);
   });
 

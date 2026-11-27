@@ -32,12 +32,11 @@ class ForeignKeyConstraintsTest extends IntegrationTest {
         long part = insert("INSERT INTO PARTS (TITLE, BOOK_ID) VALUES ('P', ?)", book);
         long chapter = insert("INSERT INTO CHAPTERS (TITLE, BOOK_ID, PART_ID) VALUES ('C', ?, ?)", book, part);
         long plainChapter = insert("INSERT INTO CHAPTERS (TITLE, BOOK_ID) VALUES ('C2', ?)", book);
-        insert("INSERT INTO KEY_IDEAS (CONTENT, CHAPTER_ID) VALUES ('i', ?)", chapter);
-        insert("INSERT INTO EXCERPTS (CONTENT, CHAPTER_ID) VALUES ('e', ?)", chapter);
         insert("INSERT INTO CHAPTER_EXPLANATIONS (CONTENT, CHAPTER_ID) VALUES ('x', ?)", chapter);
         insert("INSERT INTO BOOK_REVIEWS (CONTENT, BOOK_ID) VALUES ('r', ?)", book);
         insert("INSERT INTO READING_BOOKMARKS (BOOK_ID, CHAPTER_ID) VALUES (?, ?)", book, chapter);
         insert("INSERT INTO EXPLANATION_MARKS (BOOK_ID, CHAPTER_ID, QUOTE) VALUES (?, ?, 'q')", book, plainChapter);
+        insert("INSERT INTO CHAPTER_FAVORITES (BOOK_ID, CHAPTER_ID) VALUES (?, ?)", book, plainChapter);
         long folder = insert("INSERT INTO BOOK_COLLECTIONS (NAME) VALUES ('F')");
         insert("INSERT INTO BOOK_COLLECTION_ITEMS (COLLECTION_ID, BOOK_ID) VALUES (?, ?)", folder, book);
 
@@ -45,12 +44,11 @@ class ForeignKeyConstraintsTest extends IntegrationTest {
 
         assertThat(count("PARTS WHERE BOOK_ID = ?", book)).isZero();
         assertThat(count("CHAPTERS WHERE BOOK_ID = ?", book)).isZero();
-        assertThat(count("KEY_IDEAS WHERE CHAPTER_ID = ?", chapter)).isZero();
-        assertThat(count("EXCERPTS WHERE CHAPTER_ID = ?", chapter)).isZero();
         assertThat(count("CHAPTER_EXPLANATIONS WHERE CHAPTER_ID = ?", chapter)).isZero();
         assertThat(count("BOOK_REVIEWS WHERE BOOK_ID = ?", book)).isZero();
         assertThat(count("READING_BOOKMARKS WHERE BOOK_ID = ?", book)).isZero();
         assertThat(count("EXPLANATION_MARKS WHERE BOOK_ID = ?", book)).isZero();
+        assertThat(count("CHAPTER_FAVORITES WHERE BOOK_ID = ?", book)).isZero();
         assertThat(count("BOOK_COLLECTION_ITEMS WHERE BOOK_ID = ?", book)).isZero();
         assertThat(count("BOOK_COLLECTIONS WHERE ID = ?", folder)).isOne();
     }
@@ -60,12 +58,12 @@ class ForeignKeyConstraintsTest extends IntegrationTest {
         long book = book();
         long part = insert("INSERT INTO PARTS (TITLE, BOOK_ID) VALUES ('P', ?)", book);
         long chapter = insert("INSERT INTO CHAPTERS (TITLE, BOOK_ID, PART_ID) VALUES ('C', ?, ?)", book, part);
-        insert("INSERT INTO KEY_IDEAS (CONTENT, CHAPTER_ID) VALUES ('i', ?)", chapter);
+        insert("INSERT INTO CHAPTER_EXPLANATIONS (CONTENT, CHAPTER_ID) VALUES ('x', ?)", chapter);
 
         jdbc.update("DELETE FROM PARTS WHERE ID = ?", part);
 
         assertThat(count("CHAPTERS WHERE ID = ?", chapter)).isZero();
-        assertThat(count("KEY_IDEAS WHERE CHAPTER_ID = ?", chapter)).isZero();
+        assertThat(count("CHAPTER_EXPLANATIONS WHERE CHAPTER_ID = ?", chapter)).isZero();
         assertThat(count("BOOKS WHERE ID = ?", book)).isOne();
     }
 
@@ -113,8 +111,6 @@ class ForeignKeyConstraintsTest extends IntegrationTest {
     void childRowsNeedAnOwner() {
         assertRejected("INSERT INTO PARTS (TITLE) VALUES ('P')");
         assertRejected("INSERT INTO CHAPTERS (TITLE) VALUES ('C')");
-        assertRejected("INSERT INTO KEY_IDEAS (CONTENT) VALUES ('i')");
-        assertRejected("INSERT INTO EXCERPTS (CONTENT) VALUES ('e')");
         assertRejected("INSERT INTO CHAPTER_IMAGES (FILENAME) VALUES ('f.png')");
     }
 
@@ -127,6 +123,7 @@ class ForeignKeyConstraintsTest extends IntegrationTest {
 
         assertRejected("INSERT INTO READING_BOOKMARKS (BOOK_ID, CHAPTER_ID) VALUES (?, ?)", otherBook, chapter);
         assertRejected("INSERT INTO EXPLANATION_MARKS (BOOK_ID, CHAPTER_ID, QUOTE) VALUES (?, ?, 'q')", otherBook, chapter);
+        assertRejected("INSERT INTO CHAPTER_FAVORITES (BOOK_ID, CHAPTER_ID) VALUES (?, ?)", otherBook, chapter);
         assertRejected("INSERT INTO CHAPTERS (TITLE, BOOK_ID, PART_ID) VALUES ('C', ?, ?)", book, otherPart);
         assertRejected("UPDATE CHAPTERS SET PART_ID = ? WHERE ID = ?", otherPart, chapter);
     }

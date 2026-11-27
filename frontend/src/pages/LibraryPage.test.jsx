@@ -21,15 +21,13 @@ const BOOK = {
   chapters: [{
     title: 'Chapter 1',
     orderIndex: 1,
-    keyIdeas: [{ content: 'An idea', orderIndex: 1 }],
-    excerpts: [{ content: 'A memorable passage', note: 'Why it matters', source: 'p.42', orderIndex: 1 }],
+    summary: 'Overview',
   }],
 };
 
 describe('LibraryPage JSON import (FE-08)', () => {
-  // Regression (BUG-06): the browser created the book piece by piece and never sent
-  // the chapters' excerpts anywhere they were stored.
-  it('sends the whole book, excerpts included, in one import request', async () => {
+  // Regression (BUG-06): the browser created the book piece by piece.
+  it('sends the whole book, chapters included, in one import request', async () => {
     const { writes } = installFakeBackend();
     render(
       <QueryClientProvider client={createQueryClient()}>
@@ -80,7 +78,7 @@ describe('LibraryPage failures (FE-05)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Could not delete the book — Failed: DELETE /api/books/1');
-    expect(screen.getByText(/Are you sure you want to delete "Book One"/)).toBeTruthy();
+    expect(screen.getByText('Are you sure you want to delete "Book One"? All chapters and explanations will be lost.')).toBeTruthy();
   });
 
   it('reports a failed rating', async () => {

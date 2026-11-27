@@ -35,8 +35,7 @@ class ChapterExplanationLoadingTest extends IntegrationTest {
         Statistics stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         stats.clear();
         putJson("/api/books/" + book + "/chapters/" + chapter, Map.of("title", "C1 renamed"));
-        postForId("/api/chapters/" + chapter + "/ideas", Map.of("content", "idea"));
-        postForId("/api/chapters/" + chapter + "/excerpts", Map.of("content", "excerpt"));
+        postForId("/api/chapters/" + chapter + "/bookmarks", Map.of("scrollRatio", 0.5));
 
         assertThat(stats.getEntityStatistics(ChapterExplanation.class.getName()).getLoadCount()).isZero();
     }

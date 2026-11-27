@@ -40,15 +40,6 @@ public class Chapter {
     @Transient
     private Long partId;
 
-    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("orderIndex ASC")
-    private List<KeyIdea> keyIdeas = new ArrayList<>();
-
-    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("orderIndex ASC")
-    @JsonIgnore
-    private List<Excerpt> excerpts = new ArrayList<>();
-
     // The optional explanation (详解, ChapterExplanation) is deliberately not mapped
     // here: an inverse one-to-one can't be lazy, so every chapter load would read
     // its full text. It is deleted with the chapter by the database (V9 cascade).
@@ -87,10 +78,6 @@ public class Chapter {
     public void setPart(Part part) { this.part = part; }
     public Long getPartId() { return part != null ? part.getId() : partId; }
     public void setPartId(Long partId) { this.partId = partId; }
-    public List<KeyIdea> getKeyIdeas() { return keyIdeas; }
-    public void setKeyIdeas(List<KeyIdea> keyIdeas) { this.keyIdeas = keyIdeas; }
-    public List<Excerpt> getExcerpts() { return excerpts; }
-    public void setExcerpts(List<Excerpt> excerpts) { this.excerpts = excerpts; }
     @JsonIgnore
     public List<ReadingBookmark> getBookmarks() { return bookmarks; }
     @JsonIgnore

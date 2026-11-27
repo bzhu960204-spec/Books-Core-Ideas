@@ -3,26 +3,22 @@ package com.bookscoreideas.service;
 import com.bookscoreideas.dto.SkippedFile;
 import com.bookscoreideas.dto.migration.BookmarkArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
-import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
 import com.bookscoreideas.dto.migration.ImageArchiveDto;
-import com.bookscoreideas.dto.migration.KeyIdeaArchiveDto;
 import com.bookscoreideas.dto.migration.MarkArchiveDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
 import com.bookscoreideas.entity.Book;
 import com.bookscoreideas.entity.Chapter;
 import com.bookscoreideas.entity.ChapterExplanation;
+import com.bookscoreideas.entity.ChapterFavorite;
 import com.bookscoreideas.entity.ChapterImage;
-import com.bookscoreideas.entity.Excerpt;
 import com.bookscoreideas.entity.ExplanationMark;
-import com.bookscoreideas.entity.KeyIdea;
 import com.bookscoreideas.entity.Part;
 import com.bookscoreideas.entity.ReadingBookmark;
 import com.bookscoreideas.repository.ChapterExplanationRepository;
+import com.bookscoreideas.repository.ChapterFavoriteRepository;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.ExcerptRepository;
 import com.bookscoreideas.repository.ExplanationMarkRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.bookscoreideas.repository.ReadingBookmarkRepository;
 import org.springframework.stereotype.Component;
@@ -48,27 +44,24 @@ public class BookTreeWriter {
 
     private final PartRepository partRepository;
     private final ChapterRepository chapterRepository;
-    private final KeyIdeaRepository keyIdeaRepository;
-    private final ExcerptRepository excerptRepository;
     private final ChapterExplanationRepository explanationRepository;
     private final ChapterImageRepository imageRepository;
     private final ReadingBookmarkRepository bookmarkRepository;
     private final ExplanationMarkRepository markRepository;
+    private final ChapterFavoriteRepository favoriteRepository;
     private final ChapterImageStorage storage;
 
     public BookTreeWriter(PartRepository partRepository, ChapterRepository chapterRepository,
-                          KeyIdeaRepository keyIdeaRepository, ExcerptRepository excerptRepository,
                           ChapterExplanationRepository explanationRepository, ChapterImageRepository imageRepository,
                           ReadingBookmarkRepository bookmarkRepository, ExplanationMarkRepository markRepository,
-                          ChapterImageStorage storage) {
+                          ChapterFavoriteRepository favoriteRepository, ChapterImageStorage storage) {
         this.partRepository = partRepository;
         this.chapterRepository = chapterRepository;
-        this.keyIdeaRepository = keyIdeaRepository;
-        this.excerptRepository = excerptRepository;
         this.explanationRepository = explanationRepository;
         this.imageRepository = imageRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.markRepository = markRepository;
+        this.favoriteRepository = favoriteRepository;
         this.storage = storage;
     }
 
@@ -92,8 +85,8 @@ public class BookTreeWriter {
     }
 
     /**
-     * A chapter (in {@code part}, or ungrouped when null) with its ideas, excerpts,
-     * explanation, bookmarks, marks and images.
+     * A chapter (in {@code part}, or ungrouped when null) with its
+     * explanation, bookmarks, marks, favorite and images.
      * The archive may come from someone else (SEC-04): an image is imported only if its
      * bytes are a supported {@link ImageType}, which also decides the stored name and type;
      * every other image goes to {@code skippedImages}.
@@ -111,13 +104,6 @@ public class BookTreeWriter {
         chapter.setBook(book);
         if (part != null) chapter.setPart(part);
         chapter = chapterRepository.save(chapter);
-
-        if (dto.keyIdeas() != null) {
-            for (KeyIdeaArchiveDto idea : dto.keyIdeas()) writeIdea(chapter, idea);
-        }
-        if (dto.excerpts() != null) {
-            for (ExcerptArchiveDto excerpt : dto.excerpts()) writeExcerpt(chapter, excerpt);
-        }
 
         if (dto.explanation() != null && dto.explanation().content() != null
                 && !dto.explanation().content().isBlank()) {
@@ -155,6 +141,15 @@ public class BookTreeWriter {
                 mark.setUpdatedAt(parseDateTime(markDto.updatedAt()));
                 markRepository.save(mark);
             }
+        }
+
+        if (dto.favorite() != null) {
+            ChapterFavorite favorite = new ChapterFavorite();
+            favorite.setBook(book);
+            favorite.setChapter(chapter);
+            favorite.setNote(dto.favorite().note());
+            favorite.setCreatedAt(parseDateTime(dto.favorite().createdAt()));
+            favoriteRepository.save(favorite);
         }
 
         if (dto.images() != null) {
@@ -208,28 +203,6 @@ public class BookTreeWriter {
             if (!storage.store(filename, in)) throw new IOException("invalid file name " + filename);
             return Optional.of(new StoredFile(filename, type.get()));
         }
-    }
-
-    public void writeIdea(Chapter chapter, KeyIdeaArchiveDto dto) {
-        KeyIdea idea = new KeyIdea();
-        idea.setContent(dto.content());
-        idea.setExample(dto.example());
-        idea.setTags(dto.tags());
-        idea.setHighlighted(dto.highlighted());
-        idea.setOrderIndex(dto.orderIndex());
-        idea.setChapter(chapter);
-        keyIdeaRepository.save(idea);
-    }
-
-    public void writeExcerpt(Chapter chapter, ExcerptArchiveDto dto) {
-        Excerpt excerpt = new Excerpt();
-        excerpt.setContent(dto.content());
-        excerpt.setNote(dto.note());
-        excerpt.setSource(dto.source());
-        excerpt.setHighlighted(dto.highlighted());
-        excerpt.setOrderIndex(dto.orderIndex());
-        excerpt.setChapter(chapter);
-        excerptRepository.save(excerpt);
     }
 
     static LocalDate parseDate(String value) {

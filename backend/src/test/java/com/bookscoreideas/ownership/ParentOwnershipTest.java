@@ -2,8 +2,6 @@ package com.bookscoreideas.ownership;
 
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.ExcerptRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.bookscoreideas.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,14 +24,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Regression for BUG-05: a child resource addressed under the wrong parent
- * (e.g. /chapters/{otherChapter}/ideas/{id}) must be 404, not silently changed.
+ * (e.g. /books/{otherBook}/chapters/{id}) must be 404, not silently changed.
  */
 class ParentOwnershipTest extends IntegrationTest {
 
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
 
-    @Autowired private KeyIdeaRepository ideaRepository;
-    @Autowired private ExcerptRepository excerptRepository;
     @Autowired private ChapterRepository chapterRepository;
     @Autowired private PartRepository partRepository;
     @Autowired private ChapterImageRepository imageRepository;
@@ -49,36 +45,6 @@ class ParentOwnershipTest extends IntegrationTest {
         bookB = postForId("/api/books", Map.of("title", "Owner B"));
         chapterA = postForId("/api/books/" + bookA + "/chapters", Map.of("title", "A1"));
         chapterB = postForId("/api/books/" + bookB + "/chapters", Map.of("title", "B1"));
-    }
-
-    @Test
-    void ideaUnderWrongChapterIs404AndUntouched() throws Exception {
-        long ideaId = postForId("/api/chapters/" + chapterA + "/ideas", Map.of("content", "original"));
-
-        mockMvc.perform(putRaw("/api/chapters/" + chapterB + "/ideas/" + ideaId, "{\"content\":\"hijacked\"}"))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(delete("/api/chapters/" + chapterB + "/ideas/" + ideaId))
-                .andExpect(status().isNotFound());
-
-        assertThat(ideaRepository.findById(ideaId)).get()
-                .extracting(i -> i.getContent()).isEqualTo("original");
-
-        mockMvc.perform(putRaw("/api/chapters/" + chapterA + "/ideas/" + ideaId, "{\"content\":\"edited\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content").value("edited"));
-    }
-
-    @Test
-    void excerptUnderWrongChapterIs404AndUntouched() throws Exception {
-        long excerptId = postForId("/api/chapters/" + chapterA + "/excerpts", Map.of("content", "original"));
-
-        mockMvc.perform(putRaw("/api/chapters/" + chapterB + "/excerpts/" + excerptId, "{\"content\":\"hijacked\"}"))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(delete("/api/chapters/" + chapterB + "/excerpts/" + excerptId))
-                .andExpect(status().isNotFound());
-
-        assertThat(excerptRepository.findById(excerptId)).get()
-                .extracting(e -> e.getContent()).isEqualTo("original");
     }
 
     @Test

@@ -22,34 +22,23 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class JsonBindingTest extends IntegrationTest {
 
     @Test
-    void anExplicitNullForAFlagMeansFalse() throws Exception {
-        long chapter = newChapter();
-
-        JsonNode idea = send("/api/chapters/" + chapter + "/ideas", "{\"content\":\"i\",\"highlighted\":null}");
-        JsonNode excerpt = send("/api/chapters/" + chapter + "/excerpts", "{\"content\":\"e\",\"highlighted\":null}");
-
-        assertThat(idea.get("highlighted").asBoolean(true)).isFalse();
-        assertThat(excerpt.get("highlighted").asBoolean(true)).isFalse();
-    }
-
-    @Test
     void unknownFieldsAreIgnored() throws Exception {
-        long chapter = newChapter();
+        long book = newBook();
 
-        JsonNode idea = send("/api/chapters/" + chapter + "/ideas", "{\"content\":\"i\",\"color\":\"red\",\"likes\":3}");
+        JsonNode chapter = send("/api/books/" + book + "/chapters", "{\"title\":\"c\",\"color\":\"red\",\"likes\":3}");
 
-        assertThat(idea.get("content").asString()).isEqualTo("i");
-        assertThat(idea.has("color")).isFalse();
+        assertThat(chapter.get("title").asString()).isEqualTo("c");
+        assertThat(chapter.has("color")).isFalse();
     }
 
     // Changed on purpose with Jackson 3 (BE-10): Jackson 2 read the first value and ignored
     // whatever followed it, so a truncated or concatenated body could be half-applied.
     @Test
     void contentAfterTheBodyIsA400() throws Exception {
-        long chapter = newChapter();
+        long book = newBook();
 
-        MockHttpServletResponse response = mockMvc.perform(post("/api/chapters/" + chapter + "/ideas")
-                        .contentType(APPLICATION_JSON).content("{\"content\":\"i\"} {\"content\":\"j\"}"))
+        MockHttpServletResponse response = mockMvc.perform(post("/api/books/" + book + "/chapters")
+                        .contentType(APPLICATION_JSON).content("{\"title\":\"i\"} {\"title\":\"j\"}"))
                 .andReturn().getResponse();
 
         assertThat(response.getStatus()).isEqualTo(400);
@@ -84,9 +73,8 @@ class JsonBindingTest extends IntegrationTest {
                 .containsExactly("title", "status", "detail", "instance");
     }
 
-    private long newChapter() throws Exception {
-        long book = postForId("/api/books", Map.of("title", "Binding " + System.nanoTime()));
-        return postForId("/api/books/" + book + "/chapters", Map.of("title", "Ch"));
+    private long newBook() throws Exception {
+        return postForId("/api/books", Map.of("title", "Binding " + System.nanoTime()));
     }
 
     private JsonNode send(String url, String json) throws Exception {

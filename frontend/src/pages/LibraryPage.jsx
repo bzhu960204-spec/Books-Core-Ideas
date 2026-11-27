@@ -23,7 +23,7 @@ const BOOK_JSON_HINT = `// Single book (simple):
   "description": "A tour of the mind..."
 }
 
-// Or with chapters, key ideas and excerpts nested
+// Or with chapters nested
 // (a book's "Export JSON" output imports as is):
 {
   "title": "My Book",
@@ -32,13 +32,7 @@ const BOOK_JSON_HINT = `// Single book (simple):
     {
       "title": "Chapter 1",
       "orderIndex": 1,
-      "summary": "Overview...",
-      "keyIdeas": [
-        { "content": "Key concept", "example": "For example...", "orderIndex": 1 }
-      ],
-      "excerpts": [
-        { "content": "A memorable passage...", "note": "Why it matters", "orderIndex": 1 }
-      ]
+      "summary": "Overview..."
     }
   ]
 }`;
@@ -417,7 +411,7 @@ export default function LibraryPage() {
 
       {deleteTarget && (
         <ConfirmDialog
-          message={`Are you sure you want to delete "${deleteTarget.title}"? All chapters and ideas will be lost.`}
+          message={`Are you sure you want to delete "${deleteTarget.title}"? All chapters and explanations will be lost.`}
           onConfirm={handleDelete}
           onClose={() => setDeleteTarget(null)}
         />

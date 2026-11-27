@@ -2,7 +2,8 @@
 
 usage: python check_detail.py <api_dir>     (a capture_api.py output directory)
 detail.book == /books/{id}; parts == /parts; bookmarks == /bookmarks?bookId; marks == /marks;
-each chapter == /chapters entry + its /excerpts, image count and explanation flag.
+each chapter == /chapters entry + its image count, explanation flag and favorite flag
+(/favorites?bookId).
 """
 import json, os, sys
 
@@ -36,13 +37,16 @@ for book in body('books'):
         if detail[key] != value:
             problems.append(f'book {i}: {key} differs')
     explained = set(body(f'book-{i}-expl-ids') or [])
+    # /favorites?bookId is captured since favorites exist (V12); older captures have no favorite flag.
+    favorites = body(f'book-{i}-favorites')
+    starred = {f['chapterId'] for f in favorites} if favorites is not None else None
     chapters = []
     for ch in body(f'book-{i}-chapters'):
         c = ch['id']
-        chapters.append({**ch, 'excerpts': body(f'ch-{c}-excerpts'),
-                         'imageCount': len(body(f'ch-{c}-images') or []), 'hasExplanation': c in explained})
-        if [k['id'] for k in ch['keyIdeas']] != [k['id'] for k in body(f'ch-{c}-ideas')]:
-            problems.append(f'chapter {c}: keyIdeas order differs from /chapters/{c}/ideas')
+        expected_chapter = {**ch, 'imageCount': len(body(f'ch-{c}-images') or []), 'hasExplanation': c in explained}
+        if starred is not None:
+            expected_chapter['favorite'] = c in starred
+        chapters.append(expected_chapter)
     if detail['chapters'] != chapters:
         problems.append(f'book {i}: chapters differ')
     checked += 1

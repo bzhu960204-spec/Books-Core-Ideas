@@ -18,11 +18,8 @@ export default function Sidebar() {
         <NavLink to="/collections" className={({ isActive }) => isActive ? 'active' : ''}>
           <span>🗂️</span> Collections
         </NavLink>
-        <NavLink to="/ideas" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span>💡</span> Idea Bank
-        </NavLink>
-        <NavLink to="/excerpts" className={({ isActive }) => isActive ? 'active' : ''}>
-          <span>📖</span> Excerpt Bank
+        <NavLink to="/favorites" className={({ isActive }) => isActive ? 'active' : ''}>
+          <span>⭐</span> Favorite Chapters
         </NavLink>
         <NavLink to="/reviews" className={({ isActive }) => isActive ? 'active' : ''}>
           <span>📝</span> Review Bank

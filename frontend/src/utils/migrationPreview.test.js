@@ -10,7 +10,7 @@ describe('previewSummary', () => {
 
   it('adds what format v2 carries, with plurals', () => {
     expect(previewSummary({ chapterCount: 5, imageCount: 1, hasExplanations: false,
-      reviewCount: 1, bookmarkCount: 4, markCount: 2, collectionCount: 1 }))
-      .toBe('5 ch · 1 img · 1 review · 4 bookmarks · 2 marks · 1 collection');
+      reviewCount: 1, bookmarkCount: 4, markCount: 2, favoriteCount: 3, collectionCount: 1 }))
+      .toBe('5 ch · 1 img · 1 review · 4 bookmarks · 2 marks · 3 favorites · 1 collection');
   });
 });

@@ -25,19 +25,13 @@ class BookJsonExportTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1, "summary", "ps"));
         long chapter = postForId("/api/books/" + book + "/chapters",
                 Map.of("title", "C1", "orderIndex", 1, "summary", "<p>s</p>", "partId", part));
-        postForId("/api/chapters/" + chapter + "/ideas",
-                Map.of("content", "idea", "example", "ex", "tags", "t1", "highlighted", true, "orderIndex", 1));
-        postForId("/api/chapters/" + chapter + "/excerpts",
-                Map.of("content", "quote", "note", "n", "source", "p.1", "orderIndex", 1));
         putJson("/api/chapters/" + chapter + "/explanation", Map.of("content", "<p>not in this format</p>"));
         postForId("/api/books/" + book + "/reviews", Map.of("title", "r", "content", "not in this format"));
 
         assertThat(export(book)).isEqualTo("{\"title\":\"Parts JSON\",\"author\":\"A\",\"isbn\":\"123\",\"description\":\"d\","
                 + "\"category\":\"c1;c2\",\"rating\":4,\"readingStatus\":\"READING\",\"dateAdded\":\"" + LocalDate.now() + "\","
                 + "\"structureType\":\"PARTS\",\"parts\":[{\"title\":\"P1\",\"orderIndex\":1,\"summary\":\"ps\",\"chapters\":["
-                + "{\"title\":\"C1\",\"orderIndex\":1,\"summary\":\"<p>s</p>\","
-                + "\"keyIdeas\":[{\"content\":\"idea\",\"example\":\"ex\",\"tags\":\"t1\",\"highlighted\":true,\"orderIndex\":1}],"
-                + "\"excerpts\":[{\"content\":\"quote\",\"note\":\"n\",\"source\":\"p.1\",\"highlighted\":false,\"orderIndex\":1}]}]}]}");
+                + "{\"title\":\"C1\",\"orderIndex\":1,\"summary\":\"<p>s</p>\"}]}]}");
     }
 
     @Test
@@ -47,8 +41,7 @@ class BookJsonExportTest extends IntegrationTest {
 
         assertThat(export(book)).isEqualTo("{\"title\":\"Flat JSON\",\"author\":null,\"isbn\":null,\"description\":null,"
                 + "\"category\":null,\"rating\":null,\"readingStatus\":null,\"dateAdded\":\"" + LocalDate.now() + "\","
-                + "\"structureType\":\"CHAPTERS\",\"chapters\":[{\"title\":\"Only\",\"orderIndex\":1,\"summary\":null,"
-                + "\"keyIdeas\":[],\"excerpts\":[]}]}");
+                + "\"structureType\":\"CHAPTERS\",\"chapters\":[{\"title\":\"Only\",\"orderIndex\":1,\"summary\":null}]}");
     }
 
     /** Regression (BUG-14): a PARTS book's chapters outside any part were left out of the export. */
@@ -57,14 +50,11 @@ class BookJsonExportTest extends IntegrationTest {
         long book = postForId("/api/books", Map.of("title", "Loose JSON", "structureType", "PARTS"));
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1));
         postForId("/api/books/" + book + "/chapters", Map.of("title", "In part", "orderIndex", 1, "partId", part));
-        long loose = postForId("/api/books/" + book + "/chapters", Map.of("title", "Loose", "orderIndex", 2));
-        postForId("/api/chapters/" + loose + "/excerpts", Map.of("content", "kept", "orderIndex", 1));
+        postForId("/api/books/" + book + "/chapters", Map.of("title", "Loose", "orderIndex", 2));
 
         assertThat(export(book)).endsWith("\"structureType\":\"PARTS\",\"parts\":[{\"title\":\"P1\",\"orderIndex\":1,"
-                + "\"summary\":null,\"chapters\":[{\"title\":\"In part\",\"orderIndex\":1,\"summary\":null,"
-                + "\"keyIdeas\":[],\"excerpts\":[]}]}],"
-                + "\"chapters\":[{\"title\":\"Loose\",\"orderIndex\":2,\"summary\":null,\"keyIdeas\":[],"
-                + "\"excerpts\":[{\"content\":\"kept\",\"note\":null,\"source\":null,\"highlighted\":false,\"orderIndex\":1}]}]}");
+                + "\"summary\":null,\"chapters\":[{\"title\":\"In part\",\"orderIndex\":1,\"summary\":null}]}],"
+                + "\"chapters\":[{\"title\":\"Loose\",\"orderIndex\":2,\"summary\":null}]}");
     }
 
     @Test

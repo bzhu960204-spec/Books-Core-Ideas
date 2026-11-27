@@ -11,6 +11,7 @@ export function previewSummary(book) {
   if (book.reviewCount) parts.push(plural(book.reviewCount, 'review'));
   if (book.bookmarkCount) parts.push(plural(book.bookmarkCount, 'bookmark'));
   if (book.markCount) parts.push(plural(book.markCount, 'mark'));
+  if (book.favoriteCount) parts.push(plural(book.favoriteCount, 'favorite'));
   if (book.collectionCount) parts.push(plural(book.collectionCount, 'collection'));
   return parts.join(' · ');
 }

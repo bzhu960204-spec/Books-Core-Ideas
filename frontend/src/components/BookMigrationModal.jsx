@@ -4,8 +4,8 @@ import { migrationApi } from '../api';
 import { previewSummary } from '../utils/migrationPreview';
 
 /**
- * Whole-book migration: export selected books (metadata + chapters/ideas/
- * excerpts + AI explanations + chapter images + reviews, reading bookmarks,
+ * Whole-book migration: export selected books (metadata + chapters + AI
+ * explanations + chapter images + reviews, reading bookmarks,
  * saved passages and collection memberships) as a ZIP archive, and import
  * such an archive back. Conflicting books (same title + author) are skipped.
  */
@@ -97,8 +97,8 @@ function ExportPanel({ books, onClose }) {
   return (
     <div>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 0 }}>
-        Select the books to export. The archive includes book details, chapters, key ideas,
-        excerpts, AI explanations, chapter images, reviews, reading bookmarks, saved passages
+        Select the books to export. The archive includes book details, chapters,
+        AI explanations, chapter images, reviews, reading bookmarks, saved passages
         and the collections each book is in.
       </p>
 

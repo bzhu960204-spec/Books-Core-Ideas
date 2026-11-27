@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 // Where in a drop container the pointer is: the chapter it would be inserted in
 // front of (null = at the end) and, in that case, the last chapter, below which
 // the insertion line shows. Compares the pointer with the middle of each card's
-// header, so tall expanded cards do not push the drop position away from it.
+// header, so tall cards do not push the drop position away from it.
 function dropPosition(container, draggedChapterId, pointerY) {
   const cards = [...container.querySelectorAll('[data-chapter-id]')]
     .filter(el => Number(el.dataset.chapterId) !== draggedChapterId);

@@ -72,8 +72,8 @@ if ($Jar) {
   }
 }
 
-$tables = 'BOOKS', 'PARTS', 'CHAPTERS', 'KEY_IDEAS', 'EXCERPTS', 'BOOK_REVIEWS', 'CHAPTER_IMAGES',
-          'CHAPTER_EXPLANATIONS', 'BOOK_COLLECTIONS', 'BOOK_COLLECTION_ITEMS', 'READING_BOOKMARKS', 'EXPLANATION_MARKS'
+$tables = 'BOOKS', 'PARTS', 'CHAPTERS', 'BOOK_REVIEWS', 'CHAPTER_IMAGES', 'CHAPTER_EXPLANATIONS',
+          'BOOK_COLLECTIONS', 'BOOK_COLLECTION_ITEMS', 'READING_BOOKMARKS', 'EXPLANATION_MARKS', 'CHAPTER_FAVORITES'
 $out = ($root -replace '\\', '/') + '/tables'
 $sql = ($tables | ForEach-Object { "CALL CSVWRITE('$out/$_.csv', 'SELECT * FROM $_ ORDER BY ID', 'charset=UTF-8');" }) -join "`n"
 Set-Content "$root\dump.sql" $sql -Encoding ASCII

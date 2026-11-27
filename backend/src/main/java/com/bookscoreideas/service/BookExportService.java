@@ -2,8 +2,6 @@ package com.bookscoreideas.service;
 
 import com.bookscoreideas.dto.migration.BookArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
-import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
-import com.bookscoreideas.dto.migration.KeyIdeaArchiveDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
 import com.bookscoreideas.repository.BookRepository;
 import org.springframework.stereotype.Service;
@@ -75,28 +73,6 @@ public class BookExportService {
         map.put("title", chapter.title());
         map.put("orderIndex", chapter.orderIndex());
         map.put("summary", chapter.summary());
-        map.put("keyIdeas", chapter.keyIdeas().stream().map(BookExportService::idea).toList());
-        map.put("excerpts", chapter.excerpts().stream().map(BookExportService::excerpt).toList());
-        return map;
-    }
-
-    private static Map<String, Object> idea(KeyIdeaArchiveDto idea) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("content", idea.content());
-        map.put("example", idea.example());
-        map.put("tags", idea.tags());
-        map.put("highlighted", idea.highlighted());
-        map.put("orderIndex", idea.orderIndex());
-        return map;
-    }
-
-    private static Map<String, Object> excerpt(ExcerptArchiveDto excerpt) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        map.put("content", excerpt.content());
-        map.put("note", excerpt.note());
-        map.put("source", excerpt.source());
-        map.put("highlighted", excerpt.highlighted());
-        map.put("orderIndex", excerpt.orderIndex());
         return map;
     }
 }

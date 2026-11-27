@@ -1,6 +1,6 @@
 # Migrate 功能技术文档
 
-> 书籍数据迁移（Migrate）模块：将整本书（含章节、核心观点、摘录、AI 讲解、章节图片、书评、阅读书签、讲解摘录标记、所在书单）导出为可移植的 ZIP 归档，并可在另一套部署中导入还原。
+> 书籍数据迁移（Migrate）模块：将整本书（含章节、AI 讲解、章节图片、书评、阅读书签、讲解摘录标记、收藏章节、所在书单）导出为可移植的 ZIP 归档，并可在另一套部署中导入还原。
 >
 > 归档格式 v2（2026-10-31，BE-08）起，一本书拥有的数据全部随书导出，原始时间戳也会保留。范围与限制见第 4 节"归档范围"。
 
@@ -14,7 +14,7 @@ Migrate 模块用于在不同的应用实例之间**整本搬运书籍数据**�
 
 导出产物是一个**自包含的 ZIP 归档**，内含每本书的完整 JSON 快照与原始图片文件。导入时按书逐本落库，重复的书（同标题 + 同作者）会被自动跳过，互不影响。
 
-涉及的数据实体：`Book` → `Part`（可选分部结构）→ `Chapter` → {`KeyIdea`, `Excerpt`, `ChapterExplanation`, `ChapterImage`, `ReadingBookmark`, `ExplanationMark`}；`Book` → `BookReview`；书所在的 `BookCollection`（以路径表示）。
+涉及的数据实体：`Book` → `Part`（可选分部结构）→ `Chapter` → {`ChapterExplanation`, `ChapterImage`, `ReadingBookmark`, `ExplanationMark`, `ChapterFavorite`}；`Book` → `BookReview`；书所在的 `BookCollection`（以路径表示）。
 
 ## 2. 整体架构
 
@@ -73,6 +73,8 @@ MigrationImporter  ← 单本书事务性落库（@Transactional）
 |---|---|
 | 1 | 书、Part、章节、想法、摘录、讲解、章节图片 |
 | 2（BE-08） | 另加书评 `reviews`、每章的阅读书签 `bookmarks` 和讲解标记 `marks`、书所在书单 `collectionPaths`；导入时保留原始时间戳（书评与讲解的 `updatedAt`，书签与标记的 `createdAt` / `updatedAt`） |
+| 2（收藏章节，V12） | 每章另加可选的 `favorite`，没有升版本号：未收藏的章节和旧归档都是 `null`。旧版应用读到这个字段会忽略它（Jackson 不拒绝未知字段），只是不导入收藏 |
+| 2（移除想法、摘录，V13） | 章节不再导出 `keyIdeas`、`excerpts`，没有升版本号。旧归档中的这两个字段在导入时被忽略；旧版应用导入新归档时，这两项为空 |
 
 ### 归档范围
 
@@ -131,11 +133,10 @@ books-export-2026-10-01.zip
   - `chapters`：`ChapterArchiveDto[]`（无分部时）。
 - 每个 `ChapterArchiveDto` 含 `title`、`orderIndex`、`summary`，以及：
   - `explanation`：`ExplanationArchiveDto { content, updatedAt }`（AI 讲解，可空）
-  - `keyIdeas`：`KeyIdeaArchiveDto[]`（`content`、`example`、`tags`、`highlighted`、`orderIndex`）
-  - `excerpts`：`ExcerptArchiveDto[]`（`content`、`note`、`source`、`highlighted`、`orderIndex`）
   - `images`：`ImageArchiveDto[]`（`filename`、`originalName`、`contentType`、`orderIndex`）
   - `bookmarks`（v2）：`BookmarkArchiveDto[]`（`scrollRatio`、`note`、`createdAt`）。阅读历史时间线按 `createdAt` 排序，所以原样保留。
   - `marks`（v2）：`MarkArchiveDto[]`（`quote`、`prefix`、`suffix`、`startOffset`、`endOffset`、`note`、`createdAt`、`updatedAt`）。偏移量指向同一章节 `explanation` 的正文，两者一起导出，导入后仍然有效。
+  - `favorite`：`FavoriteArchiveDto { note, createdAt }`，该章在"收藏章节"里时才有，否则为 `null`（见 [chapter-favorites-feature.md](chapter-favorites-feature.md)）。
 - `reviews`（v2）：`ReviewArchiveDto[]`（`title`、`content`、`updatedAt`）。
 - `collectionPaths`（v2）：书所在的每个书单，用从根到该书单的名称数组表示，例如 `[["心理学", "习惯"], ["待读"]]`。不使用 ID，因为 ID 在另一套部署里没有意义。
 - 列表按创建顺序（ID 升序）导出，导入后各条目的相对顺序不变。
@@ -202,7 +203,7 @@ books-export-2026-10-01.zip
 `BookMigrationModal.jsx` 提供 Export / Import 两个 Tab：
 
 - **Export**：列出书库，支持按标题/作者过滤、全选（仅作用于当前过滤结果），调用 `migrationApi.exportBooks` 获取 Blob 并触发浏览器下载。
-- **Import**：支持拖拽 / 点击选择多个 `.zip`；每个文件先调 `preview` 展示书数、章节数、图片数、是否含讲解，以及书评/书签/标记/书单数量（v2，仅在非零时显示，文案由 `utils/migrationPreview.js` 生成），并标出冲突；点击导入时逐文件串行调用 `import`，带进度条，最后聚合 `imported / skipped / failed` 汇总。非 zip 文件、重复文件（按 `name+size`）会被过滤。
+- **Import**：支持拖拽 / 点击选择多个 `.zip`；每个文件先调 `preview` 展示书数、章节数、图片数、是否含讲解，以及书评/书签/标记/收藏/书单数量（v2，仅在非零时显示，文案由 `utils/migrationPreview.js` 生成），并标出冲突；点击导入时逐文件串行调用 `import`，带进度条，最后聚合 `imported / skipped / failed` 汇总。非 zip 文件、重复文件（按 `name+size`）会被过滤。
 
 `migrationApi`（[frontend/src/api.js](../frontend/src/api.js#L139)）封装三个端点，导出从 `Content-Disposition` 解析下载文件名。
 

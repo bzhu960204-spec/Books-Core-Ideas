@@ -39,16 +39,13 @@ class BookDetailApiTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1));
         long first = postForId("/api/books/" + book + "/chapters", Map.of("title", "One", "orderIndex", 1, "partId", part));
         long second = postForId("/api/books/" + book + "/chapters", Map.of("title", "Two", "orderIndex", 2));
-        postForId("/api/chapters/" + first + "/ideas", Map.of("content", "idea"));
-        postForId("/api/chapters/" + first + "/excerpts", Map.of("content", "later", "orderIndex", 2));
-        postForId("/api/chapters/" + first + "/excerpts", Map.of("content", "earlier", "orderIndex", 1, "note", "n"));
-        postForId("/api/chapters/" + second + "/excerpts", Map.of("content", "other"));
         uploadImage(second);
         uploadImage(second);
         putJson("/api/chapters/" + first + "/explanation", Map.of("content", "<p>text</p>"));
         postForId("/api/chapters/" + first + "/bookmarks", Map.of("scrollRatio", 0.2));
         postForId("/api/chapters/" + second + "/bookmarks", Map.of("scrollRatio", 0.7));
         postForId("/api/chapters/" + first + "/marks", Map.of("quote", "text"));
+        putJson("/api/chapters/" + second + "/favorite", Map.of());
 
         JsonNode detail = getJson("/api/books/" + book + "/detail");
 
@@ -61,21 +58,26 @@ class BookDetailApiTest extends IntegrationTest {
         JsonNode chapters = getJson("/api/books/" + book + "/chapters");
         List<Long> explained = new ArrayList<>();
         getJson("/api/books/" + book + "/explanation-chapter-ids").forEach(id -> explained.add(id.asLong()));
+        List<Long> favorites = new ArrayList<>();
+        getJson("/api/favorites?bookId=" + book).forEach(f -> favorites.add(f.get("chapterId").asLong()));
         ArrayNode expected = objectMapper.createArrayNode();
         for (JsonNode chapter : chapters) {
             long id = chapter.get("id").asLong();
             ObjectNode c = (ObjectNode) chapter.deepCopy();
-            c.set("excerpts", getJson("/api/chapters/" + id + "/excerpts"));
             c.put("imageCount", getJson("/api/chapters/" + id + "/images").size());
             c.put("hasExplanation", explained.contains(id));
+            c.put("favorite", favorites.contains(id));
             expected.add(c);
         }
         assertThat(detail.get("chapters")).isEqualTo(expected);
 
         JsonNode one = detail.get("chapters").get(0);
-        assertThat(one.get("excerpts").get(0).get("content").asString()).isEqualTo("earlier");
+        assertThat(fieldNames(one)).containsExactly("id", "title", "orderIndex", "summary", "partId",
+                "imageCount", "hasExplanation", "favorite");
         assertThat(one.get("hasExplanation").asBoolean()).isTrue();
+        assertThat(one.get("favorite").asBoolean()).isFalse();
         assertThat(detail.get("chapters").get(1).get("imageCount").asLong()).isEqualTo(2);
+        assertThat(detail.get("chapters").get(1).get("favorite").asBoolean()).isTrue();
     }
 
     @Test
@@ -112,12 +114,11 @@ class BookDetailApiTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P"));
         for (int i = 1; i <= chapters; i++) {
             long chapter = postForId("/api/books/" + book + "/chapters", Map.of("title", "c" + i, "orderIndex", i, "partId", part));
-            postForId("/api/chapters/" + chapter + "/ideas", Map.of("content", "i" + i));
-            postForId("/api/chapters/" + chapter + "/excerpts", Map.of("content", "e" + i));
             uploadImage(chapter);
             putJson("/api/chapters/" + chapter + "/explanation", Map.of("content", "<p>x" + i + "</p>"));
             postForId("/api/chapters/" + chapter + "/bookmarks", Map.of("scrollRatio", 0.5));
             postForId("/api/chapters/" + chapter + "/marks", Map.of("quote", "x" + i));
+            putJson("/api/chapters/" + chapter + "/favorite", Map.of());
         }
         return book;
     }

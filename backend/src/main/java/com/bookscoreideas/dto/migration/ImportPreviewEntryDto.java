@@ -10,5 +10,6 @@ public record ImportPreviewEntryDto(
         int reviewCount,
         int bookmarkCount,
         int markCount,
+        int favoriteCount,
         int collectionCount
 ) {}

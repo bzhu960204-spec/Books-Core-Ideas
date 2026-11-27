@@ -9,11 +9,10 @@ import NotFoundPage from './pages/NotFoundPage';
 
 // The library is the first screen; every other page is loaded when first opened (FE-04).
 const BookDetailPage = lazy(() => import('./pages/BookDetailPage'));
-const IdeaBankPage = lazy(() => import('./pages/IdeaBankPage'));
-const ExcerptBankPage = lazy(() => import('./pages/ExcerptBankPage'));
 const ReviewBankPage = lazy(() => import('./pages/ReviewBankPage'));
 const CollectionsPage = lazy(() => import('./pages/CollectionsPage'));
 const ReadingHistoryPage = lazy(() => import('./pages/ReadingHistoryPage'));
+const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
 
 // A fresh page per book: expanded chapters, open dialogs etc. don't carry over.
 function BookDetailRoute() {
@@ -42,11 +41,10 @@ export default function App() {
                   <Routes>
                     <Route path="/" element={<LibraryPage />} />
                     <Route path="/book/:id" element={<BookDetailRoute />} />
-                    <Route path="/ideas" element={<IdeaBankPage />} />
-                    <Route path="/excerpts" element={<ExcerptBankPage />} />
                     <Route path="/reviews" element={<ReviewBankPage />} />
                     <Route path="/collections" element={<CollectionsPage />} />
                     <Route path="/history" element={<ReadingHistoryPage />} />
+                    <Route path="/favorites" element={<FavoritesPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Suspense>

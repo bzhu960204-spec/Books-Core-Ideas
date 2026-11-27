@@ -91,7 +91,7 @@ describe('book header', () => {
   });
 });
 
-describe('chapters and ideas', () => {
+describe('chapters', () => {
   it('adds, edits and deletes chapters', async () => {
     const { writes } = renderBook(bookDetail(1, 'Book One', 2));
 
@@ -120,100 +120,12 @@ describe('chapters and ideas', () => {
     await waitFor(() => expect(screen.queryByText(/This cannot be undone/)).toBeNull());
   });
 
-  it('expands one chapter at a time', async () => {
-    renderBook(bookDetail(1, 'Book One', 2));
+  it('opens a chapter\'s explanation when its header is clicked', async () => {
+    const { requests } = renderBook(bookDetail(1, 'Book One', 2));
 
     fireEvent.click(await screen.findByText('Book One chapter 1'));
-    expect(screen.getByText('Idea of 101')).toBeTruthy();
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText('Book One chapter 2'));
-    expect(screen.queryByText('Idea of 101')).toBeNull();
-    expect(screen.getByText('Idea of 102')).toBeTruthy();
-
-    fireEvent.click(screen.getByText('Book One chapter 2'));
-    expect(screen.queryByText('Idea of 102')).toBeNull();
-  });
-
-  it('stars, adds, edits and deletes ideas', async () => {
-    const { writes } = renderBook(bookDetail(1, 'Book One', 2));
-    fireEvent.click(await screen.findByText('Book One chapter 1'));
-
-    fireEvent.click(screen.getByTitle('Add to Idea Bank'));
-    await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toMatchObject({
-      method: 'PUT', path: '/api/chapters/101/ideas/1010', body: { content: 'Idea of 101', highlighted: true },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: '+ Add Idea' }));
-    fireEvent.change(screen.getByPlaceholderText('Describe the key idea or concept'), { target: { value: 'Fresh idea' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Idea' }));
-    await waitFor(() => expect(writes).toHaveLength(2));
-    expect(writes[1]).toMatchObject({ method: 'POST', path: '/api/chapters/101/ideas', body: { content: 'Fresh idea' } });
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Add Key Idea' })).toBeNull());
-
-    fireEvent.click(screen.getByTitle('Edit idea'));
-    expect(screen.getByRole('heading', { name: 'Edit Key Idea' })).toBeTruthy();
-    expect(screen.getByDisplayValue('Idea of 101')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
-    await waitFor(() => expect(writes).toHaveLength(3));
-    expect(writes[2]).toMatchObject({ method: 'PUT', path: '/api/chapters/101/ideas/1010', body: { content: 'Idea of 101' } });
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edit Key Idea' })).toBeNull());
-
-    fireEvent.click(screen.getByTitle('Delete idea'));
-    expect(screen.getByText('Delete idea "Idea of 101"? This cannot be undone.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(writes).toHaveLength(4));
-    expect(writes[3]).toEqual({ method: 'DELETE', path: '/api/chapters/101/ideas/1010', body: undefined });
-  });
-
-  it('offers the first idea of an empty chapter', async () => {
-    const detail = bookDetail(1, 'Book One', 1);
-    detail.chapters[0].keyIdeas = [];
-    const { writes } = renderBook(detail);
-
-    fireEvent.click(await screen.findByText('Book One chapter 1'));
-    expect(screen.getByText('No key ideas yet for this chapter.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '+ Add First Idea' }));
-    fireEvent.change(screen.getByPlaceholderText('Describe the key idea or concept'), { target: { value: 'First' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Idea' }));
-    await waitFor(() => expect(lastWrite(writes)).toMatchObject({ method: 'POST', path: '/api/chapters/101/ideas' }));
-  });
-
-  it('reads, stars, edits and deletes excerpts', async () => {
-    const { writes } = renderBook(bookDetail(1, 'Book One', 2));
-
-    fireEvent.click((await screen.findAllByTitle('Read excerpts'))[0]);
-    expect(screen.getByText('1 / 2')).toBeTruthy();
-    expect(screen.getByText('Excerpt 1')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
-    expect(screen.getByText('2 / 2')).toBeTruthy();
-
-    fireEvent.click(screen.getByTitle('Add to Excerpt Bank'));
-    await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toMatchObject({
-      method: 'PUT', path: '/api/chapters/101/excerpts/1012', body: { content: 'Excerpt 2', highlighted: true },
-    });
-
-    fireEvent.click(screen.getByTitle('Actions'));
-    fireEvent.click(screen.getByRole('button', { name: '✏️ Edit' }));
-    expect(screen.getByRole('heading', { name: 'Edit Excerpt' })).toBeTruthy();
-    expect(screen.queryByText('2 / 2')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Update' }));
-    await waitFor(() => expect(writes).toHaveLength(2));
-    expect(writes[1]).toMatchObject({ method: 'PUT', path: '/api/chapters/101/excerpts/1012', body: { content: 'Excerpt 2' } });
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Edit Excerpt' })).toBeNull());
-
-    fireEvent.click(screen.getAllByTitle('Read excerpts')[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Next →' }));
-    fireEvent.click(screen.getByTitle('Actions'));
-    fireEvent.click(screen.getByRole('button', { name: '🗑️ Delete' }));
-    expect(screen.getByText('Delete excerpt "Excerpt 2"? This cannot be undone.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    await waitFor(() => expect(writes).toHaveLength(3));
-    expect(writes[2]).toEqual({ method: 'DELETE', path: '/api/chapters/101/excerpts/1012', body: undefined });
-    // The reader reopens on the excerpt before the deleted one.
-    expect(await screen.findByText('Excerpt 1')).toBeTruthy();
+    expect(await screen.findByText('Explanation of Book One chapter 1')).toBeTruthy();
+    expect(requests).toContain('GET /api/chapters/101/explanation');
   });
 
   it('shows image counts and opens the chapter images', async () => {
@@ -236,7 +148,7 @@ describe('chapters and ideas', () => {
 
   it('shows an empty state for a book without chapters', async () => {
     renderBook(bookDetail(1, 'Book One', 0));
-    expect(await screen.findByText("No chapters yet. Add the book's structure to start logging ideas.")).toBeTruthy();
+    expect(await screen.findByText("No chapters yet. Add the book's structure to get started.")).toBeTruthy();
   });
 });
 
@@ -506,5 +418,52 @@ describe('explanations, bookmarks and saved passages', () => {
 
     expect(await screen.findByText('Explanation of Book One chapter 2')).toBeTruthy();
     expect(requests.filter(r => r === 'GET /api/chapters/102/explanation')).toHaveLength(1);
+  });
+});
+
+describe('favorite chapters', () => {
+  it('stars a chapter with an explanation from its row; chapters without one have no star', async () => {
+    const { writes } = renderBook(bookDetail(1, 'Book One', 2));
+
+    const star = await screen.findByTitle('Add to Favorite Chapters');
+    // Only chapter 1 has an explanation.
+    expect(screen.getAllByTitle('Add to Favorite Chapters')).toHaveLength(1);
+    fireEvent.click(star);
+
+    await waitFor(() => expect(writes).toEqual([{ method: 'PUT', path: '/api/chapters/101/favorite', body: {} }]));
+    const starred = await screen.findByTitle('Remove from Favorite Chapters');
+    expect(starred.textContent).toBe('★');
+    expect(starred.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(starred);
+    await waitFor(() => expect(lastWrite(writes)).toEqual({ method: 'DELETE', path: '/api/chapters/101/favorite', body: undefined }));
+    expect(await screen.findByTitle('Add to Favorite Chapters')).toBeTruthy();
+  });
+
+  it('favorites the open explanation from the reader, in step with the chapter row', async () => {
+    const { writes } = renderBook(bookDetail(1, 'Book One', 2));
+
+    fireEvent.click(await screen.findByTitle('View / edit explanation'));
+    expect(await screen.findByText('Explanation of Book One chapter 1')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '☆ Favorite' }));
+
+    await waitFor(() => expect(writes).toEqual([{ method: 'PUT', path: '/api/chapters/101/favorite', body: {} }]));
+    const favorited = await screen.findByRole('button', { name: '★ Favorited' });
+    expect(favorited.getAttribute('aria-pressed')).toBe('true');
+    const row = document.querySelector('[data-chapter-id="101"]');
+    expect(within(row).getByTitle('Remove from Favorite Chapters').textContent).toBe('★');
+
+    fireEvent.click(favorited);
+    await waitFor(() => expect(lastWrite(writes)).toEqual({ method: 'DELETE', path: '/api/chapters/101/favorite', body: undefined }));
+    expect(await screen.findByRole('button', { name: '☆ Favorite' })).toBeTruthy();
+  });
+
+  it('shows the star of a favorite whose explanation was deleted, so it can still be removed', async () => {
+    const detail = bookDetail(1, 'Book One', 2);
+    detail.chapters[1].favorite = true;
+    renderBook(detail);
+
+    expect((await screen.findByTitle('Remove from Favorite Chapters')).closest('[data-chapter-id]').getAttribute('data-chapter-id'))
+      .toBe('102');
   });
 });

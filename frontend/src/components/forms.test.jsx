@@ -5,8 +5,6 @@ import { createQueryClient } from '../queries';
 import BookForm from './BookForm';
 import ChapterForm from './ChapterForm';
 import PartForm from './PartForm';
-import IdeaForm from './IdeaForm';
-import ExcerptForm from './ExcerptForm';
 
 vi.mock('../api', () => ({
   bookApi: { getCategories: vi.fn(() => Promise.resolve([])) },
@@ -57,8 +55,6 @@ describe('edit forms seed their fields from the entity being edited', () => {
   it.each([
     ['ChapterForm', ChapterForm, 'chapter', { title: 'Ch 3', orderIndex: 3, summary: 'S' }, { title: 'Ch 3', orderIndex: 3, summary: 'S' }],
     ['PartForm', PartForm, 'part', { title: 'Part II', orderIndex: 2, summary: '' }, { title: 'Part II', orderIndex: 2, summary: '' }],
-    ['IdeaForm', IdeaForm, 'idea', { content: 'Idea', example: 'Ex', tags: 'a,b', orderIndex: 4 }, { content: 'Idea', example: 'Ex', tags: 'a,b', orderIndex: 4 }],
-    ['ExcerptForm', ExcerptForm, 'excerpt', { content: 'Quote', note: 'N', source: 'p.1', orderIndex: 5 }, { content: 'Quote', note: 'N', source: 'p.1', orderIndex: 5 }],
   ])('%s', (_name, Form, prop, entity, expected) => {
     const onSave = vi.fn();
     render(<Form {...{ [prop]: entity }} onSave={onSave} onClose={() => {}} />);
@@ -69,8 +65,6 @@ describe('edit forms seed their fields from the entity being edited', () => {
   it.each([
     ['ChapterForm', ChapterForm, 'chapter'],
     ['PartForm', PartForm, 'part'],
-    ['IdeaForm', IdeaForm, 'idea'],
-    ['ExcerptForm', ExcerptForm, 'excerpt'],
   ])('%s starts empty with order 1 for a new entry', (_name, Form, prop) => {
     render(<Form {...{ [prop]: null }} onSave={() => {}} onClose={() => {}} />);
     const fields = Array.from(document.querySelectorAll('form input, form textarea'));

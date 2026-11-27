@@ -50,6 +50,8 @@ export default function ChapterExplanationModal({
   onRelinkMark,
   onCancelRelink,
   marks = [],
+  favorite = false,
+  onToggleFavorite,
   bookmarking = false,
   saving = false,
 }) {
@@ -287,6 +289,8 @@ export default function ChapterExplanationModal({
         onCancelEdit={() => { setEditing(false); setFullscreen(false); }}
         onSave={handleSave}
         prefs={prefs}
+        favorite={favorite}
+        onToggleFavorite={onToggleFavorite}
         bookmarking={bookmarking}
         bookmarkSaved={bookmarkSaved}
         onBookmark={handleBookmark}

@@ -3,6 +3,7 @@ package com.bookscoreideas.deletion;
 import com.bookscoreideas.repository.BookCollectionItemRepository;
 import com.bookscoreideas.repository.BookCollectionRepository;
 import com.bookscoreideas.repository.BookReviewRepository;
+import com.bookscoreideas.repository.ChapterFavoriteRepository;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
 import com.bookscoreideas.repository.ExplanationMarkRepository;
@@ -40,6 +41,7 @@ class DeletionCascadeTest extends IntegrationTest {
     @Autowired private BookReviewRepository reviewRepository;
     @Autowired private ReadingBookmarkRepository bookmarkRepository;
     @Autowired private ExplanationMarkRepository markRepository;
+    @Autowired private ChapterFavoriteRepository favoriteRepository;
     @Autowired private BookCollectionItemRepository collectionItemRepository;
     @Autowired private BookCollectionRepository collectionRepository;
 
@@ -100,11 +102,10 @@ class DeletionCascadeTest extends IntegrationTest {
         long bookId = postForId("/api/books", Map.of("title", "Full book", "structureType", "PARTS"));
         long partId = postForId("/api/books/" + bookId + "/parts", Map.of("title", "P1"));
         long chapterId = postForId("/api/books/" + bookId + "/chapters", Map.of("title", "C1", "partId", partId));
-        postForId("/api/chapters/" + chapterId + "/ideas", Map.of("content", "idea"));
-        postForId("/api/chapters/" + chapterId + "/excerpts", Map.of("content", "excerpt"));
         putJson("/api/chapters/" + chapterId + "/explanation", Map.of("content", "<p>explanation</p>"));
         long bookmarkId = postForId("/api/chapters/" + chapterId + "/bookmarks", Map.of("scrollRatio", 0.5));
         long markId = postForId("/api/chapters/" + chapterId + "/marks", Map.of("quote", "explanation"));
+        long favoriteId = putJson("/api/chapters/" + chapterId + "/favorite", Map.of("note", "why")).get("id").asLong();
         long reviewId = postForId("/api/books/" + bookId + "/reviews", Map.of("title", "r", "content", "c"));
         Path file = imageFile(uploadImage(chapterId));
         long collectionId = postForId("/api/book-collections", Map.of("name", "Shelf " + bookId));
@@ -118,6 +119,7 @@ class DeletionCascadeTest extends IntegrationTest {
         assertThat(reviewRepository.existsById(reviewId)).isFalse();
         assertThat(bookmarkRepository.existsById(bookmarkId)).isFalse();
         assertThat(markRepository.existsById(markId)).isFalse();
+        assertThat(favoriteRepository.existsById(favoriteId)).isFalse();
         assertThat(collectionItemRepository.findByBookId(bookId)).isEmpty();
         assertThat(file).doesNotExist();
     }

@@ -29,28 +29,3 @@ export function structureImport(parsed, mode, isPartsBook) {
   }
   return { mode: apiMode(mode), chapters: items };
 }
-
-/** Book page "Ideas (All)" / "Excerpts (All)": groups named by chapter title. kind = 'ideas' | 'excerpts'. */
-export function groupedContentImport(parsed, mode, kind) {
-  const groups = asArray(parsed);
-  requireObjects(groups, 'group');
-  for (const group of groups) {
-    if (!group.chapter) throw new Error('Each group must have a "chapter" field (chapter title).');
-    if (!Array.isArray(group[kind]) || group[kind].length === 0) {
-      throw new Error(`"${kind}" array is required for chapter "${group.chapter}".`);
-    }
-  }
-  return { mode: apiMode(mode), chapters: groups.map(group => ({ chapter: group.chapter, [kind]: group[kind] })) };
-}
-
-/** A chapter's own import tabs. kind = 'ideas' | 'excerpts' (an array) or 'combined' ({ ideas, excerpts }). */
-export function chapterContentImport(parsed, mode, chapterId, kind) {
-  if (kind === 'combined') {
-    const obj = Array.isArray(parsed) ? parsed[0] : parsed;
-    if (!obj || (!obj.ideas && !obj.excerpts)) throw new Error('Object must have an "ideas" and/or "excerpts" array.');
-    return { mode: apiMode(mode), chapters: [{ chapterId, ideas: obj.ideas, excerpts: obj.excerpts }] };
-  }
-  const items = asArray(parsed);
-  requireObjects(items, kind === 'ideas' ? 'idea' : 'excerpt');
-  return { mode: apiMode(mode), chapters: [{ chapterId, [kind]: items }] };
-}

@@ -1,4 +1,4 @@
-/* Book page: chapter list, parts, ideas. */
+/* Book page: chapter list and parts. */
 
 /* ===== CHAPTER LIST ===== */
 .chapter-list {
@@ -195,52 +195,4 @@
 .chapter-actions {
   display: flex;
   gap: 0.25rem;
-}
-
-.chapter-body {
-  border-top: 1px solid var(--border);
-  padding: 1.25rem;
-  background: var(--bg-secondary);
-}
-
-/* ===== IDEAS ===== */
-.idea-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.idea-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--card-radius);
-  padding: 1rem 1.25rem;
-  position: relative;
-}
-
-.idea-content {
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin-bottom: 0.5rem;
-}
-
-.idea-content p, .idea-example p,
-.idea-bank-content p, .idea-bank-example p {
-  margin: 0;
-}
-
-.idea-example {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  padding-left: 1rem;
-  border-left: 2px solid var(--accent);
-  margin-top: 0.5rem;
-}
-
-.idea-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
 }

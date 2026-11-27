@@ -17,6 +17,7 @@
 | [json-import-format.md](json-import-format.md) | JSON 导入格式（英文）：书库、章节 / Part、想法、摘录、单章导入 |
 | [migration-feature.md](migration-feature.md) | 迁移（ZIP 导出 / 导入）：归档格式 v2、导入流程、安全措施 |
 | [collections-feature.md](collections-feature.md) | 书单（嵌套文件夹）：数据模型、接口、前端组件 |
+| [chapter-favorites-feature.md](chapter-favorites-feature.md) | 收藏章节：把值得反复读的章节讲解加星，跨书在"⭐ Favorite Chapters"页找回；数据模型、接口、前端、迁移 |
 | [explanation-marks/implementation.md](explanation-marks/implementation.md) | 讲解片段收藏的实现说明：交互、接口、锚点算法、踩过的坑 |
 | [explanation-outline/implementation.md](explanation-outline/implementation.md) | 章节讲解阅读器的大纲：悬浮面板、当前位置高亮、不改正文 DOM 的跳转方式 |
 | [malformed-link-fix.md](malformed-link-fix.md) | 富文本编辑器中畸形 Markdown 链接的识别与修复 |

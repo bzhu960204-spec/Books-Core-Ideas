@@ -2,9 +2,11 @@
 
 > Moved here from the root README (ENG-05). Request limits and error format: [api-conventions.md](api-conventions.md#请求体) (in Chinese).
 
-The app supports importing data via JSON. Library page has its own import, and each book's detail page has a unified **Import JSON** button with three tabs: **Chapters** (or **Parts**), **Ideas**, **Excerpts**.
+The app supports importing data via JSON. The Library page has its own import, and each book's detail page has an **Import JSON** button for the book's structure: **Chapters** (or **Parts**, for a PARTS book).
 
-> **One step, all or nothing:** every import is sent to the server as one request and saved in one transaction. If anything is invalid, nothing is imported and the error names the field, e.g. `books[1].chapters[0].excerpts[0].content: must not be blank`. Unknown fields are ignored, so a book's **Export JSON** output can be imported as is.
+> **One step, all or nothing:** every import is sent to the server as one request and saved in one transaction. If anything is invalid, nothing is imported and the error names the field, e.g. `books[1].chapters[0].title: must not be blank`. Unknown fields are ignored, so a book's **Export JSON** output can be imported as is.
+
+> **Removed content:** key ideas and excerpts no longer exist (see [database-schema-and-flyway.md](database-schema-and-flyway.md), V13). Older JSON that still has `keyIdeas` / `excerpts` in its chapters imports fine; those fields are ignored. A chapter's content is its explanation, which is written in the app (or brought along by the ZIP [migration](migration-feature.md)), not by JSON import.
 
 > **Book structure:** Each book has a `structureType` of either `"CHAPTERS"` (flat list of chapters, the default) or `"PARTS"` (chapters grouped under parts). The detail page renders and imports according to the book's structure. See [Books with Parts](#books-with-parts) below.
 
@@ -24,7 +26,7 @@ Click **`Import JSON`** on the Library page.
 }
 ```
 
-**Full — with nested chapters, key ideas, and excerpts:**
+**With nested chapters:**
 ```json
 {
   "title": "My Book",
@@ -35,22 +37,7 @@ Click **`Import JSON`** on the Library page.
     {
       "title": "Chapter 1: The Beginning",
       "orderIndex": 1,
-      "summary": "Overview of the chapter...",
-      "keyIdeas": [
-        {
-          "content": "Core insight or concept",
-          "example": "A concrete example or supporting note",
-          "orderIndex": 1
-        }
-      ],
-      "excerpts": [
-        {
-          "content": "A memorable passage...",
-          "note": "Why it matters",
-          "source": "p.42",
-          "orderIndex": 1
-        }
-      ]
+      "summary": "Overview of the chapter..."
     }
   ]
 }
@@ -85,14 +72,14 @@ Click **`Import JSON`** on the Library page.
 
 > If `parts` is present (or `structureType` is `"PARTS"`), the book is created as a PARTS book. See [Books with Parts](#books-with-parts).
 >
-> **Limits** (enforced by the API; a longer value fails with a message naming the field): chapter and part `title` 255, part `summary` 1000, key idea `content` / `example` 3000 and `tags` 500, excerpt `note` 1000 and `source` 300. Chapter `summary` and excerpt `content` are unlimited.
+> **Limits** (enforced by the API; a longer value fails with a message naming the field): chapter and part `title` 255, part `summary` 1000. Chapter `summary` is unlimited.
 
 ---
 
 <a id="books-with-parts"></a>
 ## Books with Parts (Part → Chapter)
 
-For books organized into parts (e.g. "Part One", "Part Two"), set `structureType` to `"PARTS"` and nest chapters inside a `parts` array. Each part has its own `title`, `orderIndex`, and `summary`; chapters keep the same format as flat chapters (with nested `keyIdeas` / `excerpts`).
+For books organized into parts (e.g. "Part One", "Part Two"), set `structureType` to `"PARTS"` and nest chapters inside a `parts` array. Each part has its own `title`, `orderIndex`, and `summary`; chapters keep the same format as flat chapters.
 
 This is also the exact shape produced by the book **Export** button.
 
@@ -110,13 +97,7 @@ This is also the exact shape produced by the book **Export** button.
         {
           "title": "Chapter 1: The Beginning",
           "orderIndex": 1,
-          "summary": "Overview of the chapter...",
-          "keyIdeas": [
-            { "content": "Core insight", "example": "For instance...", "orderIndex": 1 }
-          ],
-          "excerpts": [
-            { "content": "A memorable passage...", "note": "Why it matters", "source": "p.42", "orderIndex": 1 }
-          ]
+          "summary": "Overview of the chapter..."
         }
       ]
     },
@@ -130,7 +111,7 @@ This is also the exact shape produced by the book **Export** button.
 }
 ```
 
-On a PARTS book's detail page, the unified **Import JSON** button's first tab becomes **Parts** and expects an array of parts (the `parts` value above):
+On a PARTS book's detail page, the **Import JSON** button's tab is **Parts** and expects an array of parts (the `parts` value above):
 
 ```json
 [
@@ -160,20 +141,14 @@ On a PARTS book's detail page, the unified **Import JSON** button's first tab be
 
 ## 2. Import Chapters — Book Detail Page → "Chapters" tab
 
-Creates new chapters. Can include nested `keyIdeas` and `excerpts`.
+Creates new chapters. Supports **Add New** (append) or **Replace All** (delete the book's existing parts and chapters first, with everything they own).
 
 ```json
 [
   {
     "title": "Chapter 1: The Beginning",
     "orderIndex": 1,
-    "summary": "Overview of the chapter...",
-    "keyIdeas": [
-      { "content": "Core insight here", "example": "For instance...", "orderIndex": 1 }
-    ],
-    "excerpts": [
-      { "content": "A memorable passage...", "note": "Why it matters", "orderIndex": 1 }
-    ]
+    "summary": "Overview of the chapter..."
   },
   {
     "title": "Chapter 2: Going Deeper",
@@ -190,131 +165,3 @@ Creates new chapters. Can include nested `keyIdeas` and `excerpts`.
 | `title` | string | **Yes** | Max 255 chars |
 | `orderIndex` | integer | No | Sort order |
 | `summary` | string | No | No length limit |
-| `keyIdeas` | array | No | See Key Idea format below |
-| `excerpts` | array | No | See Excerpt format below |
-
----
-
-## 3. Import Key Ideas — Book Detail Page → "Ideas (All)" tab
-
-Import ideas into **existing** chapters across the whole book, grouped by chapter title: an exact title (ignoring case) wins; otherwise the first chapter whose title contains the given text.
-
-Supports **Add New** (append) or **Replace All** (clear the named chapters' existing ideas first; other chapters and their excerpts are untouched).
-
-```json
-[
-  {
-    "chapter": "Chapter 1: The Beginning",
-    "ideas": [
-      { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
-      { "content": "Another idea", "orderIndex": 2 }
-    ]
-  },
-  {
-    "chapter": "Chapter 2: Going Deeper",
-    "ideas": [
-      { "content": "Key concept", "orderIndex": 1 }
-    ]
-  }
-]
-```
-
-**Field reference (per idea):**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `content` | string | **Yes** | Max 3000 chars |
-| `example` | string | No | Max 3000 chars |
-| `tags` | string | No | Comma-separated |
-| `orderIndex` | integer | No | Sort order |
-
----
-
-## 4. Import for Single Chapter (`{}` button on chapter header)
-
-Click the **`{}`** button on any chapter header. A modal opens with three tabs:
-
-**Tab: Ideas** — flat array, imports into this chapter only.
-
-```json
-[
-  { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
-  { "content": "Another idea", "orderIndex": 2 }
-]
-```
-
-**Tab: Excerpts** — flat array, imports into this chapter only.
-
-```json
-[
-  {
-    "content": "The full passage. **Markdown** supported.",
-    "note": "Why it stands out (optional)",
-    "source": "p.42 (optional)",
-    "orderIndex": 1
-  },
-  { "content": "Another memorable passage...", "orderIndex": 2 }
-]
-```
-
-**Tab: Ideas + Excerpts** — import both at once in a single object.
-
-```json
-{
-  "ideas": [
-    { "content": "Core insight", "example": "For instance...", "orderIndex": 1 },
-    { "content": "Another idea", "orderIndex": 2 }
-  ],
-  "excerpts": [
-    {
-      "content": "A memorable passage. **Markdown** supported.",
-      "note": "Why it stands out (optional)",
-      "source": "p.42 (optional)",
-      "orderIndex": 1
-    }
-  ]
-}
-```
-
-All three tabs support **Add New** or **Replace All** (Replace All clears only the kinds you import: `{ "excerpts": [...] }` keeps the chapter's ideas).
-
----
-
-## 5. Import Excerpts — Book Detail Page → "Excerpts (All)" tab
-
-Import excerpts into **existing** chapters across the whole book, grouped by chapter title (matched as in the Ideas tab).
-
-Supports **Add New** (append) or **Replace All** (clear the named chapters' existing excerpts first).
-
-```json
-[
-  {
-    "chapter": "Chapter 1: The Beginning",
-    "excerpts": [
-      {
-        "content": "The full passage text. **Markdown** supported.",
-        "note": "Why this passage stands out (optional)",
-        "source": "p.42 (optional)",
-        "orderIndex": 1
-      }
-    ]
-  },
-  {
-    "chapter": "Chapter 2: Going Deeper",
-    "excerpts": [
-      { "content": "Another memorable passage...", "orderIndex": 1 }
-    ]
-  }
-]
-```
-
-**Field reference (per excerpt):**
-
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `content` | string | **Yes** | Markdown supported |
-| `note` | string | No | Personal annotation, max 1000 chars |
-| `source` | string | No | Page / section reference, max 300 chars |
-| `orderIndex` | integer | No | Sort order |
-
-> Once imported, click the **📖 N** badge on the chapter header to open the full-screen excerpt reader with ←/→ navigation.

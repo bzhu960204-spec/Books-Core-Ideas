@@ -28,29 +28,20 @@ class ChapterApiTest extends IntegrationTest {
     @Autowired private EntityManagerFactory entityManagerFactory;
 
     @Test
-    void chapterListHasChaptersAndTheirIdeasInOrder() throws Exception {
+    void chapterListHasChaptersInOrder() throws Exception {
         long book = postForId("/api/books", Map.of("title", "Shape"));
         long second = postForId("/api/books/" + book + "/chapters", Map.of("title", "Second", "orderIndex", 2));
         long first = postForId("/api/books/" + book + "/chapters", Map.of("title", "First", "orderIndex", 1, "summary", "S"));
-        postForId("/api/chapters/" + first + "/ideas", Map.of("content", "later", "orderIndex", 2));
-        postForId("/api/chapters/" + first + "/ideas", Map.of(
-                "content", "earlier", "orderIndex", 1, "example", "E", "tags", "t", "highlighted", true));
 
         JsonNode list = getJson("/api/books/" + book + "/chapters");
 
         assertThat(list).hasSize(2);
         JsonNode ch = list.get(0);
-        assertThat(fieldNames(ch)).containsExactly("id", "title", "orderIndex", "summary", "partId", "keyIdeas");
+        assertThat(fieldNames(ch)).containsExactly("id", "title", "orderIndex", "summary", "partId");
         assertThat(ch.get("id").asLong()).isEqualTo(first);
         assertThat(ch.get("summary").asString()).isEqualTo("S");
         assertThat(ch.get("partId").isNull()).isTrue();
-        JsonNode idea = ch.get("keyIdeas").get(0);
-        assertThat(fieldNames(idea)).containsExactly("id", "content", "example", "tags", "highlighted", "orderIndex");
-        assertThat(idea.get("content").asString()).isEqualTo("earlier");
-        assertThat(idea.get("highlighted").asBoolean()).isTrue();
-        assertThat(ch.get("keyIdeas").get(1).get("content").asString()).isEqualTo("later");
         assertThat(list.get(1).get("id").asLong()).isEqualTo(second);
-        assertThat(list.get(1).get("keyIdeas")).isEmpty();
     }
 
     @Test
@@ -59,7 +50,7 @@ class ChapterApiTest extends IntegrationTest {
         long part = postForId("/api/books/" + book + "/parts", Map.of("title", "P1", "orderIndex", 1));
 
         JsonNode created = postJson("/api/books/" + book + "/chapters", Map.of("title", "C", "partId", part));
-        assertThat(fieldNames(created)).containsExactly("id", "title", "orderIndex", "summary", "partId", "keyIdeas");
+        assertThat(fieldNames(created)).containsExactly("id", "title", "orderIndex", "summary", "partId");
         assertThat(created.get("partId").asLong()).isEqualTo(part);
 
         Map<String, Object> update = new HashMap<>();
@@ -168,7 +159,7 @@ class ChapterApiTest extends IntegrationTest {
         mockMvc.perform(get("/api/books/999999/parts")).andExpect(status().isNotFound());
     }
 
-    /** Regression: listing chapters loaded each chapter's ideas with its own query (N+1). */
+    /** Regression: listing chapters must not load each chapter with its own query (N+1). */
     @Test
     void chapterListQueryCountDoesNotGrowWithChapters() throws Exception {
         long small = bookWithChapters(1);
@@ -181,8 +172,7 @@ class ChapterApiTest extends IntegrationTest {
     private long bookWithChapters(int chapters) throws Exception {
         long book = postForId("/api/books", Map.of("title", "N" + chapters));
         for (int i = 1; i <= chapters; i++) {
-            long chapter = postForId("/api/books/" + book + "/chapters", Map.of("title", "c" + i, "orderIndex", i));
-            postForId("/api/chapters/" + chapter + "/ideas", Map.of("content", "i" + i));
+            postForId("/api/books/" + book + "/chapters", Map.of("title", "c" + i, "orderIndex", i));
         }
         return book;
     }

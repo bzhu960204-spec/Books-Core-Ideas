@@ -1,20 +1,19 @@
 # Books Core Ideas
 
-A personal reading journal: organise books into chapters (optionally grouped into parts), and keep the key ideas, excerpts, AI explanations and your own reviews for each one. Spring Boot backend, React/Vite frontend, data in a local H2 file. It runs on your own machine and accepts connections from this machine only (there is no login).
+A personal reading journal: organise books into chapters (optionally grouped into parts), and keep an AI explanation for each chapter and your own reviews for each book. Spring Boot backend, React/Vite frontend, data in a local H2 file. It runs on your own machine and accepts connections from this machine only (there is no login).
 
 ## Features
 
 - **Library**: grid, list and compact views; search; filter by rating, category and reading status; set the status straight from a book's card.
 - **Books**: a flat chapter list or Parts → Chapters. Per chapter:
-  - key ideas (tags, highlights) and excerpts, with a full-screen excerpt reader;
   - chapter images (PNG/JPEG/GIF/WebP), if enabled for the book;
   - a rich-text **explanation**: paste from Markdown or AI chats, read full screen, mark where you stopped (a reading bookmark), and save passages with notes. Explanations can be exported as HTML or print-to-PDF.
 - **Collections**: nested folders of books.
-- **Idea Bank / Excerpt Bank**: search all ideas (by book and tag) and all excerpts (by book).
+- **Favorite Chapters**: star chapters whose explanation is worth re-reading (with an optional note) and find them again across all books ([doc/chapter-favorites-feature.md](doc/chapter-favorites-feature.md)).
 - **Review Bank**: your rich-text reviews of books.
 - **Reading History**: where you left off in each book's explanations.
 - **Import / export**:
-  - JSON import into the library, a book, or a chapter (format: [doc/json-import-format.md](doc/json-import-format.md)), and each book's **Export JSON**;
+  - JSON import into the library or a book (format: [doc/json-import-format.md](doc/json-import-format.md)), and each book's **Export JSON**;
   - **Migrate**: ZIP export / import of whole books with everything they own, to move them between installations ([doc/migration-feature.md](doc/migration-feature.md)).
 - Five themes.
 

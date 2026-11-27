@@ -14,7 +14,7 @@
 // - a hash of each 900px screen while scrolling the window (full-page screenshots
 //   in the VS Code browser re-layout the page at another width, so they are not used).
 // The scenarios use books of the real data: 551 (parts, explanations, bookmark),
-// 97 (excerpts), 388 (67 chapters in parts), 195 (chapter images). Library covers
+// 388 (67 chapters in parts), 195 (chapter images). Library covers
 // are external images: a mismatch there that goes away on a re-run is load timing.
 const OLD = 'http://localhost:15174';
 const NEW = 'http://localhost:15173';
@@ -33,23 +33,18 @@ const mk = (BASE) => {
     libList: async () => { await page.evaluate(() => localStorage.setItem('library-view', 'list')); await go('/', '.main-content'); await page.waitForTimeout(800); await settle(); },
     libCompact: async () => { await page.evaluate(() => localStorage.setItem('library-view', 'compact')); await go('/', '.main-content'); await page.waitForTimeout(800); await settle(); },
     parts: async () => { await go('/book/551', '.part-item'); },
-    partsExpanded: async () => { await go('/book/551', '.part-item'); await click('.chapter-header'); await page.waitForTimeout(1200); },
     reader: async () => { await go('/book/551', '.part-item'); await click('button[title="View / edit explanation"]'); await page.waitForSelector('.review-reader-content'); await settle(600); },
     editor: async () => { await go('/book/551', '.part-item'); await click('button[title="View / edit explanation"]'); await page.waitForSelector('.review-reader-content'); await click('button:has-text("Edit")'); await page.waitForSelector('.rte-toolbar'); await click('button[title="More formatting"]'); },
-    excerpts: async () => { await go('/book/97', '.chapter-item'); await click('button[title="Read excerpts"]'); },
     bigParts: async () => { await go('/book/388', '.part-item'); await click('.part-toggle'); },
-    images: async () => { await go('/book/195', '.chapter-item'); await click('.chapter-header', 1); await page.waitForTimeout(1200); },
+    images: async () => { await go('/book/195', '.chapter-item'); await click('button[title="Chapter images"]', 1); await page.waitForTimeout(1200); },
     passages: async () => { await go('/book/551', '.part-item'); await click('button:has-text("Saved Passages")'); },
     importModal: async () => { await go('/book/551', '.part-item'); await click('button:has-text("Import JSON")'); },
-    chapterImport: async () => { await go('/book/97', '.chapter-item'); await click('button[title="Import JSON for this chapter"]'); },
-    ideas: async () => { await go('/ideas', '.main-content'); await page.waitForTimeout(1000); await settle(); },
-    excerptBank: async () => { await go('/excerpts', '.main-content'); await page.waitForTimeout(1000); await settle(); },
     reviews: async () => { await go('/reviews', '.main-content'); await page.waitForTimeout(1000); await settle(); },
     history: async () => { await go('/history', '.main-content'); await page.waitForTimeout(1000); await settle(); },
     collections: async () => { await go('/collections', '.main-content'); await page.waitForTimeout(1000); await settle(); },
   };
 };
-const MODAL = new Set(['reader', 'editor', 'excerpts', 'passages', 'importModal', 'chapterImport']);
+const MODAL = new Set(['reader', 'editor', 'images', 'passages', 'importModal']);
 const capture = async (BASE, theme, name) => {
   await page.goto(BASE + '/history');
   await page.evaluate(t => { localStorage.clear(); localStorage.setItem('book-app-theme', t); }, theme);

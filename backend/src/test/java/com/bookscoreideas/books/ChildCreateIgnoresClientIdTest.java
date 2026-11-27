@@ -1,8 +1,6 @@
 package com.bookscoreideas.books;
 
 import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.ExcerptRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.bookscoreideas.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,8 +20,6 @@ class ChildCreateIgnoresClientIdTest extends IntegrationTest {
 
     @Autowired private ChapterRepository chapterRepository;
     @Autowired private PartRepository partRepository;
-    @Autowired private KeyIdeaRepository ideaRepository;
-    @Autowired private ExcerptRepository excerptRepository;
     @Autowired private TransactionTemplate tx;
 
     private long bookA;
@@ -43,16 +38,14 @@ class ChildCreateIgnoresClientIdTest extends IntegrationTest {
     @Test
     void chapter() throws Exception {
         long created = postForId("/api/books/" + bookB + "/chapters", Map.of(
-                "id", chapterA, "title", "Hijack", "keyIdeas", List.of(Map.of("content", "smuggled"))));
+                "id", chapterA, "title", "Hijack"));
 
         assertThat(created).isNotEqualTo(chapterA);
         tx.executeWithoutResult(s -> {
             var original = chapterRepository.findById(chapterA).orElseThrow();
             assertThat(original.getTitle()).isEqualTo("A1");
             assertThat(original.getBook().getId()).isEqualTo(bookA);
-            assertThat(chapterRepository.findById(created).orElseThrow().getKeyIdeas()).isEmpty();
         });
-        assertThat(ideaRepository.findAll()).noneMatch(i -> "smuggled".equals(i.getContent()));
     }
 
     @Test
@@ -66,34 +59,6 @@ class ChildCreateIgnoresClientIdTest extends IntegrationTest {
             var original = partRepository.findById(partA).orElseThrow();
             assertThat(original.getTitle()).isEqualTo("Part A");
             assertThat(original.getBook().getId()).isEqualTo(bookA);
-        });
-    }
-
-    @Test
-    void idea() throws Exception {
-        long ideaA = postForId("/api/chapters/" + chapterA + "/ideas", Map.of("content", "Idea A"));
-
-        long created = postForId("/api/chapters/" + chapterB + "/ideas", Map.of("id", ideaA, "content", "Hijack"));
-
-        assertThat(created).isNotEqualTo(ideaA);
-        tx.executeWithoutResult(s -> {
-            var original = ideaRepository.findById(ideaA).orElseThrow();
-            assertThat(original.getContent()).isEqualTo("Idea A");
-            assertThat(original.getChapter().getId()).isEqualTo(chapterA);
-        });
-    }
-
-    @Test
-    void excerpt() throws Exception {
-        long excerptA = postForId("/api/chapters/" + chapterA + "/excerpts", Map.of("content", "Excerpt A"));
-
-        long created = postForId("/api/chapters/" + chapterB + "/excerpts", Map.of("id", excerptA, "content", "Hijack"));
-
-        assertThat(created).isNotEqualTo(excerptA);
-        tx.executeWithoutResult(s -> {
-            var original = excerptRepository.findById(excerptA).orElseThrow();
-            assertThat(original.getContent()).isEqualTo("Excerpt A");
-            assertThat(original.getChapter().getId()).isEqualTo(chapterA);
         });
     }
 }

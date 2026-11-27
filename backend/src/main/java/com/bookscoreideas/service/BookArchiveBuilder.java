@@ -3,10 +3,9 @@ package com.bookscoreideas.service;
 import com.bookscoreideas.dto.migration.BookArchiveDto;
 import com.bookscoreideas.dto.migration.BookmarkArchiveDto;
 import com.bookscoreideas.dto.migration.ChapterArchiveDto;
-import com.bookscoreideas.dto.migration.ExcerptArchiveDto;
 import com.bookscoreideas.dto.migration.ExplanationArchiveDto;
+import com.bookscoreideas.dto.migration.FavoriteArchiveDto;
 import com.bookscoreideas.dto.migration.ImageArchiveDto;
-import com.bookscoreideas.dto.migration.KeyIdeaArchiveDto;
 import com.bookscoreideas.dto.migration.MarkArchiveDto;
 import com.bookscoreideas.dto.migration.PartArchiveDto;
 import com.bookscoreideas.dto.migration.ReviewArchiveDto;
@@ -20,11 +19,10 @@ import com.bookscoreideas.repository.BookCollectionItemRepository;
 import com.bookscoreideas.repository.BookCollectionRepository;
 import com.bookscoreideas.repository.BookReviewRepository;
 import com.bookscoreideas.repository.ChapterExplanationRepository;
+import com.bookscoreideas.repository.ChapterFavoriteRepository;
 import com.bookscoreideas.repository.ChapterImageRepository;
 import com.bookscoreideas.repository.ChapterRepository;
-import com.bookscoreideas.repository.ExcerptRepository;
 import com.bookscoreideas.repository.ExplanationMarkRepository;
-import com.bookscoreideas.repository.KeyIdeaRepository;
 import com.bookscoreideas.repository.PartRepository;
 import com.bookscoreideas.repository.ReadingBookmarkRepository;
 import org.springframework.stereotype.Component;
@@ -50,32 +48,30 @@ public class BookArchiveBuilder {
 
     private final PartRepository partRepository;
     private final ChapterRepository chapterRepository;
-    private final KeyIdeaRepository keyIdeaRepository;
-    private final ExcerptRepository excerptRepository;
     private final ChapterExplanationRepository explanationRepository;
     private final ChapterImageRepository imageRepository;
     private final BookReviewRepository reviewRepository;
     private final ReadingBookmarkRepository bookmarkRepository;
     private final ExplanationMarkRepository markRepository;
+    private final ChapterFavoriteRepository favoriteRepository;
     private final BookCollectionRepository collectionRepository;
     private final BookCollectionItemRepository collectionItemRepository;
 
     public BookArchiveBuilder(PartRepository partRepository, ChapterRepository chapterRepository,
-                              KeyIdeaRepository keyIdeaRepository, ExcerptRepository excerptRepository,
                               ChapterExplanationRepository explanationRepository,
                               ChapterImageRepository imageRepository, BookReviewRepository reviewRepository,
                               ReadingBookmarkRepository bookmarkRepository, ExplanationMarkRepository markRepository,
+                              ChapterFavoriteRepository favoriteRepository,
                               BookCollectionRepository collectionRepository,
                               BookCollectionItemRepository collectionItemRepository) {
         this.partRepository = partRepository;
         this.chapterRepository = chapterRepository;
-        this.keyIdeaRepository = keyIdeaRepository;
-        this.excerptRepository = excerptRepository;
         this.explanationRepository = explanationRepository;
         this.imageRepository = imageRepository;
         this.reviewRepository = reviewRepository;
         this.bookmarkRepository = bookmarkRepository;
         this.markRepository = markRepository;
+        this.favoriteRepository = favoriteRepository;
         this.collectionRepository = collectionRepository;
         this.collectionItemRepository = collectionItemRepository;
     }
@@ -122,14 +118,6 @@ public class BookArchiveBuilder {
 
     private ChapterArchiveDto buildChapter(Chapter chapter) {
         Long id = chapter.getId();
-        List<KeyIdeaArchiveDto> ideas = keyIdeaRepository.findByChapterIdOrderByOrderIndexAsc(id).stream()
-                .map(i -> new KeyIdeaArchiveDto(i.getContent(), i.getExample(), i.getTags(), i.isHighlighted(),
-                        i.getOrderIndex()))
-                .toList();
-        List<ExcerptArchiveDto> excerpts = excerptRepository.findByChapterIdOrderByOrderIndexAsc(id).stream()
-                .map(e -> new ExcerptArchiveDto(e.getContent(), e.getNote(), e.getSource(), e.isHighlighted(),
-                        e.getOrderIndex()))
-                .toList();
         ExplanationArchiveDto explanation = explanationRepository.findByChapterId(id)
                 .map(e -> new ExplanationArchiveDto(e.getContent(), text(e.getUpdatedAt())))
                 .orElse(null);
@@ -144,9 +132,12 @@ public class BookArchiveBuilder {
                 .map(m -> new MarkArchiveDto(m.getQuote(), m.getPrefix(), m.getSuffix(), m.getStartOffset(),
                         m.getEndOffset(), m.getNote(), text(m.getCreatedAt()), text(m.getUpdatedAt())))
                 .toList();
+        FavoriteArchiveDto favorite = favoriteRepository.findByChapterId(id)
+                .map(f -> new FavoriteArchiveDto(f.getNote(), text(f.getCreatedAt())))
+                .orElse(null);
 
         return new ChapterArchiveDto(chapter.getTitle(), chapter.getOrderIndex(), chapter.getSummary(),
-                explanation, ideas, excerpts, images, bookmarks, marks);
+                explanation, images, bookmarks, marks, favorite);
     }
 
     /** Folder names from the root down for every collection holding the book, sorted. */
